@@ -1093,6 +1093,10 @@ pub enum Event {
     OpenPluginInstructionsPane(CLIAgent, PluginModalKind),
     OpenShareSessionModal,
     StartRemoteControl,
+    /// Start the local-only Remote Control listener (Unix socket / named pipe).
+    /// Distinct from `StartRemoteControl`, which publishes the session to
+    /// Warp's cloud backend. See `crates/rc_input` for the listener crate.
+    StartLocalRemoteControl,
 }
 
 pub enum InputState {

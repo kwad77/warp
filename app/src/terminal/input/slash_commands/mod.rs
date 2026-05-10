@@ -870,6 +870,11 @@ impl Input {
                 }
                 ctx.emit(Event::StartRemoteControl);
             }
+            remote_control_local
+                if command.name == commands::REMOTE_CONTROL_LOCAL.name =>
+            {
+                ctx.emit(Event::StartLocalRemoteControl);
+            }
             cost if command.name == commands::COST.name => {
                 let history = BlocklistAIHistoryModel::handle(ctx);
                 let conversation = history

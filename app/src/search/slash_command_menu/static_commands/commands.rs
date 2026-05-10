@@ -480,6 +480,15 @@ pub const REMOTE_CONTROL: StaticCommand = StaticCommand {
     argument: None,
 };
 
+pub const REMOTE_CONTROL_LOCAL: StaticCommand = StaticCommand {
+    name: "/remote-control-local",
+    description: "Accept programmatic input via local socket only \u{2014} no cloud",
+    icon_path: "bundled/svg/phone-01.svg",
+    availability: Availability::AI_ENABLED.union(Availability::NOT_CLOUD_AGENT),
+    auto_enter_ai_mode: false,
+    argument: None,
+};
+
 pub const COST: StaticCommand = StaticCommand {
     name: "/cost",
     description: "Toggle credit usage details",
@@ -643,6 +652,8 @@ fn all_commands() -> Vec<StaticCommand> {
     {
         commands.push(REMOTE_CONTROL);
     }
+
+    commands.push(REMOTE_CONTROL_LOCAL);
 
     if FeatureFlag::Changelog.is_enabled() {
         commands.push(CHANGELOG);

@@ -20622,6 +20622,17 @@ impl TerminalView {
                     ctx,
                 );
             }
+            InputEvent::StartLocalRemoteControl => {
+                // TODO(rc_input): spawn `rc_input::Server` here and route
+                // received `InputMsg`s into the same input pathway used by
+                // shared-session viewer input. The crate is already wired into
+                // the workspace (`crates/rc_input`) and unit-tested in
+                // isolation; this hook just plumbs the slash command. See
+                // warp_RC.md §5.2 for the wiring contract.
+                log::info!(
+                    "/remote-control-local invoked \u{2014} rc_input listener spawn not yet implemented"
+                );
+            }
         }
     }
 
