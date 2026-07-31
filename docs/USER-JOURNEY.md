@@ -98,6 +98,10 @@ leaderboard shows her at #14 with a nudge that's about geography, not grinding: 
 from #10 — the river cells are wide open." Nearby undiscovered pins glow faintly on her
 map. That's the loop closing: the map itself generates the next trip.
 
+- [M2] Sunday she sends the miradouro postcard to her mother abroad — photo front,
+  stamped back with place, date, the verified mark, and a line of her own — as a link in
+  their usual messenger. Her mother opens a beautiful web postcard, no app needed, with a
+  quiet "sent with Wanderpost from Lisbon" beneath. That's the growth loop in one gesture.
 - [M2] Monday she gets an opt-in weekly digest: "4 new postcards near you." She connects
   Health — one consent screen stating exactly what's read (daily steps/distance, nothing
   else, drop anytime) — and lands on the friends' weekly distance board. Walked 11 km

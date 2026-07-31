@@ -357,7 +357,35 @@ with explicit opt-in, revocable any time.
   consent screen must say exactly what's read, what's shown to whom, and that it's
   droppable. Health data never appears in share cards by default.
 
-## 10. Top 5 risks
+## 10. Postcard sending — the growth loop (M2)
+
+A checked-in postcard wants to be *sent* — that's the entire metaphor, and it's the
+product's organic growth engine: every send is a personal invite carrying verified
+proof-of-place, from someone you know, about a real place. Staged in two steps:
+
+**M2 — send anywhere, no friend graph needed.** After any verified check-in: "Send this
+postcard." The card renders photo-front / message-back — stamp with place name + date +
+verified mark, a short personal message, sender handle, and photographer credit — and
+mints a share image plus an unlisted web link for any messenger. The recipient opens a
+beautiful web postcard (the thin web renderer on the public API — its first real job)
+with a soft install prompt. No account needed to receive; nothing to configure to send.
+
+**M3+ — in-app postcard inbox** between friends once the friends graph exists (received
+postcards become their own collection), and potentially physical print-and-mail as a
+premium experiment.
+
+Design guards:
+
+- Only your own check-ins can be sent. Confirm-mode check-ins send the gallery photo with
+  the photographer's credit attached — creator recognition travels with every send.
+- The back-of-card message is UGC: length-capped, screened by the same automated
+  moderation class as other text, report-able from the web view, sender-blockable.
+- Privacy: sending is an explicit, per-postcard act that reveals that one place + date to
+  the recipient. It never bypasses profile privacy; sender identity is handle only.
+- Web postcards are unlisted (unguessable token), non-indexed, and revocable by the
+  sender.
+
+## 11. Top 5 risks
 
 1. **Spoofing arms race.** Attested GPS doesn't exist; determined cheaters will land some
    fakes. Mitigation: layered cost (above), immutable evidence trail, statistical detection
@@ -381,7 +409,7 @@ with explicit opt-in, revocable any time.
    defaults, generous retry flows, per-category radius tuning, and metrics on
    rejection-rate-by-cause from day one.
 
-## 11. Open questions
+## 12. Open questions
 
 - Tier-2 pricing and contents (e.g., $12/yr unlimited + map themes + advanced stats)?
 - Age gate: 13 vs 16 per region — need a per-region policy table before public launch.

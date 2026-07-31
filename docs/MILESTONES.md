@@ -26,6 +26,9 @@ mock-location apps and emulators are caught.
 - Badges v1 (first-in-region, POI milestones) and creator score accrual (visible, not yet
   a leaderboard).
 - Shareable map image with precision controls.
+- **Postcard sending v1** (ARCHITECTURE.md §10): share-image + unlisted web-postcard link
+  from any verified check-in, message moderation, photographer credit. First job of the
+  thin web renderer; the send→open→install funnel is instrumented from day one.
 - Steps/distance from HealthKit / Health Connect (read-only, opt-in): daily aggregates,
   weekly friends/city distance boards, explorer streaks. Never app-gathered
   (ARCHITECTURE.md §9).
