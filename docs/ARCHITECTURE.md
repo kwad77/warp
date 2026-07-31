@@ -81,6 +81,7 @@ photos
   phash              bigint                  -- 64-bit perceptual hash (dedupe)
   source             enum(poi_creation, checkin)
   moderation         enum(pending, approved, rejected, escalated)
+  rejection_reason   enum(people, unsafe, quality, other) nullable
   vote_score         int (denormalized)
   exif_summary       jsonb (capture time, device — server-extracted, advisory only)
   created_at
@@ -236,7 +237,39 @@ Layer details:
   sky, we'll keep trying") and a `pending` state that resolves rather than a hard no. The
   moment must never feel like the app calling the user a liar.
 
-## 5. Paywall — Vault model ✅
+## 5. No-people photo policy (hard product rule)
+
+**No photo in mapio ever contains a person.** Postcards are of places. This is a product
+identity rule, not just a moderation setting — it's also what makes the photo corpus
+privacy-clean (no bystander consent problem, no biometric data, materially lower
+GDPR/app-review risk). Enforcement is layered at four points, applying equally to POI
+creation and check-in photos:
+
+1. **At capture (on-device, blocking).** ML Kit face detection + pose/person detection run
+   on the live camera frame and the captured image. A detected person blocks submission
+   with a friendly retake prompt ("someone's in frame — wait for them to pass"). This is
+   the primary UX: catch it while the user is still standing there and can retake.
+2. **At ingest (server-side, blocking publication).** Rekognition face detection + person
+   labels on every upload before the photo is publicly visible. Any detected person →
+   `rejected(people)`; borderline signals (distant figures, reflections, statues — statue
+   faces are allowed and are a known false-positive class) → human review queue. No photo
+   reaches a public gallery without passing this gate.
+3. **Community reporting.** "Contains a person" is a first-class report reason on every
+   photo; upheld reports generate a trust event for the uploader and feed false-negative
+   examples back into threshold tuning.
+4. **Periodic re-sweeps.** As detection models improve, re-scan the corpus; quietly
+   remove misses.
+
+Check-in semantics when a person is detected: **the check-in never fails because of the
+photo.** On-device detection offers retake; if the scene is unavoidably busy, the user can
+complete the same check-in in existing-photo confirm mode. A server-side rejection after
+the fact removes the photo from the gallery but leaves the verified check-in intact —
+gallery admission and presence verification are independent judgments.
+
+`photos.moderation` gains a `rejection_reason` (`people`, `unsafe`, `quality`, `other`) so
+the client can explain outcomes and we can measure each gate's hit rate.
+
+## 6. Paywall — Vault model ✅
 
 Check-ins are **never blocked**. Free tier keeps 50 unlocked POIs; beyond that, new
 check-ins are fully captured, verified, and counted internally, but appear as **sealed
@@ -245,7 +278,7 @@ instantly — retroactively. Nothing is ever lost; the upgrade moment is "open y
 not "pay to keep playing." Community-map viewing, safety features, and reporting are never
 paywalled. Entitlement checks are server-side only.
 
-## 6. Cost strategy (the two big line items)
+## 7. Cost strategy (the two big line items)
 
 **Photos.** Client compresses before upload (long edge 2048px, ~85% quality WebP/JPEG,
 target ≤ 400KB). Server stores original-as-uploaded plus derived 1024px card and 256px
@@ -257,7 +290,7 @@ is moderation (~$1–1.5 per 1,000 Rekognition images), which scales with upload
 is a modest flat tier. Avoiding per-load Google/Mapbox SDK pricing is the single biggest
 cost decision in the app.
 
-## 7. Offline & sync
+## 8. Offline & sync
 
 Check-in intents can't be pre-issued offline (nonce freshness), so the offline story is:
 capture everything locally (fixes, photo, timestamps) into a durable outbox, then replay
@@ -266,7 +299,7 @@ against `/checkins/intent` + `/checkins` when connectivity returns, within a bou
 lower leaderboard weight. Honest tradeoff: deferred check-ins are weaker proof; the UI says
 "synced later" on them.
 
-## 8. Top 5 risks
+## 9. Top 5 risks
 
 1. **Spoofing arms race.** Attested GPS doesn't exist; determined cheaters will land some
    fakes. Mitigation: layered cost (above), immutable evidence trail, statistical detection
@@ -290,7 +323,7 @@ lower leaderboard weight. Honest tradeoff: deferred check-ins are weaker proof; 
    defaults, generous retry flows, per-category radius tuning, and metrics on
    rejection-rate-by-cause from day one.
 
-## 9. Open questions
+## 10. Open questions
 
 - Tier-2 pricing and contents (e.g., $12/yr unlimited + map themes + advanced stats)?
 - Age gate: 13 vs 16 per region — need a per-region policy table before public launch.

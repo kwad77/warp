@@ -15,6 +15,9 @@ Goal: prove the core loop end-to-end with real users in seeded beta cities —
 
 **Check-in — both modes, full verification**
 - Photo mode (in-app live capture only) and existing-photo confirm mode.
+- No-people rule enforced on check-in photos too (on-device block with retake prompt,
+  server-side gate before gallery). A person in frame never fails the check-in itself —
+  retake, or fall back to confirm mode (see ARCHITECTURE.md §5).
 - Full pipeline: nonce intent, platform integrity (Play Integrity + App Attest), multi-fix
   GPS presence, velocity check, trust events. Pending/retry states, never a dead end.
 - This is the MVP's engineering center of gravity — it ships complete, not stubbed.
