@@ -118,6 +118,7 @@ entitlements          -- post-MVP
 votes                 (user_id, photo_id, value)          -- best-postcard surfacing
 reports               (id, reporter_id, target_type, target_id, reason, status, resolved_by)
 badges                (user_id, badge_key, awarded_at)
+health_daily          (user_id, date, steps, distance_m, source)  -- M2, see §9
 leaderboard_snapshots (window, scope, scope_key, computed_at, entries jsonb)
 ```
 
@@ -299,7 +300,38 @@ against `/checkins/intent` + `/checkins` when connectivity returns, within a bou
 lower leaderboard weight. Honest tradeoff: deferred check-ins are weaker proof; the UI says
 "synced later" on them.
 
-## 9. Top 5 risks
+## 9. Health integration — steps & distance (M2)
+
+A second competitive axis alongside map coverage: how far you actually moved. The point is
+motivational — a reason to walk the neighborhood, not just teleport-by-transit between
+POIs — and it pairs naturally with streaks and weekly boards.
+
+**Hard constraint: mapio never gathers movement data itself.** No background location, no
+pedometer sampling, no motion APIs. We *read* daily aggregates from the platform health
+stores — HealthKit (steps, walking+running distance) on iOS, Health Connect on Android —
+with explicit opt-in, revocable any time.
+
+- **Data minimization.** Store daily totals only: `health_daily(user_id, date, steps,
+  distance_m, source, PK(user_id, date))`. No workouts, no routes, no timestamps finer
+  than a day. Sync happens client-side (app reads the store, posts aggregates to
+  `POST /me/health/sync`); deletion cascades with the account, and revoking platform
+  permission stops the flow at the source.
+- **Manual-entry filtering.** Both stores label data provenance (HealthKit
+  `wasUserEntered`, Health Connect recording method/origin). We read device-recorded
+  entries only — typed-in steps never count.
+- **Integrity positioning (my pushback).** Even filtered, health data is far easier to
+  fake than a verified check-in, and there's no attestation story for it. So distance/steps
+  power the *fun* competitive tier — weekly friends and city boards, streaks, "explorer"
+  badges — and stay out of the flagship coverage leaderboard and creator score. The two
+  axes are also honest about different things: coverage proves *where you've been*,
+  distance celebrates *how you got there*. Anomaly caps (e.g., > 60km walked/day) flag
+  rather than rank.
+- **Platform compliance.** Apple forbids using HealthKit data for advertising or sharing
+  it with third parties; leaderboard use is app functionality under user consent, but the
+  consent screen must say exactly what's read, what's shown to whom, and that it's
+  droppable. Health data never appears in share cards by default.
+
+## 10. Top 5 risks
 
 1. **Spoofing arms race.** Attested GPS doesn't exist; determined cheaters will land some
    fakes. Mitigation: layered cost (above), immutable evidence trail, statistical detection
@@ -323,7 +355,7 @@ lower leaderboard weight. Honest tradeoff: deferred check-ins are weaker proof; 
    defaults, generous retry flows, per-category radius tuning, and metrics on
    rejection-rate-by-cause from day one.
 
-## 10. Open questions
+## 11. Open questions
 
 - Tier-2 pricing and contents (e.g., $12/yr unlimited + map themes + advanced stats)?
 - Age gate: 13 vs 16 per region — need a per-region policy table before public launch.

@@ -26,6 +26,9 @@ mock-location apps and emulators are caught.
 - Badges v1 (first-in-region, POI milestones) and creator score accrual (visible, not yet
   a leaderboard).
 - Shareable map image with precision controls.
+- Steps/distance from HealthKit / Health Connect (read-only, opt-in): daily aggregates,
+  weekly friends/city distance boards, explorer streaks. Never app-gathered
+  (ARCHITECTURE.md §9).
 - Offline check-in outbox (deferred-evidence flow).
 - Ops: rejection-rate-by-cause dashboard, trust-event monitoring, moderation SLA.
 

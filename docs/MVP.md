@@ -48,6 +48,7 @@ is vaulted yet; no payments, no entitlements service.
 
 - Payments/tiers, RevenueCat, vault UI (schema-ready, dark)
 - Badges, streaks, push notifications, "featured POIs near you"
+- Steps/distance via HealthKit / Health Connect reads (M2; see ARCHITECTURE.md §9)
 - Friends graph and friends leaderboards; creator-score and check-in-count leaderboards
 - Shareable map image generation
 - Delayed-visibility privacy option (private-by-default covers the MVP risk)
