@@ -1,4 +1,4 @@
-# mapio — Sample User Journey
+# Wanderpost — Sample User Journey
 
 Alignment artifact: one user, one Saturday, exercising the core loop end-to-end.
 Everything here is MVP scope unless tagged [M2] or [M3].
@@ -11,7 +11,7 @@ recommendation. Mid-range Android phone.
 ## 1. First open — value before signup
 
 No signup wall, no carousel. The app asks for location **while-in-use** with a one-line
-primer ("mapio shows you postcard-worthy places nearby — location is only used while
+primer ("Wanderpost shows you postcard-worthy places nearby — location is only used while
 you're exploring"), then opens straight onto the map: warm, muted basemap, postcard-style
 pins clustering across Lisbon. The pins have slight depth — they read as tiny framed
 photos pinned to the map.

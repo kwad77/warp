@@ -1,4 +1,4 @@
-# mapio — MVP Scope
+# Wanderpost — MVP Scope
 
 Goal: prove the core loop end-to-end with real users in seeded beta cities —
 **discover → travel → verify → check in → see it on my map → want the next one.**

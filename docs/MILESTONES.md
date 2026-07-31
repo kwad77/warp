@@ -1,4 +1,4 @@
-# mapio — Milestone Plan
+# Wanderpost — Milestone Plan
 
 ## M1 — Walking skeleton (core loop, one city, TestFlight/internal)
 

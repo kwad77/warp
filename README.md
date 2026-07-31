@@ -1,4 +1,4 @@
-# mapio (working title: "Postcards")
+# Wanderpost
 
 A location-based collection game built on one loop: **"I've been there — and here's the proof."**
 
@@ -26,12 +26,15 @@ check into their POIs. Trust in the check-in is the product's foundation.
 
 | Doc | Contents |
 | --- | --- |
+| [SPEC.md](SPEC.md) | **Normative implementation contract** — exact constants, API shapes, DDL, verification algorithm, merge gates. Wins over everything below. |
+| [CLAUDE.md](CLAUDE.md) | Operating rules for AI agents working in this repo |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Stack choices and justification, data model, API surface, verification pipeline, cost strategy, top risks |
 | [docs/MVP.md](docs/MVP.md) | Smallest scope that proves the core loop |
 | [docs/MILESTONES.md](docs/MILESTONES.md) | MVP → beta → monetized launch plan |
 
 ## Decisions made so far
 
+- **Name:** Wanderpost (working name; web sweep clean — formal trademark search before store listing)
 - **Mobile:** Flutter (single codebase, iOS + Android; web map viewer comes later as a separate thin client on the same API)
 - **Backend:** TypeScript (Fastify) API in a container + managed Postgres/PostGIS + Cloudflare R2/CDN for photos
 - **Paywall:** "Vault" model — check-ins are never blocked; beyond the free cap they're captured, verified, and sealed until upgrade

@@ -1,4 +1,4 @@
-# mapio — Architecture
+# Wanderpost — Architecture
 
 Status: proposal v1 (pre-MVP). Decisions marked ✅ are agreed; everything else is my
 recommendation and open to challenge.
@@ -257,7 +257,7 @@ Layer details:
 
 ## 5. No-people photo policy (hard product rule)
 
-**No photo in mapio ever contains a person.** Postcards are of places. This is a product
+**No photo in Wanderpost ever contains a person.** Postcards are of places. This is a product
 identity rule, not just a moderation setting — it's also what makes the photo corpus
 privacy-clean (no bystander consent problem, no biometric data, materially lower
 GDPR/app-review risk). Enforcement is layered at four points, applying equally to POI
@@ -323,7 +323,7 @@ A second competitive axis alongside map coverage: how far you actually moved. Th
 motivational — a reason to walk the neighborhood, not just teleport-by-transit between
 POIs — and it pairs naturally with streaks and weekly boards.
 
-**Hard constraint: mapio never gathers movement data itself.** No background location, no
+**Hard constraint: Wanderpost never gathers movement data itself.** No background location, no
 pedometer sampling, no motion APIs. We *read* daily aggregates from the platform health
 stores — HealthKit (steps, walking+running distance) on iOS, Health Connect on Android —
 with explicit opt-in, revocable any time.
@@ -378,4 +378,4 @@ with explicit opt-in, revocable any time.
 - Age gate: 13 vs 16 per region — need a per-region policy table before public launch.
 - Photo licensing wording (platform display license) — needs real legal review pre-launch.
 - Which 1–3 seed cities? (Determines beta ops and possibly default map style.)
-- Name: ship as "mapio"? (App-store availability check needed.)
+- Name: ship as "Wanderpost"? (App-store availability check needed.)
