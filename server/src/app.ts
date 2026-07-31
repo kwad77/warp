@@ -5,6 +5,7 @@ import type { Config } from './config.js';
 import type { DbHandle } from './db/client.js';
 import { AppError } from './errors.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerCheckinRoutes } from './routes/checkins.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 
 export const APP_VERSION = '0.1.0';
@@ -101,6 +102,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     async (v1) => {
       registerAuthRoutes(v1);
       registerDeviceRoutes(v1);
+      registerCheckinRoutes(v1);
     },
     { prefix: '/v1' },
   );

@@ -167,9 +167,11 @@ Every non-2xx response body is exactly:
 
 ### 5.1 Flow
 
-1. `POST /v1/checkins/intent {poiId}` (auth) → server generates 32-byte random nonce,
-   stores `(nonce_hash, user_id, device_id, poi_id, expires_at = now + CHECKIN_NONCE_TTL_S,
-   used=false)`, returns `{nonce, expiresInS}`.
+1. `POST /v1/checkins/intent {poiId, deviceId}` (auth; the device must belong to the
+   caller) → server generates a 32-byte random nonce (base64url), stores `(nonce_hash,
+   user_id, device_id, poi_id, expires_at = now + CHECKIN_NONCE_TTL_S, used=false)`,
+   returns `{nonce, expiresInS}`. Refused early with `checkin/duplicate` if a
+   verified/pending check-in already exists, and rate-limited per §2.
 2. Client gathers `MIN_FIXES..MAX_FIXES` fused-location fixes spanning ≥ `FIX_SPAN_MIN_S`
    within `FIX_WINDOW_MAX_S`, requests platform integrity token bound to the nonce, and
    (photo mode) captures in-app with a capture token minted at shutter time.
@@ -184,8 +186,12 @@ assertion) and that it is bound to our nonce. Outcomes:
 `pass` | `degraded` (device cannot attest: no Play services, old OS) | `fail`
 (emulator, root/jailbreak signals, wrong nonce). `fail` ⇒ status `rejected`, trust event
 `integrity_fail`, stop. `degraded` ⇒ continue; final status caps at `pending`.
-**[M1 step 2 ships the interface + nonce binding + a `DevIntegrityVerifier` that trusts a
-shared secret header in `NODE_ENV=development`; real platform verifiers are M1 step 4.]**
+**[M1 step 2 ships the interface + nonce binding + `DevIntegrityVerifier`; real platform
+verifiers are M1 step 4.]** `DevIntegrityVerifier` (active only when `NODE_ENV ≠
+production`): `integrityToken` MUST be exactly `dev.<pass|degraded|fail>.<nonce>`; a
+malformed token or nonce mismatch ⇒ `fail`. In production, until platform verifiers ship,
+every integrity evaluation returns `degraded` (so nothing can reach `verified` on the
+strength of an unverified device — honest by construction).
 
 ### 5.3 L2 Presence (pure function, `src/verification/presence.ts`)
 
@@ -217,9 +223,13 @@ clock skew exist). First-ever check-in: skip.
 
 ### 5.5 L4 Capture (photo mode only)
 
-Capture token MUST match the nonce, and client capture timestamp MUST be within the
-nonce window (± 30 s clock skew allowance). EXIF is stored in evidence, never used as a
-pass/fail signal. Violation ⇒ `rejected(capture_invalid)`.
+`capture.token` MUST equal hex sha256 of `"<nonce>.<capturedAtMs>"` (minted app-side at
+shutter — tamper-evidence only; real assurance is the attested app, L1), and
+`capture.capturedAt` MUST fall within the nonce window ± 30 s clock-skew allowance.
+`capture.storageKey` MUST resolve to an existing `photos` row with `uploader_id` = caller,
+`poi_id` = target POI, `source = 'checkin'`; the check-in links its `photo_id`. EXIF is
+stored in evidence, never used as a pass/fail signal. Any violation ⇒
+`rejected(capture_invalid)`.
 
 ### 5.6 L5 Trust gate
 
@@ -233,8 +243,20 @@ event insert and cached on `users.trust_score`.
 
 `verified` (all pass; degraded presence allowed) · `pending` (any layer said pending, or
 integrity degraded) · `rejected`. Status transitions allowed: `pending → verified|rejected`
-(worker or admin) only. `verified` check-ins insert into `user_coverage` (r7 cell,
-idempotent). One check-in per (user, poi): repeat attempts ⇒ `checkin/duplicate`.
+(worker or admin) only. Mechanics:
+
+- The nonce is consumed on submit **regardless of outcome** — a retry after rejection
+  starts with a fresh intent. A used or expired nonce ⇒ `checkin/nonce_expired`.
+- Rejected attempts ARE persisted (`checkins` row with `status='rejected'` + evidence) for
+  the audit trail. Uniqueness applies only to live check-ins: partial unique index on
+  `(user_id, poi_id) WHERE status <> 'rejected'` (migration 0001) — rejection never locks
+  a user out of an honest retry. A verified/pending duplicate ⇒ `checkin/duplicate`.
+- Response shape: `201 {checkin}` for `verified`/`pending`; `rejected` ⇒ `422
+  checkin/rejected` with `details = {checkinId, reasons}`.
+- `verified` ⇒ insert `user_coverage` (r7, idempotent) + increment `pois.checkin_count`,
+  both in the same transaction as the check-in row. `pending → verified` performs the same
+  side effects at transition time.
+- `GET /checkins/:id` by a non-owner ⇒ `resource/not_found` (no existence leak).
 
 ## 6. Photos & no-people policy (hard product rule)
 
@@ -274,9 +296,9 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /pois` | ✅ | `{title(3..80), description?(..280), category, location, gpsFix}` → `201 {poi}` or `200 {dedupeCandidates: PoiPin[]}` (§2 dedupe rule; client then re-POSTs with `force: true` to insist) |
 | `POST /pois/:id/photos/presign` | ✅ | `{contentType, source: "poi_creation"\|"checkin"}` → `{uploadUrl, storageKey, maxBytes}` |
 | `POST /pois/:id/photos/complete` | ✅ | `{storageKey}` → `{photo: Photo(status=pending)}` |
-| `POST /checkins/intent` | ✅ | `{poiId}` → `{nonce, expiresInS}` |
-| `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, verifiedAt?}}`; `Fix = {lat, lng, accuracyM, capturedAt}` |
-| `GET /checkins/:id` | ✅ owner | → `{checkin}` |
+| `POST /checkins/intent` | ✅ | `{poiId, deviceId}` → `{nonce, expiresInS}` |
+| `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, verifiedAt?}}`; rejected ⇒ `422` per §5.7; `Fix = {lat, lng, accuracyM, capturedAt}` |
+| `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
 | `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated}}` |
 | `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` |
 | `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7), count}` |
@@ -295,8 +317,11 @@ photos visible only to their uploader).
 ## 8. Database schema (authoritative DDL)
 
 Migration `0000_init.sql` MUST create exactly this (plus `CREATE EXTENSION IF NOT EXISTS
-postgis`). Drizzle schema mirrors it; drift between the two is a defect. UUIDv7 generated
-in app code.
+postgis`). Drizzle schema mirrors the *cumulative* state after all migrations; drift is a
+defect. UUIDv7 generated in app code. Applied deltas: **0001** drops
+`checkins_user_poi_unique` and creates
+`UNIQUE INDEX checkins_user_poi_active ON checkins (user_id, poi_id) WHERE status <>
+'rejected'` (§5.7 retry semantics).
 
 ```sql
 CREATE TYPE poi_category AS ENUM ('landmark','viewpoint','nature','architecture','street_art','other');

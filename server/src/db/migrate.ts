@@ -9,6 +9,8 @@ const MIGRATIONS_DIR = fileURLToPath(new URL('../../migrations/', import.meta.ur
 export async function migrate(databaseUrl: string, log: (msg: string) => void): Promise<void> {
   const pg = postgres(databaseUrl, { max: 1, onnotice: () => {} });
   try {
+    // Serialize concurrent runners (parallel deploys, parallel test files).
+    await pg`SELECT pg_advisory_lock(727270)`;
     await pg`CREATE TABLE IF NOT EXISTS schema_migrations (
       name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`;
     const applied = new Set(
@@ -25,6 +27,7 @@ export async function migrate(databaseUrl: string, log: (msg: string) => void): 
       log(`applied ${file}`);
     }
     log(`up to date (${files.length} migrations)`);
+    await pg`SELECT pg_advisory_unlock(727270)`;
   } finally {
     await pg.end({ timeout: 5 });
   }

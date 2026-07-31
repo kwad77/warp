@@ -1,4 +1,5 @@
 // Drizzle mirror of migrations/0000_init.sql (SPEC §8). Drift between the two is a defect.
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -12,7 +13,7 @@ import {
   smallint,
   text,
   timestamp,
-  unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -173,7 +174,10 @@ export const checkins = pgTable(
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
   },
   (t) => [
-    unique('checkins_user_poi_unique').on(t.userId, t.poiId),
+    // 0001: partial unique — rejected rows persist without blocking retries (SPEC §5.7)
+    uniqueIndex('checkins_user_poi_active')
+      .on(t.userId, t.poiId)
+      .where(sql`status <> 'rejected'`),
     index('checkins_user_created_idx').on(t.userId, t.createdAt),
   ],
 );
