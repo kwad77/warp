@@ -12,8 +12,9 @@ recommendation. Mid-range Android phone.
 
 No signup wall, no carousel. The app asks for location **while-in-use** with a one-line
 primer ("Wanderpost shows you postcard-worthy places nearby — location is only used while
-you're exploring"), then opens straight onto the map: warm, muted basemap, postcard-style
-pins clustering across Lisbon. The pins have slight depth — they read as tiny framed
+you're exploring"), then opens straight onto the map: warm, muted basemap labeled in Portuguese — everywhere
+in the world, places wear their own names — with postcard-style pins clustering across
+Lisbon. The pins have slight depth — they read as tiny framed
 photos pinned to the map.
 
 She scrolls and taps a cluster near Alfama. It expands; she taps a pin. A bottom sheet

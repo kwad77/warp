@@ -426,7 +426,28 @@ CREATE TABLE reports (
 - Flutter (when built): `flutter analyze` + unit tests for API client and check-in state
   machine; golden test for the stamp animation frame.
 
-## 11. Definition of done (every PR)
+## 11. Localization & place names
+
+The rule (modeled on how Pikmin Bloom renders Osaka): **places wear their own names; the
+interface speaks the user's language.**
+
+- **Basemap labels MUST use local endonyms** — the map style renders the tiles' `name`
+  field (native-language names), never `name:en`. A user browsing Osaka sees 大阪市,
+  whatever their device language. No transliteration overlay in MVP.
+- **POI titles and descriptions are displayed exactly as authored**, in whatever script
+  the creator wrote. No machine translation, no romanization, no script restrictions.
+  Creators are nudged (placeholder copy) to name places in the local language.
+- **All text is UTF-8 end-to-end**; validation MUST NOT restrict scripts. Length limits
+  (e.g. title 3..80) count Unicode code points, not bytes and not UTF-16 units.
+- **UI chrome is localized** to the device locale via Flutter's l10n (ARB) with English
+  fallback; dates/numbers format per locale. Launch locales: en, pt (seed-city Portugal);
+  adding a locale is an ARB file, never a code change.
+- **Server-generated user-facing strings don't exist** — the API returns codes and data,
+  never display copy (error `message` is for developers; clients localize from `code`).
+- Search across scripts (normalization, transliterated queries) is deferred to M2 and
+  MUST be listed there when built.
+
+## 12. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

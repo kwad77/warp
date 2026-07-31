@@ -39,6 +39,15 @@ recommendation and open to challenge.
   starts on the hot path. At 100k users this is 2–4 small containers and a pooled DB —
   boring, cheap, debuggable. Revisit only if traffic becomes extremely spiky.
 
+### Place names & localization
+
+Globally, the map speaks the local language (the Pikmin Bloom model): basemap labels
+render native endonyms from the vector tiles' `name` field — Osaka is 大阪市 for everyone —
+and POI titles display exactly as their creators wrote them, in any script, never
+machine-translated. Only UI chrome localizes to the device language. This keeps the
+community map authentic to each place, costs nothing now, and would be painful to retrofit.
+Normative details: SPEC §11.
+
 ### Third-party services
 
 | Concern | Choice | Notes |
