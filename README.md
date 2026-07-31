@@ -8,6 +8,20 @@ joins the POI's postcard gallery, or by confirming an existing photo ("I stood h
 Verified check-ins build each user's personal world map; creators earn points when others
 check into their POIs. Trust in the check-in is the product's foundation.
 
+## Positioning
+
+**Pikmin Bloom × Instagram × Foursquare/Swarm** — and deliberately not all of any of them:
+
+- From **Pikmin Bloom**: the gentle, non-punitive walking-companion energy — going
+  outside *is* the game, streaks encourage rather than punish, health data celebrates the
+  journey. Not taken: creature management, AR overhead.
+- From **Instagram**: the photo craft — a real quality bar, beautiful galleries, places
+  worth photographing. Not taken: follower graphs, comments, engagement mechanics (no
+  comments also keeps the moderation surface small).
+- From **Foursquare/Swarm**: the check-in as the core verb and a community-built place
+  graph, with creator credit as the modern mayor. Not taken: coupons, ads, venue
+  business model.
+
 ## Documents
 
 | Doc | Contents |

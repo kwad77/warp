@@ -202,7 +202,7 @@ sequenceDiagram
     end
     C->>A: POST /checkins {nonce, fixes, integrity, capture?}
     A->>A: L1 Integrity: verify platform verdict,<br/>nonce binding, device state
-    A->>A: L2 Presence: accuracy ≤ 50m, fix inside<br/>radius, multi-fix consistency
+    A->>A: L2 Presence: fused-fix containment test<br/>(accuracy circle vs radius), multi-fix consistency
     A->>A: L3 Velocity: implied speed vs last<br/>check-in ≤ plausible travel
     A->>A: L4 Capture (photo mode): capture-token<br/>freshness, client/server clock delta,<br/>EXIF sanity (advisory only — EXIF is forgeable)
     A->>A: L5 Trust gate: low trust ⇒ force photo<br/>mode / mark pending
@@ -219,9 +219,26 @@ Layer details:
   reject or degrade to pending + trust event. Devices that can't attest (rare, e.g. no Play
   Services) get a degraded path: check-ins allowed but flagged pending, capped influence on
   leaderboards.
-- **L2 Presence.** Multiple fixes beat one: a spoofed single fix is easy, a consistent
-  short track with plausible accuracy jitter is harder. Reject accuracy > 50m (configurable
-  per POI category — viewpoints get slack).
+- **L2 Presence.** The client uses the platform **fused location providers** (Android
+  FusedLocationProvider, iOS Core Location), never raw GNSS. These already blend GPS,
+  Wi-Fi positioning, cell, and sensors — the Skyhook approach, internalized by both
+  platforms years ago (Skyhook itself was Apple's Wi-Fi-positioning supplier until iOS
+  internalized it; it's now part of Qualcomm). A third-party positioning SDK would add
+  licensing cost, an opaque binary, and a privacy story (Wi-Fi scans leaving the device to
+  another party) for little gain over the fused fix — so we don't integrate one.
+  What we do instead is treat the question probabilistically: the goal is "was the user
+  within X of the POI," not "was the fix pinpoint." **Containment test:** accept when the
+  fix's accuracy circle sufficiently overlaps the check-in radius — a 60 m-accuracy Wi-Fi
+  fix centered 20 m from a POI is a *pass*, not a failure. Hard reject only above a
+  sanity ceiling (~150 m accuracy); between clean-pass and ceiling, verify with wider
+  tolerance and record the confidence in the evidence. Multiple fixes over ~10 s beat
+  one: a spoofed single fix is easy, a consistent short track with plausible jitter is
+  harder. All thresholds are per-POI-category (viewpoints get slack; dense-urban POIs get
+  the probabilistic path by default).
+  *Future evidence layer (post-MVP):* crowdsource per-POI ambient-signal fingerprints
+  (Wi-Fi BSSIDs / cell IDs observed by previously verified Android check-ins) as
+  corroboration where GNSS is structurally bad — Android only, since iOS doesn't expose
+  Wi-Fi scans to apps; anonymized, on-device matching. Noted, not scheduled.
 - **L3 Velocity.** Great-circle distance from the user's previous verified check-in over
   elapsed time; threshold ~900 km/h (airliner) with a floor for short gaps. Violations →
   pending + trust event, not silent rejection (flights + clock skew cause false positives).
