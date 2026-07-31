@@ -1,10 +1,12 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createDb } from './db/client.js';
+import { createR2Storage } from './storage/r2.js';
 
 const config = loadConfig(process.env);
 const dbHandle = config.DATABASE_URL ? createDb(config.DATABASE_URL) : null;
-const app = buildApp({ config, dbHandle });
+const storage = createR2Storage(config);
+const app = buildApp({ config, dbHandle, storage });
 
 const shutdown = async () => {
   await app.close();

@@ -7,12 +7,15 @@ import { AppError } from './errors.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCheckinRoutes } from './routes/checkins.js';
 import { registerDeviceRoutes } from './routes/devices.js';
+import { registerPoiRoutes } from './routes/pois.js';
+import type { Storage } from './storage/r2.js';
 
 export const APP_VERSION = '0.1.0';
 
 export interface AppDeps {
   config: Config;
   dbHandle: DbHandle | null;
+  storage: Storage;
 }
 
 declare module 'fastify' {
@@ -103,6 +106,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerAuthRoutes(v1);
       registerDeviceRoutes(v1);
       registerCheckinRoutes(v1);
+      registerPoiRoutes(v1);
     },
     { prefix: '/v1' },
   );

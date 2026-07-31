@@ -2,10 +2,16 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { createR2Storage } from '../src/storage/r2.js';
 
+const config = loadConfig({
+  JWT_SECRET: 'test-secret-that-is-at-least-32-chars!!',
+  NODE_ENV: 'test',
+});
 const app = buildApp({
-  config: loadConfig({ JWT_SECRET: 'test-secret-that-is-at-least-32-chars!!', NODE_ENV: 'test' }),
+  config,
   dbHandle: null,
+  storage: createR2Storage(config),
 });
 afterAll(() => app.close());
 

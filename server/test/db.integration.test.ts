@@ -7,6 +7,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { type DbHandle, createDb } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';
+import { createR2Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -18,13 +19,15 @@ describe.runIf(!!url)('auth flow (real database)', () => {
   beforeAll(async () => {
     await migrate(url as string, () => {});
     handle = createDb(url as string);
+    const config = loadConfig({
+      JWT_SECRET: 'test-secret-that-is-at-least-32-chars!!',
+      NODE_ENV: 'test',
+      DATABASE_URL: url,
+    });
     app = buildApp({
-      config: loadConfig({
-        JWT_SECRET: 'test-secret-that-is-at-least-32-chars!!',
-        NODE_ENV: 'test',
-        DATABASE_URL: url,
-      }),
+      config,
       dbHandle: handle,
+      storage: createR2Storage(config),
     });
   });
   afterAll(async () => {

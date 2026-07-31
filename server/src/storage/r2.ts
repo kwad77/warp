@@ -13,6 +13,8 @@ export interface PresignedUpload {
 
 export interface Storage {
   presignPut(storageKey: string, contentType: string): Promise<PresignedUpload>;
+  /** HEAD the object; null when it does not exist (or the provider reports 404). SPEC §6. */
+  head(storageKey: string): Promise<{ bytes: number; contentType: string } | null>;
 }
 
 export function createR2Storage(config: Config): Storage {
@@ -20,6 +22,9 @@ export function createR2Storage(config: Config): Storage {
   if (!R2_ENDPOINT || !R2_BUCKET || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
     return {
       presignPut() {
+        throw new AppError('service/unavailable', 'Object storage is not configured');
+      },
+      head() {
         throw new AppError('service/unavailable', 'Object storage is not configured');
       },
     };
@@ -43,6 +48,16 @@ export function createR2Storage(config: Config): Storage {
         storageKey,
         maxBytes: SPEC_CONSTANTS.photos.UPLOAD_MAX_BYTES,
         expiresInS: SPEC_CONSTANTS.photos.PRESIGN_TTL_S,
+      };
+    },
+    async head(storageKey) {
+      const url = `${R2_ENDPOINT}/${R2_BUCKET}/${storageKey}`;
+      const res = await client.fetch(url, { method: 'HEAD' });
+      if (res.status === 404) return null;
+      if (!res.ok) return null;
+      return {
+        bytes: Number(res.headers.get('content-length') ?? '0'),
+        contentType: res.headers.get('content-type') ?? '',
       };
     },
   };
