@@ -266,8 +266,13 @@ integrity degraded) · `rejected`. Status transitions allowed: `pending → veri
   retake prompt. This gate runs before upload for BOTH flows.
 - Upload: client resizes to ≤ `UPLOAD_MAX_LONG_EDGE_PX`, then `POST .../photos/presign` →
   `{uploadUrl, storageKey, maxBytes}` (R2 presigned PUT, 10-min expiry) → PUT → `POST
-  .../photos/complete`. Server verifies object exists, size ≤ `UPLOAD_MAX_BYTES`, mime in
-  `ALLOWED_MIME`, long edge in `[UPLOAD_MIN_LONG_EDGE_PX, UPLOAD_MAX_LONG_EDGE_PX]`.
+  .../photos/complete`. Storage keys are server-minted:
+  `photos/<poiId>/<photoId>.<jpg|webp>`; no photos row exists until complete. At complete
+  the server verifies via HEAD only — object exists, size ≤ `UPLOAD_MAX_BYTES`, mime in
+  `ALLOWED_MIME` — and creates the row (`moderation=pending`). Failed HEAD checks ⇒
+  `photo/rejected (details.reason='quality')` and no row. Pixel-dimension and quality
+  checks require the bytes and run in the moderation worker (M1.5), which rejects
+  undersized images there.
 - Worker moderation (async, before ANY public visibility): provider face/person detection +
   safety labels behind interface `ModerationProvider` (M1 ships `DevModerationProvider`
   auto-approving with a log line; Rekognition impl is M1 step 5). Any person ⇒
@@ -290,12 +295,12 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /auth/refresh` | 🌐 | `{refreshToken}` → `{accessToken, refreshToken}` |
 | `POST /auth/apple` · `/google` | 🌐 | `{idToken}` → same as verify · *(501 until M1.4)* |
 | `POST /devices` | ✅ | `{platform: "ios"\|"android", model}` → `{deviceId}` |
-| `GET /pois?bbox=w,s,e,n&zoom=` | 🌐 | → `{pois: PoiPin[], clusters: Cluster[]}` — server clusters below zoom 13 by r7 cell: `Cluster = {h3, count, centroid}` |
-| `GET /pois/nearby?lat=&lng=&radiusM=2000` | 🌐 | → `{pois: PoiPin[]}` ordered by distance, max 50 |
-| `GET /pois/:id` | 🌐 | → `Poi` (incl. gallery: approved photos, vote-ranked, max 20) |
-| `POST /pois` | ✅ | `{title(3..80), description?(..280), category, location, gpsFix}` → `201 {poi}` or `200 {dedupeCandidates: PoiPin[]}` (§2 dedupe rule; client then re-POSTs with `force: true` to insist) |
-| `POST /pois/:id/photos/presign` | ✅ | `{contentType, source: "poi_creation"\|"checkin"}` → `{uploadUrl, storageKey, maxBytes}` |
-| `POST /pois/:id/photos/complete` | ✅ | `{storageKey}` → `{photo: Photo(status=pending)}` |
+| `GET /pois?bbox=w,s,e,n&zoom=` | 🌐 | → zoom ≥ 13: `{pois: PoiPin[]}` (active only, cap 200, `clusters: []`); zoom < 13: `{pois: [], clusters: Cluster[]}` grouped by r7 cell, `Cluster = {h3, count, centroid: {lat, lng}}` (centroid = mean of member POIs). Bbox wider/taller than 2° with zoom ≥ 13 ⇒ `request/invalid`. Antimeridian-crossing bboxes (w > e) unsupported in M1 ⇒ `request/invalid`. |
+| `GET /pois/nearby?lat=&lng=&radiusM=` | 🌐 | `radiusM` optional, default 2000, max 10000 → `{pois: PoiPin[]}` active only, ordered by distance, max 50 |
+| `GET /pois/:id` | 🌐 | → `{poi: Poi}` (gallery: approved photos, vote-ranked, max 20; `removed` POIs ⇒ 404) |
+| `POST /pois` | ✅ | `{title(3..80 code points), description?(..280), category, location, gpsFix: Fix, force?: bool}` → `201 {poi}` or `200 {dedupeCandidates: PoiPin[]}`. Rules: haversine(location, gpsFix) ≤ `PIN_ADJUST_MAX_M` else `poi/outside_pin_adjust`; creation dedupe is **proximity-only** (active POIs within `DEDUPE_RADIUS_M`, found via r9 neighbor cells) — pHash similarity runs later in photo moderation (M1.5); `force: true` skips the dedupe prompt; rate limit §2. New POI: `status='active'`, radius from category (§2). |
+| `POST /pois/:id/photos/presign` | ✅ | `{contentType ∈ ALLOWED_MIME, source: "poi_creation"\|"checkin"}` → `{uploadUrl, storageKey, maxBytes}` (key format §6; no row created yet) |
+| `POST /pois/:id/photos/complete` | ✅ | `{storageKey}` → `201 {photo: Photo(moderation=pending)}` — caller must be the presigner (key embeds photoId; server checks HEAD + mints row with uploader = caller). §6 checks. |
 | `POST /checkins/intent` | ✅ | `{poiId, deviceId}` → `{nonce, expiresInS}` |
 | `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, verifiedAt?}}`; rejected ⇒ `422` per §5.7; `Fix = {lat, lng, accuracyM, capturedAt}` |
 | `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
