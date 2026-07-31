@@ -409,7 +409,35 @@ Design guards:
    defaults, generous retry flows, per-category radius tuning, and metrics on
    rejection-rate-by-cause from day one.
 
-## 12. Open questions
+## 12. Scale & resilience posture
+
+Designed for 0→100k users on boring, horizontally-scalable infrastructure; every ceiling
+beyond that has a named escalation path. Current state:
+
+**Scalable now (implemented):** stateless API — all hot state (nonces, refresh tokens,
+codes, rate counters) is hashed rows in Postgres, so any instance serves any request;
+photos bypass the API entirely (presigned R2 + CDN); H3/geo math computed at write time
+onto indexed columns; UUIDv7 keys for append-friendly indexes; denormalized counters so
+read paths never aggregate; leaderboards designed as precomputed snapshots.
+
+**Resilient now (implemented):** `/healthz` serves without a DB and `/readyz` gates
+traffic (rolling deploys, LB failover); advisory-locked migrations survive parallel
+deploys; atomic nonce consumption and refresh-token family revocation (both covered by
+tests); check-in side effects are transactional; verification favors `pending` over data
+loss.
+
+**Deferred with a plan:** single Postgres is the ceiling and SPOF — managed HA + PITR at
+launch; read replicas for map browsing when reads dominate; time-partition
+`checkin_evidence` (append-only, ages to cold storage) when it dominates disk. No cache
+tier by design — map reads get CDN/edge caching of clustered tiles, not a Redis to
+babysit. Async work moves to the job queue in M1.5. Edge rate-limiting/WAF (Cloudflare)
+before public beta.
+
+**Hard requirement before beta (gap today):** metrics + tracing. A verification system
+whose false-rejection rate is invisible is broken by definition; the
+rejection-rate-by-cause dashboard in M2 depends on this.
+
+## 13. Open questions
 
 - Tier-2 pricing and contents (e.g., $12/yr unlimited + map themes + advanced stats)?
 - Age gate: 13 vs 16 per region — need a per-region policy table before public launch.
