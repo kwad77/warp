@@ -40,10 +40,12 @@ Dependency allowlist (server prod deps): `fastify`, `zod`, `drizzle-orm`, `postg
 Anything else requires a SPEC edit in the same PR.
 
 ```
-server/    src/{config,app,index}.ts, src/db/, src/routes/, src/verification/,
-           src/geo/, src/auth/, migrations/*.sql, test/
+server/    src/{config,app,index,constants,errors}.ts, src/db/, src/routes/,
+           src/verification/, src/geo/, src/auth/, src/storage/, src/lib/,
+           migrations/*.sql, test/
 app/       Flutter project (M1 steps 3–4)
-infra/     docker-compose.yml, CI
+docker-compose.yml    local PostGIS (repo root so `docker compose up -d db` just works)
+.github/workflows/    CI (SPEC §10 gates)
 docs/      narrative documents (non-normative)
 ```
 
@@ -140,6 +142,7 @@ Every non-2xx response body is exactly:
 | 410 | `checkin/nonce_expired` |
 | 422 | `checkin/rejected` (`details.reasons` per §5), `photo/rejected` (`details.reason` ∈ people, unsafe, quality), `poi/outside_pin_adjust` |
 | 429 | `rate/limited` (`details.retryAfterS`) |
+| 500 | `internal/error` (unexpected failure; never leaks internals) |
 | 503 | `service/unavailable` |
 
 ## 4. Auth
@@ -195,7 +198,9 @@ confidence c = clamp01((r + a − d) / (2a))     // a > 0; if a == 0 treat a = 5
 ```
 
 Aggregate: track consistency first — if max pairwise distance between fixes >
-`TRACK_CONSISTENCY_M` ⇒ result caps at `pending(inconsistent_track)`. Then take the
+`TRACK_CONSISTENCY_M` ⇒ result caps at `pending(inconsistent_track)`; a fix-set whose
+timestamp span falls outside `[FIX_SPAN_MIN_S, FIX_WINDOW_MAX_S]` likewise caps at
+`pending(fix_span)`. Caps only ever downgrade a pass — a reject stays a reject. Then take the
 best-confidence fix: `c ≥ CONF_PASS` ⇒ pass · `≥ CONF_DEGRADED` ⇒ pass_degraded ·
 `≥ CONF_PENDING` ⇒ pending(low_confidence) · else reject(outside_radius).
 Worked examples (MUST be test cases): `(d=20,a=60,r=75)→c≈0.958 pass` ·
@@ -250,7 +255,8 @@ idempotent). One check-in per (user, poi): repeat attempts ⇒ `checkin/duplicat
 
 ## 7. API surface (M1; exact)
 
-All under `/v1`. 🌐 = works unauthenticated. Coordinates are `{lat, lng}` WGS84 numbers;
+All under `/v1`, except `/healthz` and `/readyz` which live at the root (infra
+convention). 🌐 = works unauthenticated. Coordinates are `{lat, lng}` WGS84 numbers;
 timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 
 | Endpoint | Auth | Request → Response (2xx) |

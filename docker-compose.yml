@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: wanderpost
+      POSTGRES_PASSWORD: wanderpost
+      POSTGRES_DB: wanderpost
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wanderpost"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+volumes:
+  dbdata:

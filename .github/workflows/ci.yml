@@ -1,0 +1,43 @@
+# SPEC §10 — merge gates. Red = no merge, no exceptions.
+name: CI
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: wanderpost
+          POSTGRES_PASSWORD: wanderpost
+          POSTGRES_DB: wanderpost
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wanderpost"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgres://wanderpost:wanderpost@localhost:5432/wanderpost
+      TEST_DATABASE_URL: postgres://wanderpost:wanderpost@localhost:5432/wanderpost
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npx biome ci .
+      - run: npx tsc --noEmit
+      - name: Apply migrations to an empty database
+        run: npm run db:migrate
+      - run: npx vitest run
