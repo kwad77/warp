@@ -10,7 +10,10 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
 2. **Verification pipeline** — intent/nonce, integrity verification (both platforms),
    presence + velocity layers, trust events, evidence records. **Test-heaviest code in
    the repo**: table-driven tests per layer, replay-attack tests, fixture devices.
-3. **Flutter app: map + POI browse** — MapLibre map, clustering, POI page, auth flow.
+3. **Flutter app: map + POI browse** — MapLibre map with server-driven clustering, POI
+   detail sheet, email-code auth flow (SPEC §12). Not yet verified on a real device or
+   emulator (none available where it was built) — `flutter analyze` + 35 unit tests are
+   the gate so far; a real run is still owed before this counts as done-done.
 4. **Flutter app: create + check in** — in-app camera with on-device face check, POI
    creation with dedupe prompt, both check-in modes, success animation, retry/pending UX.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
