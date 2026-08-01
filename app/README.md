@@ -27,9 +27,24 @@ flutter run -d <android-device-id>
 flutter run -d <ios-device-id> --dart-define=API_BASE_URL=http://localhost:8080
 ```
 
-No live device or emulator is available in the sandbox this app was built in — `flutter
-analyze` and `flutter test` were the verification gate; nobody has visually run this UI
-yet. Treat the first real device run as still owed, not a formality.
+No live device or emulator is available in the sandbox this app was built in —
+`flutter analyze` and `flutter test` were the verification gate; nobody has visually run
+this UI yet. This was genuinely attempted, not assumed away — every path hit a distinct,
+confirmed wall specific to that sandbox:
+- **Android emulator**: needs `/dev/kvm`; this is a Docker container with no nested
+  virtualization and no way to attach the device from inside the session.
+- **iOS simulator**: needs macOS, categorically unavailable in a Linux container.
+- **Linux desktop**: builds fine (`flutter create --platforms=linux .`,
+  `libgtk-3-dev` installed), but `maplibre_gl` declares no Linux platform implementation
+  at all — the map widget can't exist there regardless of environment.
+- **Web**: builds, but the Flutter engine needs CanvasKit from `gstatic.com` at runtime,
+  and this sandbox's outbound-HTTPS proxy fails Chromium's TLS handshake for that
+  external fetch (confirmed via a headless Chromium screenshot: blank page, cert
+  handshake errors in the log). Independently, `maplibre_gl_web` 0.21.0 also fails to
+  *compile* against Flutter 3.44.8 stable (`ui.platformViewRegistry` no longer exists) —
+  a real upstream incompatibility, not a config issue; see ARCHITECTURE.md.
+
+Treat the first real device/emulator run as still owed, not a formality.
 
 ## Checks (the merge gate — SPEC §10)
 

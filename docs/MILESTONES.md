@@ -11,9 +11,18 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
    presence + velocity layers, trust events, evidence records. **Test-heaviest code in
    the repo**: table-driven tests per layer, replay-attack tests, fixture devices.
 3. **Flutter app: map + POI browse** — MapLibre map with server-driven clustering, POI
-   detail sheet, email-code auth flow (SPEC §12). Not yet verified on a real device or
-   emulator (none available where it was built) — `flutter analyze` + 35 unit tests are
-   the gate so far; a real run is still owed before this counts as done-done.
+   detail sheet, email-code auth flow (SPEC §12). `flutter analyze` + 35 unit tests are
+   the gate so far. Live rendering was genuinely attempted, not just skipped, and every
+   path is blocked for a distinct, confirmed reason in this environment: Android emulator
+   needs `/dev/kvm` (absent — this is a Docker container, no nested virtualization, no
+   privilege to attach the device); iOS simulator needs macOS (a Linux container can't run
+   one, ever); Flutter Linux desktop builds fine but `maplibre_gl` declares no Linux
+   platform support at all; Flutter Web builds but needs CanvasKit from
+   `gstatic.com`, and this sandbox's outbound HTTPS proxy fails Chromium's TLS handshake
+   for that external fetch (independently confirmed `maplibre_gl_web` 0.21.0 is *also*
+   broken against current Flutter stable — ARCHITECTURE.md). None of these are code
+   defects in this PR. A real device/emulator run is still owed — first opportunity
+   outside this specific sandbox, not a formality to wave through.
 4. **Flutter app: create + check in** — in-app camera with on-device face check, POI
    creation with dedupe prompt, both check-in modes, success animation, retry/pending UX.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo

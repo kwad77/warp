@@ -16,7 +16,11 @@ recommendation and open to challenge.
   DeviceCheck (iOS). These are thin native shims either way; neither framework avoids them.
 - The future web map viewer is **not** Flutter Web — it's a separate thin MapLibre JS client
   against the same API. The architecture constraint that matters is a clean HTTP API, which
-  we get regardless.
+  we get regardless. **Confirmed, not just theoretical:** `maplibre_gl_web` 0.21.0 (the web
+  implementation of our chosen Flutter map package) fails to compile against Flutter 3.44.8
+  stable — it calls `ui.platformViewRegistry`, an API current Flutter's web engine no longer
+  exposes. Flutter Web was never the plan for the map viewer, and this is a confirmed reason
+  it couldn't have been, at least not with this package pairing today.
 
 ### Backend: TypeScript API in a container ✅
 
