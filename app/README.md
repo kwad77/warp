@@ -72,7 +72,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (65 tests as of the profile slice). No live device is
+All three must be clean/green (74 tests as of the client-resize slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -83,7 +83,9 @@ of the unit-test path.
 lib/core/       API client (auth interceptor, refresh-on-401), token storage
                 (Keychain/Keystore via a small SecureStore interface so it's testable),
                 device-id storage (device_store.dart, same pattern), a haversine helper
-                (geo.dart), a SHA-256 helper (hash.dart, SPEC §5.5's capture token),
+                (geo.dart), a SHA-256 helper (hash.dart, SPEC §5.5's capture token), the
+                pre-upload photo resize (image_resize.dart — pure function, no platform
+                channel, so it's tested directly rather than behind a fake interface),
                 app-wide constants, Riverpod provider wiring
 lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed. gps_fix.dart
                 and poi_create_result.dart are client→server-only (toMap, no fromMap).

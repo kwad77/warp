@@ -26,6 +26,7 @@ mixin _$CheckinState {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) => throw _privateConstructorUsedError;
@@ -38,6 +39,7 @@ mixin _$CheckinState {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) => throw _privateConstructorUsedError;
@@ -50,6 +52,7 @@ mixin _$CheckinState {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -63,6 +66,8 @@ mixin _$CheckinState {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) => throw _privateConstructorUsedError;
@@ -75,6 +80,7 @@ mixin _$CheckinState {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) => throw _privateConstructorUsedError;
@@ -87,6 +93,7 @@ mixin _$CheckinState {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -163,6 +170,7 @@ class _$IdleImpl implements _Idle {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -179,6 +187,7 @@ class _$IdleImpl implements _Idle {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -195,6 +204,7 @@ class _$IdleImpl implements _Idle {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -215,6 +225,8 @@ class _$IdleImpl implements _Idle {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -231,6 +243,7 @@ class _$IdleImpl implements _Idle {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -247,6 +260,7 @@ class _$IdleImpl implements _Idle {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -312,6 +326,7 @@ class _$InProgressImpl implements _InProgress {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -328,6 +343,7 @@ class _$InProgressImpl implements _InProgress {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -344,6 +360,7 @@ class _$InProgressImpl implements _InProgress {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -364,6 +381,8 @@ class _$InProgressImpl implements _InProgress {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -380,6 +399,7 @@ class _$InProgressImpl implements _InProgress {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -396,6 +416,7 @@ class _$InProgressImpl implements _InProgress {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -500,6 +521,7 @@ class _$VerifiedImpl implements _Verified {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -516,6 +538,7 @@ class _$VerifiedImpl implements _Verified {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -532,6 +555,7 @@ class _$VerifiedImpl implements _Verified {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -552,6 +576,8 @@ class _$VerifiedImpl implements _Verified {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -568,6 +594,7 @@ class _$VerifiedImpl implements _Verified {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -584,6 +611,7 @@ class _$VerifiedImpl implements _Verified {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -696,6 +724,7 @@ class _$PendingImpl implements _Pending {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -712,6 +741,7 @@ class _$PendingImpl implements _Pending {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -728,6 +758,7 @@ class _$PendingImpl implements _Pending {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -748,6 +779,8 @@ class _$PendingImpl implements _Pending {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -764,6 +797,7 @@ class _$PendingImpl implements _Pending {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -780,6 +814,7 @@ class _$PendingImpl implements _Pending {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -886,6 +921,7 @@ class _$RejectedImpl implements _Rejected {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -902,6 +938,7 @@ class _$RejectedImpl implements _Rejected {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -918,6 +955,7 @@ class _$RejectedImpl implements _Rejected {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -938,6 +976,8 @@ class _$RejectedImpl implements _Rejected {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -954,6 +994,7 @@ class _$RejectedImpl implements _Rejected {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -970,6 +1011,7 @@ class _$RejectedImpl implements _Rejected {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -1043,6 +1085,7 @@ class _$DuplicateImpl implements _Duplicate {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -1059,6 +1102,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -1075,6 +1119,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -1095,6 +1140,8 @@ class _$DuplicateImpl implements _Duplicate {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -1111,6 +1158,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -1127,6 +1175,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -1192,6 +1241,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -1208,6 +1258,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -1224,6 +1275,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -1244,6 +1296,8 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -1260,6 +1314,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -1276,6 +1331,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -1289,6 +1345,163 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
 
 abstract class _PhotoBlocked implements CheckinState {
   const factory _PhotoBlocked() = _$PhotoBlockedImpl;
+}
+
+/// @nodoc
+abstract class _$$PhotoProcessingFailedImplCopyWith<$Res> {
+  factory _$$PhotoProcessingFailedImplCopyWith(
+    _$PhotoProcessingFailedImpl value,
+    $Res Function(_$PhotoProcessingFailedImpl) then,
+  ) = __$$PhotoProcessingFailedImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$PhotoProcessingFailedImplCopyWithImpl<$Res>
+    extends _$CheckinStateCopyWithImpl<$Res, _$PhotoProcessingFailedImpl>
+    implements _$$PhotoProcessingFailedImplCopyWith<$Res> {
+  __$$PhotoProcessingFailedImplCopyWithImpl(
+    _$PhotoProcessingFailedImpl _value,
+    $Res Function(_$PhotoProcessingFailedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CheckinState
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
+  const _$PhotoProcessingFailedImpl();
+
+  @override
+  String toString() {
+    return 'CheckinState.photoProcessingFailed()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PhotoProcessingFailedImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() idle,
+    required TResult Function() inProgress,
+    required TResult Function(Checkin checkin) verified,
+    required TResult Function(Checkin checkin) pending,
+    required TResult Function(List<String> reasons) rejected,
+    required TResult Function() duplicate,
+    required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
+    required TResult Function() fixTimeout,
+    required TResult Function(String message) error,
+  }) {
+    return photoProcessingFailed();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? idle,
+    TResult? Function()? inProgress,
+    TResult? Function(Checkin checkin)? verified,
+    TResult? Function(Checkin checkin)? pending,
+    TResult? Function(List<String> reasons)? rejected,
+    TResult? Function()? duplicate,
+    TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
+    TResult? Function()? fixTimeout,
+    TResult? Function(String message)? error,
+  }) {
+    return photoProcessingFailed?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? idle,
+    TResult Function()? inProgress,
+    TResult Function(Checkin checkin)? verified,
+    TResult Function(Checkin checkin)? pending,
+    TResult Function(List<String> reasons)? rejected,
+    TResult Function()? duplicate,
+    TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
+    TResult Function()? fixTimeout,
+    TResult Function(String message)? error,
+    required TResult orElse(),
+  }) {
+    if (photoProcessingFailed != null) {
+      return photoProcessingFailed();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_Idle value) idle,
+    required TResult Function(_InProgress value) inProgress,
+    required TResult Function(_Verified value) verified,
+    required TResult Function(_Pending value) pending,
+    required TResult Function(_Rejected value) rejected,
+    required TResult Function(_Duplicate value) duplicate,
+    required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
+    required TResult Function(_FixTimeout value) fixTimeout,
+    required TResult Function(_Error value) error,
+  }) {
+    return photoProcessingFailed(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_Idle value)? idle,
+    TResult? Function(_InProgress value)? inProgress,
+    TResult? Function(_Verified value)? verified,
+    TResult? Function(_Pending value)? pending,
+    TResult? Function(_Rejected value)? rejected,
+    TResult? Function(_Duplicate value)? duplicate,
+    TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
+    TResult? Function(_FixTimeout value)? fixTimeout,
+    TResult? Function(_Error value)? error,
+  }) {
+    return photoProcessingFailed?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_Idle value)? idle,
+    TResult Function(_InProgress value)? inProgress,
+    TResult Function(_Verified value)? verified,
+    TResult Function(_Pending value)? pending,
+    TResult Function(_Rejected value)? rejected,
+    TResult Function(_Duplicate value)? duplicate,
+    TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
+    TResult Function(_FixTimeout value)? fixTimeout,
+    TResult Function(_Error value)? error,
+    required TResult orElse(),
+  }) {
+    if (photoProcessingFailed != null) {
+      return photoProcessingFailed(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _PhotoProcessingFailed implements CheckinState {
+  const factory _PhotoProcessingFailed() = _$PhotoProcessingFailedImpl;
 }
 
 /// @nodoc
@@ -1341,6 +1554,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -1357,6 +1571,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -1373,6 +1588,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -1393,6 +1609,8 @@ class _$FixTimeoutImpl implements _FixTimeout {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -1409,6 +1627,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -1425,6 +1644,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),
@@ -1517,6 +1737,7 @@ class _$ErrorImpl implements _Error {
     required TResult Function(List<String> reasons) rejected,
     required TResult Function() duplicate,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
   }) {
@@ -1533,6 +1754,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function(List<String> reasons)? rejected,
     TResult? Function()? duplicate,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
   }) {
@@ -1549,6 +1771,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(List<String> reasons)? rejected,
     TResult Function()? duplicate,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
     required TResult orElse(),
@@ -1569,6 +1792,8 @@ class _$ErrorImpl implements _Error {
     required TResult Function(_Rejected value) rejected,
     required TResult Function(_Duplicate value) duplicate,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
   }) {
@@ -1585,6 +1810,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function(_Rejected value)? rejected,
     TResult? Function(_Duplicate value)? duplicate,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
   }) {
@@ -1601,6 +1827,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(_Rejected value)? rejected,
     TResult Function(_Duplicate value)? duplicate,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
     required TResult orElse(),

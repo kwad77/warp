@@ -21,6 +21,10 @@ class CheckinState with _$CheckinState {
   /// A face was detected in the captured photo; never reached the server (SPEC §6).
   const factory CheckinState.photoBlocked() = _PhotoBlocked;
 
+  /// `resizeForUpload` couldn't decode the photo (e.g. HEIC) — checked before any
+  /// network call, same as `photoBlocked` (SPEC §13.1/§13.2).
+  const factory CheckinState.photoProcessingFailed() = _PhotoProcessingFailed;
+
   /// Fewer than `MIN_FIXES` fixes collected before `FIX_WINDOW_MAX_S` elapsed.
   const factory CheckinState.fixTimeout() = _FixTimeout;
   const factory CheckinState.error(String message) = _Error;

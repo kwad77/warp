@@ -31,16 +31,23 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      upload after creation (presign → PUT → complete). New dependencies this slice:
      `camera`, `google_mlkit_face_detection`, `image_picker`, and `geolocator` (a spec
      gap — nothing previously read a GPS fix at all; both this and check-in need one).
-     Flagged scope reduction: client-side photo resize to `UPLOAD_MAX_LONG_EDGE_PX` (§6)
-     is not implemented yet — uploads go at native resolution, server HEAD validation
-     still enforces `UPLOAD_MAX_BYTES`.
+     Client-side resize to `UPLOAD_MAX_LONG_EDGE_PX` (§6, originally deferred) is now
+     implemented (`core/image_resize.dart`, pure function, no platform channel — new
+     dependency `image`) and always re-encodes to JPEG regardless of source format, since
+     `contentType` is declared as `image/jpeg`. Flagged limitation: the pure-Dart `image`
+     package can't decode HEIC (iOS's default gallery format) — surfaced as a new
+     `photoProcessingFailed` state, checked pre-flight alongside the face gate, not a
+     silent pass-through.
    - **Check-in flow** (done, SPEC §13.2): mode choice (photo/confirm) on POI detail's new
      "Check in" action, lazy device registration, `checkins/intent`, `FixCollector`
      gathering `MIN_FIXES..MAX_FIXES` fixes off each fix's own timestamp (pure, unit
      tested against a synthetic stream), photo mode's in-app-camera-only capture (shared
-     screen with POI creation) feeding the SPEC §5.5 capture-token hash, submit, and a
-     result screen covering verified/pending/rejected/duplicate/photo-blocked/fix-timeout/
-     error with a retry path per case. Flagged scope-back: real platform integrity
+     screen with POI creation) feeding the SPEC §5.5 capture-token hash (resized via the
+     same `image_resize.dart` as POI creation before upload — the capture token itself is
+     over the nonce and shutter timestamp only, not the bytes, so resizing doesn't touch
+     it), submit, and a result screen covering verified/pending/rejected/duplicate/
+     photo-blocked/photo-processing-failed/fix-timeout/error with a retry path per case.
+     Flagged scope-back: real platform integrity
      attestation (Play Integrity/App Attest) needs credentials this environment can't
      provision (Google Cloud + Play Console, paid Apple Developer enrollment) — SPEC §5.2
      amended to keep `DevIntegrityVerifier`/`DevIntegrityTokenProvider` as the only M1

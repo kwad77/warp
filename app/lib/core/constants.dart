@@ -41,4 +41,7 @@ class AppConfig {
   static const int maxFixes = 5;
   static const int fixSpanMinS = 8;
   static const int fixWindowMaxS = 25;
+
+  /// SPEC §2 `UPLOAD_MAX_LONG_EDGE_PX` — client-side resize before upload (§13.1).
+  static const int uploadMaxLongEdgePx = 2048;
 }

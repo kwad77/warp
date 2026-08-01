@@ -95,6 +95,12 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
               message: 'A person was detected in the photo — please retake.',
               retry: () => _start('photo'),
             ),
+            photoProcessingFailed: () => _Result(
+              icon: Icons.error_outline,
+              color: Colors.red,
+              message: "Couldn't process that photo — please try again.",
+              retry: () => _start('photo'),
+            ),
             fixTimeout: () => _Result(
               icon: Icons.location_off,
               color: Colors.red,

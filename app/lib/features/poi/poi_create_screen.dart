@@ -247,6 +247,13 @@ class _PoiCreateScreenState extends ConsumerState<PoiCreateScreen> {
               style: TextStyle(color: Colors.red),
             ),
           ),
+          photoProcessingFailed: () => const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              "Couldn't process that photo — please try a different one.",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
           error: (message) => Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(message, style: const TextStyle(color: Colors.red)),

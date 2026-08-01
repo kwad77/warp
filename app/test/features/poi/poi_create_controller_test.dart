@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderpost/core/api_client.dart';
 import 'package:wanderpost/core/secure_store.dart';
@@ -120,6 +122,7 @@ void main() {
       dedupe: (_) => fail('expected created'),
       pinAdjustError: () => fail('expected created'),
       photoBlocked: () => fail('expected created'),
+      photoProcessingFailed: () => fail('expected created'),
       error: (_) => fail('expected created'),
     );
     expect(built.uploader.uploadedUrls, isEmpty);
@@ -254,6 +257,24 @@ void main() {
     expect(controller.state, const PoiCreateState.photoBlocked());
     expect(built.adapter.requests, isEmpty);
     expect(built.faceGate.checkedPaths, ['/tmp/photo.jpg']);
+  });
+
+  test('an undecodable photo transitions to photoProcessingFailed before any network call', () async {
+    final built = _build();
+    final controller = _controller(built);
+    final tempFile = File.fromUri(Directory.systemTemp.uri.resolve('poi_create_test_bad_photo.jpg'))
+      ..writeAsBytesSync([1, 2, 3]);
+
+    await controller.submit(
+      title: 'Torre',
+      category: 'landmark',
+      location: _location,
+      gpsFix: _gpsFix,
+      photo: PendingPhoto(path: tempFile.path, contentType: 'image/jpeg'),
+    );
+
+    expect(controller.state, const PoiCreateState.photoProcessingFailed());
+    expect(built.adapter.requests, isEmpty);
   });
 
   test('resetToEditing returns to editing from any terminal state', () async {

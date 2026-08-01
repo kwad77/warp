@@ -57,7 +57,10 @@ gap the original brief never named: nothing in this allowlist reads the device's
 at all, and both POI creation (a single `gpsFix`, §13.1) and check-in (`MIN_FIXES..
 MAX_FIXES` fused fixes, §5.1) need one. `geolocator` is the standard maintained Flutter
 plugin for this (position + accuracy + its own permission-request flow — no separate
-`permission_handler` needed for the read-only foreground use this app makes of it). No `json_serializable`
+`permission_handler` needed for the read-only foreground use this app makes of it).
+**`image`** (pure Dart, no platform channel) is added for the client-side photo resize
+§13.1 always deferred until now — decode/resize/re-encode only, no camera/gallery access
+of its own, so it doesn't expand native permission surface the way the others did. No `json_serializable`
 — model classes write `fromJson`/`toJson` by hand (freezed's immutability/`copyWith`/
 union support doesn't require it, and it avoids a second codegen package for a handful
 of simple DTOs). No routing package — `Navigator`/`MaterialApp` routes suffice at this
@@ -717,13 +720,24 @@ photo field (§7); a photo, if present, uploads only after the POI exists.
   convention (POI_CREATE = 20/day, §2).
 - Any other error ⇒ the existing generic `ApiException` handling (§12).
 
-**Scope reduction, flagged:** client-side resize to ≤ `UPLOAD_MAX_LONG_EDGE_PX` (§6) is
-NOT implemented in this PR — captured/picked photos upload at their native
-resolution/encoding, `contentType` hardcoded to `image/jpeg`. Server-side HEAD validation
-(§6) still enforces `UPLOAD_MAX_BYTES`; an oversized photo fails presign/complete with
-`photo/rejected(quality)` rather than silently succeeding. Resizing is deferred alongside
-the pixel-dimension checks already noted as M1.5 work in §6, or sooner if oversized
-uploads prove common before then.
+**Client-side resize** (`lib/core/image_resize.dart`, `resizeForUpload`): decodes the
+captured/picked bytes, downscales (never upscales) so the long edge is ≤
+`UPLOAD_MAX_LONG_EDGE_PX`, and re-encodes to JPEG (quality 85) regardless of source
+format — the declared `contentType` is always `image/jpeg` (§13.1's dependency note), so
+the bytes must actually be JPEG, not merely mislabeled. Pure function, no I/O: takes and
+returns bytes, so it's unit-tested directly against synthetically generated images (no
+device, no real photo fixture needed) rather than behind a fake-backed interface like
+`FaceGate`/`LocationSource`. **New dependency** (mobile allowlist, §1): `image` (pub.dev,
+pure Dart — no platform channel, decode/resize/encode only) for this.
+
+**Known limitation, flagged, not silently accepted:** the pure-Dart `image` package
+cannot decode HEIC/HEIF — the default capture format on iOS's Photos library (though
+`camera`-captured frames are JPEG and unaffected). `resizeForUpload` returns `null` on an
+undecodable image; both POI creation and check-in (§13.2) treat that as a new
+`photoProcessingFailed` state — checked before any network call, alongside the
+face-detection gate, not after — surfacing "couldn't process this photo, try another"
+rather than silently uploading a mislabeled or unresized file. A HEIC-capable path (e.g.
+platform-channel decoding) is a follow-up if this proves common in practice.
 
 ### 13.2 Check-in flow
 
@@ -763,8 +777,12 @@ isn't hidden). Confirm mode has no camera step at all.
    `capturedAt` ISO string it's sent alongside (§5.5's exact formula, computed client-side
    here since the server only re-derives the same ms value from the string we send). Runs
    through the same `FaceGate` as §13.1 before upload; a face ⇒ retake, same as POI
-   creation. Photo then uploads via presign → PUT → complete (`source: "checkin"`) BEFORE
+   creation. Then the same `resizeForUpload` (§13.1) runs before upload; `null` (undecodable
+   image) ⇒ `photoProcessingFailed`, checked before any network call, same as POI creation.
+   Photo then uploads via presign → PUT → complete (`source: "checkin"`) BEFORE
    submit, so `capture.storageKey` resolves to an existing row (§5.5's `photoFound` check).
+   The capture-token hash (`sha256("<nonce>.<capturedAtMs>")`) is over the nonce and
+   shutter timestamp only, never the image bytes — resizing doesn't touch it.
 4. `integrityToken`: `IntegrityTokenProvider.token(nonce)` — `DevIntegrityTokenProvider`
    (the only implementation; real platform attestation is scoped out, §5.2) returns
    `"dev.pass.<nonce>"`, matching the server's `DevIntegrityVerifier` format exactly so the

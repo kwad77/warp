@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_exception.dart';
 import '../../core/constants.dart';
 import '../../core/hash.dart';
+import '../../core/image_resize.dart';
 import '../../core/wanderpost_api.dart';
 import '../poi/face_gate.dart';
 import '../poi/location_source.dart';
@@ -87,13 +88,18 @@ class CheckinController extends StateNotifier<CheckinState> {
           state = const CheckinState.photoBlocked();
           return;
         }
+        final rawBytes = await File(photo.path).readAsBytes();
+        final resizedBytes = resizeForUpload(rawBytes, maxLongEdge: AppConfig.uploadMaxLongEdgePx);
+        if (resizedBytes == null) {
+          state = const CheckinState.photoProcessingFailed();
+          return;
+        }
         final presigned = await api.presignPhoto(
           poiId,
           contentType: AppConfig.photoContentType,
           source: 'checkin',
         );
-        final bytes = await File(photo.path).readAsBytes();
-        await uploader.upload(presigned.uploadUrl, bytes, contentType: AppConfig.photoContentType);
+        await uploader.upload(presigned.uploadUrl, resizedBytes, contentType: AppConfig.photoContentType);
         await api.completePhoto(poiId, storageKey: presigned.storageKey, source: 'checkin');
         final capturedAtUtc = photo.capturedAt.toUtc();
         capture = (

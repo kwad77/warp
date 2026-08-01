@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:wanderpost/core/api_client.dart';
 import 'package:wanderpost/core/secure_store.dart';
 import 'package:wanderpost/core/token_store.dart';
@@ -158,6 +159,7 @@ void main() {
       rejected: (_) => fail('expected verified'),
       duplicate: () => fail('expected verified'),
       photoBlocked: () => fail('expected verified'),
+      photoProcessingFailed: () => fail('expected verified'),
       fixTimeout: () => fail('expected verified'),
       error: (_) => fail('expected verified'),
     );
@@ -283,6 +285,28 @@ void main() {
     expect(built.adapter.requests.where((r) => r.path == '/v1/checkins'), isEmpty);
   });
 
+  test('photo mode: an undecodable photo transitions to photoProcessingFailed', () async {
+    final built = _build();
+    _stubIntent(built.adapter);
+    final controller = _controller(built);
+    final tempFile = File.fromUri(Directory.systemTemp.uri.resolve('checkin_test_bad_photo.jpg'))
+      ..writeAsBytesSync([1, 2, 3]);
+
+    await controller.submit(
+      poiId: 'poi1',
+      deviceId: 'dev1',
+      mode: 'photo',
+      capturePhoto: (nonce) async => PendingCheckinPhoto(
+        path: tempFile.path,
+        capturedAt: DateTime.utc(2026, 1, 1, 0, 0, 9),
+      ),
+    );
+
+    expect(controller.state, const CheckinState.photoProcessingFailed());
+    expect(built.uploader.uploadedUrls, isEmpty);
+    expect(built.adapter.requests.where((r) => r.path == '/v1/checkins'), isEmpty);
+  });
+
   test('photo mode happy path uploads then submits with a matching capture token', () async {
     final built = _build();
     _stubIntent(built.adapter, nonce: 'nonceABC');
@@ -304,7 +328,7 @@ void main() {
     _stubCheckin(built.adapter, status: 'verified');
     final controller = _controller(built);
     final tempFile = File.fromUri(Directory.systemTemp.uri.resolve('checkin_test_photo2.jpg'))
-      ..writeAsBytesSync([1, 2, 3]);
+      ..writeAsBytesSync(img.encodeJpg(img.Image(width: 10, height: 10)));
     final capturedAt = DateTime.utc(2026, 1, 1, 0, 0, 9);
 
     await controller.submit(

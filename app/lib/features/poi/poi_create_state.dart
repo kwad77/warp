@@ -20,5 +20,9 @@ class PoiCreateState with _$PoiCreateState {
   /// A face was detected in the captured/picked photo; the submission never reached the
   /// server (SPEC §6 — the gate runs before upload).
   const factory PoiCreateState.photoBlocked() = _PhotoBlocked;
+
+  /// `resizeForUpload` couldn't decode the photo (e.g. HEIC) — checked before any
+  /// network call, same as `photoBlocked` (SPEC §13.1).
+  const factory PoiCreateState.photoProcessingFailed() = _PhotoProcessingFailed;
   const factory PoiCreateState.error(String message) = _Error;
 }

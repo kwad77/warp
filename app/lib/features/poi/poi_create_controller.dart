@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_exception.dart';
+import '../../core/constants.dart';
+import '../../core/image_resize.dart';
 import '../../core/wanderpost_api.dart';
 import '../../models/lat_lng.dart';
 import '../../models/gps_fix.dart';
@@ -67,10 +70,17 @@ class PoiCreateController extends StateNotifier<PoiCreateState> {
 
   Future<void> _submit({required bool force}) async {
     final submission = _lastSubmission!;
+    Uint8List? resizedPhotoBytes;
     if (submission.photo != null) {
       final hasFace = await faceGate.hasFace(submission.photo!.path);
       if (hasFace) {
         state = const PoiCreateState.photoBlocked();
+        return;
+      }
+      final rawBytes = await File(submission.photo!.path).readAsBytes();
+      resizedPhotoBytes = resizeForUpload(rawBytes, maxLongEdge: AppConfig.uploadMaxLongEdgePx);
+      if (resizedPhotoBytes == null) {
+        state = const PoiCreateState.photoProcessingFailed();
         return;
       }
     }
@@ -86,8 +96,8 @@ class PoiCreateController extends StateNotifier<PoiCreateState> {
       );
       await result.when(
         created: (poi) async {
-          if (submission.photo != null) {
-            await _uploadPhoto(poi.id, submission.photo!);
+          if (resizedPhotoBytes != null) {
+            await _uploadPhoto(poi.id, resizedPhotoBytes);
           }
           state = PoiCreateState.created(poi);
         },
@@ -105,15 +115,14 @@ class PoiCreateController extends StateNotifier<PoiCreateState> {
   /// A failed upload does NOT undo the already-created POI (SPEC §13.1) — the detail
   /// screen offers its own retry, so failures here are swallowed rather than surfaced as
   /// a creation error.
-  Future<void> _uploadPhoto(String poiId, PendingPhoto photo) async {
+  Future<void> _uploadPhoto(String poiId, Uint8List bytes) async {
     try {
       final presigned = await api.presignPhoto(
         poiId,
-        contentType: photo.contentType,
+        contentType: AppConfig.photoContentType,
         source: 'poi_creation',
       );
-      final bytes = await File(photo.path).readAsBytes();
-      await uploader.upload(presigned.uploadUrl, bytes, contentType: photo.contentType);
+      await uploader.upload(presigned.uploadUrl, bytes, contentType: AppConfig.photoContentType);
       await api.completePhoto(poiId, storageKey: presigned.storageKey, source: 'poi_creation');
     } on ApiException {
       // Swallowed — see doc comment.

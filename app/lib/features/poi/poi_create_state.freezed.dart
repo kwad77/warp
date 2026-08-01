@@ -25,6 +25,7 @@ mixin _$PoiCreateState {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -35,6 +36,7 @@ mixin _$PoiCreateState {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -45,6 +47,7 @@ mixin _$PoiCreateState {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
@@ -56,6 +59,8 @@ mixin _$PoiCreateState {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -66,6 +71,7 @@ mixin _$PoiCreateState {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -76,6 +82,7 @@ mixin _$PoiCreateState {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
@@ -152,6 +159,7 @@ class _$EditingImpl implements _Editing {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return editing();
@@ -166,6 +174,7 @@ class _$EditingImpl implements _Editing {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return editing?.call();
@@ -180,6 +189,7 @@ class _$EditingImpl implements _Editing {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -198,6 +208,8 @@ class _$EditingImpl implements _Editing {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return editing(this);
@@ -212,6 +224,7 @@ class _$EditingImpl implements _Editing {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return editing?.call(this);
@@ -226,6 +239,7 @@ class _$EditingImpl implements _Editing {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -289,6 +303,7 @@ class _$SubmittingImpl implements _Submitting {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return submitting();
@@ -303,6 +318,7 @@ class _$SubmittingImpl implements _Submitting {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return submitting?.call();
@@ -317,6 +333,7 @@ class _$SubmittingImpl implements _Submitting {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -335,6 +352,8 @@ class _$SubmittingImpl implements _Submitting {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return submitting(this);
@@ -349,6 +368,7 @@ class _$SubmittingImpl implements _Submitting {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return submitting?.call(this);
@@ -363,6 +383,7 @@ class _$SubmittingImpl implements _Submitting {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -465,6 +486,7 @@ class _$CreatedImpl implements _Created {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return created(poi);
@@ -479,6 +501,7 @@ class _$CreatedImpl implements _Created {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return created?.call(poi);
@@ -493,6 +516,7 @@ class _$CreatedImpl implements _Created {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -511,6 +535,8 @@ class _$CreatedImpl implements _Created {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return created(this);
@@ -525,6 +551,7 @@ class _$CreatedImpl implements _Created {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return created?.call(this);
@@ -539,6 +566,7 @@ class _$CreatedImpl implements _Created {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -648,6 +676,7 @@ class _$DedupeImpl implements _Dedupe {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return dedupe(candidates);
@@ -662,6 +691,7 @@ class _$DedupeImpl implements _Dedupe {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return dedupe?.call(candidates);
@@ -676,6 +706,7 @@ class _$DedupeImpl implements _Dedupe {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -694,6 +725,8 @@ class _$DedupeImpl implements _Dedupe {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return dedupe(this);
@@ -708,6 +741,7 @@ class _$DedupeImpl implements _Dedupe {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return dedupe?.call(this);
@@ -722,6 +756,7 @@ class _$DedupeImpl implements _Dedupe {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -793,6 +828,7 @@ class _$PinAdjustErrorImpl implements _PinAdjustError {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return pinAdjustError();
@@ -807,6 +843,7 @@ class _$PinAdjustErrorImpl implements _PinAdjustError {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return pinAdjustError?.call();
@@ -821,6 +858,7 @@ class _$PinAdjustErrorImpl implements _PinAdjustError {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -839,6 +877,8 @@ class _$PinAdjustErrorImpl implements _PinAdjustError {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return pinAdjustError(this);
@@ -853,6 +893,7 @@ class _$PinAdjustErrorImpl implements _PinAdjustError {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return pinAdjustError?.call(this);
@@ -867,6 +908,7 @@ class _$PinAdjustErrorImpl implements _PinAdjustError {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -930,6 +972,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return photoBlocked();
@@ -944,6 +987,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return photoBlocked?.call();
@@ -958,6 +1002,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -976,6 +1021,8 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return photoBlocked(this);
@@ -990,6 +1037,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return photoBlocked?.call(this);
@@ -1004,6 +1052,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -1016,6 +1065,151 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
 
 abstract class _PhotoBlocked implements PoiCreateState {
   const factory _PhotoBlocked() = _$PhotoBlockedImpl;
+}
+
+/// @nodoc
+abstract class _$$PhotoProcessingFailedImplCopyWith<$Res> {
+  factory _$$PhotoProcessingFailedImplCopyWith(
+    _$PhotoProcessingFailedImpl value,
+    $Res Function(_$PhotoProcessingFailedImpl) then,
+  ) = __$$PhotoProcessingFailedImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$PhotoProcessingFailedImplCopyWithImpl<$Res>
+    extends _$PoiCreateStateCopyWithImpl<$Res, _$PhotoProcessingFailedImpl>
+    implements _$$PhotoProcessingFailedImplCopyWith<$Res> {
+  __$$PhotoProcessingFailedImplCopyWithImpl(
+    _$PhotoProcessingFailedImpl _value,
+    $Res Function(_$PhotoProcessingFailedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of PoiCreateState
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
+  const _$PhotoProcessingFailedImpl();
+
+  @override
+  String toString() {
+    return 'PoiCreateState.photoProcessingFailed()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PhotoProcessingFailedImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() editing,
+    required TResult Function() submitting,
+    required TResult Function(Poi poi) created,
+    required TResult Function(List<PoiPin> candidates) dedupe,
+    required TResult Function() pinAdjustError,
+    required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
+    required TResult Function(String message) error,
+  }) {
+    return photoProcessingFailed();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? editing,
+    TResult? Function()? submitting,
+    TResult? Function(Poi poi)? created,
+    TResult? Function(List<PoiPin> candidates)? dedupe,
+    TResult? Function()? pinAdjustError,
+    TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
+    TResult? Function(String message)? error,
+  }) {
+    return photoProcessingFailed?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? editing,
+    TResult Function()? submitting,
+    TResult Function(Poi poi)? created,
+    TResult Function(List<PoiPin> candidates)? dedupe,
+    TResult Function()? pinAdjustError,
+    TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
+    TResult Function(String message)? error,
+    required TResult orElse(),
+  }) {
+    if (photoProcessingFailed != null) {
+      return photoProcessingFailed();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_Editing value) editing,
+    required TResult Function(_Submitting value) submitting,
+    required TResult Function(_Created value) created,
+    required TResult Function(_Dedupe value) dedupe,
+    required TResult Function(_PinAdjustError value) pinAdjustError,
+    required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
+    required TResult Function(_Error value) error,
+  }) {
+    return photoProcessingFailed(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_Editing value)? editing,
+    TResult? Function(_Submitting value)? submitting,
+    TResult? Function(_Created value)? created,
+    TResult? Function(_Dedupe value)? dedupe,
+    TResult? Function(_PinAdjustError value)? pinAdjustError,
+    TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
+    TResult? Function(_Error value)? error,
+  }) {
+    return photoProcessingFailed?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_Editing value)? editing,
+    TResult Function(_Submitting value)? submitting,
+    TResult Function(_Created value)? created,
+    TResult Function(_Dedupe value)? dedupe,
+    TResult Function(_PinAdjustError value)? pinAdjustError,
+    TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
+    TResult Function(_Error value)? error,
+    required TResult orElse(),
+  }) {
+    if (photoProcessingFailed != null) {
+      return photoProcessingFailed(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _PhotoProcessingFailed implements PoiCreateState {
+  const factory _PhotoProcessingFailed() = _$PhotoProcessingFailedImpl;
 }
 
 /// @nodoc
@@ -1094,6 +1288,7 @@ class _$ErrorImpl implements _Error {
     required TResult Function(List<PoiPin> candidates) dedupe,
     required TResult Function() pinAdjustError,
     required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
     required TResult Function(String message) error,
   }) {
     return error(message);
@@ -1108,6 +1303,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function(List<PoiPin> candidates)? dedupe,
     TResult? Function()? pinAdjustError,
     TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
     TResult? Function(String message)? error,
   }) {
     return error?.call(message);
@@ -1122,6 +1318,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(List<PoiPin> candidates)? dedupe,
     TResult Function()? pinAdjustError,
     TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -1140,6 +1337,8 @@ class _$ErrorImpl implements _Error {
     required TResult Function(_Dedupe value) dedupe,
     required TResult Function(_PinAdjustError value) pinAdjustError,
     required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
     required TResult Function(_Error value) error,
   }) {
     return error(this);
@@ -1154,6 +1353,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function(_Dedupe value)? dedupe,
     TResult? Function(_PinAdjustError value)? pinAdjustError,
     TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_Error value)? error,
   }) {
     return error?.call(this);
@@ -1168,6 +1368,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(_Dedupe value)? dedupe,
     TResult Function(_PinAdjustError value)? pinAdjustError,
     TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
