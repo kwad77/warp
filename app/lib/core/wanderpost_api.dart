@@ -1,4 +1,5 @@
 import '../models/checkin.dart';
+import '../models/coverage_heatmap_result.dart';
 import '../models/gps_fix.dart';
 import '../models/lat_lng.dart';
 import '../models/leaderboard_result.dart';
@@ -200,6 +201,12 @@ class WanderpostApi {
       cells: (body['cells'] as List<dynamic>).cast<String>(),
       count: body['count'] as int,
     );
+  }
+
+  /// SPEC §7/§15 `GET /me/coverage/heatmap`.
+  Future<CoverageHeatmapResult> coverageHeatmap({required int zoom}) async {
+    final body = await client.getJson('/v1/me/coverage/heatmap', query: {'zoom': zoom});
+    return CoverageHeatmapResult.fromMap(body);
   }
 
   /// SPEC §7/§14 `GET /leaderboards/coverage`.

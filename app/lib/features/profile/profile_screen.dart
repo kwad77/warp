@@ -6,6 +6,7 @@ import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
 import '../../models/user.dart';
+import '../coverage/personal_map_screen.dart';
 import '../map/map_screen.dart';
 
 /// SPEC §14 — stats, My Places, coverage, weekly leaderboard, sign-out. Replaces the
@@ -66,6 +67,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const SizedBox(height: 4),
         Text('$coverageCount map cells explored'),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PersonalMapScreen()),
+          ),
+          child: const Text('View my map'),
+        ),
         const SizedBox(height: 24),
         Text('My places', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),

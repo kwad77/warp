@@ -5,6 +5,8 @@ import '../features/auth/auth_state.dart';
 import '../features/checkin/checkin_controller.dart';
 import '../features/checkin/checkin_state.dart';
 import '../features/checkin/integrity_token_provider.dart';
+import '../features/coverage/personal_map_controller.dart';
+import '../features/coverage/personal_map_state.dart';
 import '../features/map/map_controller.dart';
 import '../features/map/map_view_state.dart';
 import '../features/poi/face_gate.dart';
@@ -93,4 +95,13 @@ final AutoDisposeStateNotifierProvider<CheckinController, CheckinState> checkinC
 final StateNotifierProvider<ProfileController, ProfileState> profileControllerProvider =
     StateNotifierProvider<ProfileController, ProfileState>((ref) {
   return ProfileController(ref.watch(wanderpostApiProvider));
+});
+
+// SPEC §15 — personal coverage map. autoDispose: PersonalMapScreen is pushed on demand
+// (not a persistent tab), and a fresh visit should re-fetch rather than reuse a stale
+// cached `GET /me/map` from a previous visit.
+final AutoDisposeStateNotifierProvider<PersonalMapController, PersonalMapState>
+    personalMapControllerProvider =
+    StateNotifierProvider.autoDispose<PersonalMapController, PersonalMapState>((ref) {
+  return PersonalMapController(ref.watch(wanderpostApiProvider));
 });

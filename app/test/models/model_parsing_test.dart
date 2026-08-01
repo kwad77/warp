@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderpost/models/cluster.dart';
+import 'package:wanderpost/models/coverage_heatmap_cell.dart';
+import 'package:wanderpost/models/coverage_heatmap_result.dart';
 import 'package:wanderpost/models/gps_fix.dart';
 import 'package:wanderpost/models/lat_lng.dart';
 import 'package:wanderpost/models/leaderboard_result.dart';
@@ -169,6 +171,41 @@ void main() {
     });
     expect(result.entries.single.handle, 'explorer_x');
     expect(result.me, isNull);
+  });
+
+  test('CoverageHeatmapCell.fromMap parses the SPEC §15 shape', () {
+    final cell = CoverageHeatmapCell.fromMap({
+      'h3': 'abc123',
+      'count': 4,
+      'centroid': {'lat': 38.7, 'lng': -9.1},
+    });
+    expect(cell.h3, 'abc123');
+    expect(cell.count, 4);
+    expect(cell.centroid.lat, 38.7);
+  });
+
+  test('CoverageHeatmapResult.fromMap parses cells and a present resolution', () {
+    final result = CoverageHeatmapResult.fromMap({
+      'cells': [
+        {
+          'h3': 'abc123',
+          'count': 4,
+          'centroid': {'lat': 38.7, 'lng': -9.1},
+        },
+      ],
+      'resolution': 5,
+    });
+    expect(result.cells, hasLength(1));
+    expect(result.resolution, 5);
+  });
+
+  test('CoverageHeatmapResult.fromMap parses a null resolution (pin-mode zoom)', () {
+    final result = CoverageHeatmapResult.fromMap({
+      'cells': <Map<String, dynamic>>[],
+      'resolution': null,
+    });
+    expect(result.cells, isEmpty);
+    expect(result.resolution, isNull);
   });
 
   test('LeaderboardResult.fromMap parses a present me (no handle)', () {

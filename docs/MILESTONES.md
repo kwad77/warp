@@ -105,6 +105,20 @@ mock-location apps and emulators are caught.
   to `GET /me`'s `stats`, deliberately the simplest faithful definition since M2 only
   calls for it being visible, not ranked (that's M3). New `GET /me/badges`. No mobile UI
   yet — server-first, same order M1's moderation loop landed in.
+- **Personal coverage map — heatmap & drill-down (SPEC §15; done, server + mobile).**
+  New `GET /me/coverage/heatmap?zoom=`, bucketing the caller's r7 `user_coverage` cells
+  by H3 ancestor at a resolution chosen from the camera zoom (`resolutionForZoom`,
+  `[2, 3, 5, 7]`). City/state/country boundary labeling was explicitly decided against for
+  now (H3 tiers stand in, with generic "this area" identity rather than real place names) —
+  flagged as deferred, gated on choosing a bundled-boundary-dataset vs. reverse-geocoding
+  approach later. Mobile `PersonalMapScreen` (reachable from Profile's "View my map")
+  renders a MapLibre heatmap layer below the pin-mode zoom threshold (13, shared with
+  `GET /pois`) and switches to `CircleManager` pins (own postcards + nearby POIs) above it;
+  tapping a heatmap cell resolves to its nearest centroid (`nearestHeatmapCell` — heatmap
+  layers have no native per-feature tap the way annotation-manager pins do) and drills in
+  one tier. Noted, not fixed here: the discovery `MapScreen` doesn't render any
+  pins/clusters at all — a pre-existing gap this feature's `CircleManager` plumbing didn't
+  need to touch.
 - Shareable map image with precision controls.
 - **Postcard sending v1** (ARCHITECTURE.md §10): share-image + unlisted web-postcard link
   from any verified check-in, message moderation, photographer credit. First job of the
