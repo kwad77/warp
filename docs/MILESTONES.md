@@ -34,7 +34,11 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      Client-side resize to `UPLOAD_MAX_LONG_EDGE_PX` (§6, originally deferred) is now
      implemented (`core/image_resize.dart`, pure function, no platform channel — new
      dependency `image`) and always re-encodes to JPEG regardless of source format, since
-     `contentType` is declared as `image/jpeg`. Flagged limitation: the pure-Dart `image`
+     `contentType` is declared as `image/jpeg`. Also steps JPEG quality down (85 → floor
+     30) when the resized encode still exceeds `UPLOAD_MAX_BYTES` — confirmed necessary
+     against a synthetic worst-case (noisy, detailed) photo, not a hypothetical: quality
+     85 alone left a 2048px-long-edge image at 1.27MB, over the 1MB budget; quality
+     stepping brought the same image to 0.85MB. Flagged limitation: the pure-Dart `image`
      package can't decode HEIC (iOS's default gallery format) — surfaced as a new
      `photoProcessingFailed` state, checked pre-flight alongside the face gate, not a
      silent pass-through.

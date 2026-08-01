@@ -72,7 +72,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (74 tests as of the client-resize slice). No live device is
+All three must be clean/green (77 tests as of the client-resize slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.

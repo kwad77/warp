@@ -722,13 +722,21 @@ photo field (§7); a photo, if present, uploads only after the POI exists.
 
 **Client-side resize** (`lib/core/image_resize.dart`, `resizeForUpload`): decodes the
 captured/picked bytes, downscales (never upscales) so the long edge is ≤
-`UPLOAD_MAX_LONG_EDGE_PX`, and re-encodes to JPEG (quality 85) regardless of source
-format — the declared `contentType` is always `image/jpeg` (§13.1's dependency note), so
-the bytes must actually be JPEG, not merely mislabeled. Pure function, no I/O: takes and
-returns bytes, so it's unit-tested directly against synthetically generated images (no
-device, no real photo fixture needed) rather than behind a fake-backed interface like
-`FaceGate`/`LocationSource`. **New dependency** (mobile allowlist, §1): `image` (pub.dev,
-pure Dart — no platform channel, decode/resize/encode only) for this.
+`UPLOAD_MAX_LONG_EDGE_PX`, and re-encodes to JPEG regardless of source format — the
+declared `contentType` is always `image/jpeg` (§13.1's dependency note), so the bytes
+must actually be JPEG, not merely mislabeled. Starts at quality 85; if that encode still
+exceeds `UPLOAD_MAX_BYTES`, quality steps down by 10 (floor 30) until it fits or the floor
+is hit — confirmed necessary, not hypothetical: a genuinely detailed/noisy photo at the
+full `UPLOAD_MAX_LONG_EDGE_PX` can exceed `UPLOAD_MAX_BYTES` at quality 85 alone (verified
+against a synthetic worst-case image: 12MB source → 1.27MB at quality 85 alone, 0.85MB
+with quality stepping, same 2048px long edge). The server's HEAD check (§6) remains the
+backstop if even the floor doesn't fit — this just makes that rejection the exception
+rather than routine for detailed photos. Pure function, no I/O: takes and returns bytes,
+so it's unit-tested directly against synthetically generated (noisy, not flat-color —
+flat color compresses unrealistically well and wouldn't exercise the quality-stepping
+path) images, no device or real photo fixture needed, rather than behind a fake-backed
+interface like `FaceGate`/`LocationSource`. **New dependency** (mobile allowlist, §1):
+`image` (pub.dev, pure Dart — no platform channel, decode/resize/encode only) for this.
 
 **Known limitation, flagged, not silently accepted:** the pure-Dart `image` package
 cannot decode HEIC/HEIF — the default capture format on iOS's Photos library (though

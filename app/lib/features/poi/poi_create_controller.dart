@@ -78,7 +78,11 @@ class PoiCreateController extends StateNotifier<PoiCreateState> {
         return;
       }
       final rawBytes = await File(submission.photo!.path).readAsBytes();
-      resizedPhotoBytes = resizeForUpload(rawBytes, maxLongEdge: AppConfig.uploadMaxLongEdgePx);
+      resizedPhotoBytes = resizeForUpload(
+        rawBytes,
+        maxLongEdge: AppConfig.uploadMaxLongEdgePx,
+        maxBytes: AppConfig.uploadMaxBytes,
+      );
       if (resizedPhotoBytes == null) {
         state = const PoiCreateState.photoProcessingFailed();
         return;

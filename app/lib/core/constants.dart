@@ -44,4 +44,8 @@ class AppConfig {
 
   /// SPEC §2 `UPLOAD_MAX_LONG_EDGE_PX` — client-side resize before upload (§13.1).
   static const int uploadMaxLongEdgePx = 2048;
+
+  /// SPEC §2 `UPLOAD_MAX_BYTES` — `resizeForUpload` steps quality down to try to fit this
+  /// before the server's own HEAD check (§6) would reject an oversized upload.
+  static const int uploadMaxBytes = 1048576;
 }

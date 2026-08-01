@@ -89,7 +89,11 @@ class CheckinController extends StateNotifier<CheckinState> {
           return;
         }
         final rawBytes = await File(photo.path).readAsBytes();
-        final resizedBytes = resizeForUpload(rawBytes, maxLongEdge: AppConfig.uploadMaxLongEdgePx);
+        final resizedBytes = resizeForUpload(
+          rawBytes,
+          maxLongEdge: AppConfig.uploadMaxLongEdgePx,
+          maxBytes: AppConfig.uploadMaxBytes,
+        );
         if (resizedBytes == null) {
           state = const CheckinState.photoProcessingFailed();
           return;
