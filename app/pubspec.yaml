@@ -1,0 +1,30 @@
+name: wanderpost
+description: "Wanderpost — a location-based collection game."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.12.2
+
+# SPEC §1 mobile dependency allowlist. Anything else requires a SPEC edit in the same PR.
+# camera + google_mlkit_face_detection are pre-approved but not added here — nothing in
+# M1 step 3 uses them; they land with M1 step 4 to avoid unused native platform surface
+# (camera/photo permissions) in this PR.
+dependencies:
+  flutter:
+    sdk: flutter
+  maplibre_gl: ^0.21.0
+  flutter_riverpod: ^2.6.1
+  dio: ^5.7.0
+  freezed_annotation: ^2.4.4
+  flutter_secure_storage: ^9.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+
+flutter:
+  uses-material-design: true

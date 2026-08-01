@@ -33,17 +33,32 @@ Version: 1.0 · Scope: Milestone 1 (server + Flutter app foundation). Sections m
 | h3-js | ^4 | H3 cells |
 | Vitest | latest stable | tests |
 | Biome | ^1.9 | lint + format (no ESLint/Prettier) |
-| Flutter | 3.x stable | app; packages: `maplibre_gl`, `camera`, `google_mlkit_face_detection`, `riverpod`, `dio`, `freezed` |
+| Flutter | 3.x stable (3.44.8 validated) | app; see mobile allowlist below |
 
 Dependency allowlist (server prod deps): `fastify`, `zod`, `drizzle-orm`, `postgres`,
 `jose`, `h3-js`, `sharp` (worker only), `graphile-worker`, `aws4fetch` (R2 presigning).
 Anything else requires a SPEC edit in the same PR.
 
+Dependency allowlist (mobile, `app/pubspec.yaml`): `maplibre_gl`, `camera`,
+`google_mlkit_face_detection`, `flutter_riverpod`, `dio`, `freezed` + `freezed_annotation`
++ `build_runner` (dev; freezed's own codegen toolchain, not a separate decision) — all
+named in the original product brief — plus **`flutter_secure_storage`**, added in M1 step 3
+(Keychain/Keystore-backed token persistence; SharedPreferences would put JWTs in
+plaintext, which fails SPEC §9's spirit even though §9 is written for the server).
+`camera` and `google_mlkit_face_detection` are pre-approved but NOT yet in
+`pubspec.yaml` — nothing in step 3 uses them, and adding them now would mean unused
+native platform surface (camera/photo permissions) sitting in this PR for no reason;
+they land in step 4 alongside the code that actually calls them. No `json_serializable`
+— model classes write `fromJson`/`toJson` by hand (freezed's immutability/`copyWith`/
+union support doesn't require it, and it avoids a second codegen package for a handful
+of simple DTOs). No routing package — `Navigator`/`MaterialApp` routes suffice at this
+app's current size; revisit if nested/deep-link routing is needed.
+
 ```
 server/    src/{config,app,index,constants,errors}.ts, src/db/, src/routes/,
            src/verification/, src/geo/, src/auth/, src/storage/, src/lib/,
            migrations/*.sql, test/
-app/       Flutter project (M1 steps 3–4)
+app/       Flutter project — lib/{core,features}/, test/ (layout: SPEC §12)
 docker-compose.yml    local PostGIS (repo root so `docker compose up -d db` just works)
 .github/workflows/    CI (SPEC §10 gates)
 docs/      narrative documents (non-normative)
@@ -488,8 +503,18 @@ CREATE TABLE reports (
   nonce expiry, duplicate check-in, teleport violation, degraded integrity capping at
   pending, trust-gate forcing photo mode, track inconsistency.
 - Route tests use `app.inject()` (no network). Pure modules get no mocks — real math.
-- Flutter (when built): `flutter analyze` + unit tests for API client and check-in state
-  machine; golden test for the stamp animation frame.
+- Flutter, M1 step 3 (map/browse/auth): `cd app && dart run build_runner build
+  --delete-conflicting-outputs && flutter analyze && flutter test` — codegen must be
+  regenerated and committed (`*.freezed.dart` files ARE checked in, matching Flutter
+  community convention, so CI doesn't need the Dart SDK's codegen step to be
+  reproducible-by-accident). Unit tests required for: the API client (every endpoint this
+  slice calls, success + every mapped error code) and the auth/refresh interceptor
+  (attaches token, refreshes once on `auth/expired`, clears + surfaces logged-out on
+  refresh failure). No live device/emulator is available in this sandbox — widget/golden
+  tests for map rendering are deferred to when one is; `flutter test` covers
+  non-rendering logic only for this slice.
+- Flutter, M1 step 4 (check-in flow): adds the check-in state machine unit tests and a
+  golden test for the stamp animation frame, per the original plan — not built yet.
 
 ## 11. Localization & place names
 
@@ -512,7 +537,72 @@ interface speaks the user's language.**
 - Search across scripts (normalization, transliterated queries) is deferred to M2 and
   MUST be listed there when built.
 
-## 12. Definition of done (every PR)
+## 12. Mobile app — map, browse, auth (M1 step 3; exact)
+
+Scope: MapLibre map with server-driven clustering, POI detail, email-code auth. Check-in
+flow, camera, and on-device face detection are M1 step 4 — not covered here.
+
+**Layout** (`app/lib/`):
+```
+main.dart
+core/
+  api_client.dart      Dio instance: base URL, auth header injection, refresh interceptor
+  api_exception.dart   ApiException{code, message, details} — parses the SPEC §3 envelope
+  token_store.dart      flutter_secure_storage wrapper: read/write/clear access+refresh
+  constants.dart         API base URL default, map style URL, SPEC_CONSTANTS mirror (§2
+                          values this client needs — currently none; add as UI needs them)
+models/
+  user.dart, poi.dart, poi_pin.dart, cluster.dart, photo.dart   hand-written fromJson;
+  freezed for immutability/copyWith/equality
+features/
+  auth/   auth_controller.dart (Riverpod), email_auth_screen.dart
+  map/    map_screen.dart, map_controller.dart (Riverpod: fetches /pois for the current
+          viewport+zoom, debounced on camera-idle)
+  poi/    poi_detail_sheet.dart (fetches GET /pois/:id on open)
+```
+
+**API base URL**: `String.fromEnvironment('API_BASE_URL', defaultValue: ...)`, default
+`http://10.0.2.2:8080` (Android emulator → host loopback). iOS simulator run instructions
+use `--dart-define=API_BASE_URL=http://localhost:8080` (shares host networking directly).
+
+**Map style**: `https://tiles.openfreemap.org/styles/liberty` (OpenFreeMap, matches
+ARCHITECTURE.md's MapLibre choice, zero cost). Hardcoded for M1; pinning a
+self-hosted/versioned style is a pre-launch hardening item (ARCHITECTURE.md §12), not
+blocking now.
+
+**Auth flow**: email-code only for this slice (Apple/Google are server-side 501 per §4,
+so the client doesn't build UI for them yet). `AuthController` (Riverpod) states:
+`loggedOut | codeSent(email) | loggedIn(user)`. On `loggedIn`, tokens persist via
+`TokenStore` immediately. App launch reads `TokenStore`; a present access token means
+optimistically `loggedIn` (no eager `/me` call — the first authenticated request either
+succeeds or the interceptor's refresh path resolves it).
+
+**Auth header + refresh interceptor** (`ApiClient`, Dio `Interceptor`):
+1. Every request: if an access token is stored, attach `Authorization: Bearer <token>`.
+2. On a `401` response: if this request has already been retried once, propagate the
+   error (no infinite loop). Otherwise call `POST /v1/auth/refresh` with the stored
+   refresh token; on success, persist the new pair and retry the original request once;
+   on failure (any error), clear `TokenStore` and propagate a distinguished
+   `ApiException(code: 'auth/session_expired')` — a client-local code (not a server one)
+   the UI maps to "logged out, please sign in again."
+3. Map browsing (🌐 endpoints) never triggers step 2 — the interceptor only attempts
+   refresh for requests that included an `Authorization` header in the first place.
+
+**Clustering rendering** (no client-side logic — server already decided): the client
+calls `GET /pois?bbox=&zoom=` with the current viewport and integer zoom on every
+camera-idle event (debounced 300ms); it renders `clusters[]` as cluster markers
+(labeled with `count`) when present and `pois[]` as individual pins otherwise — exactly
+whichever array the response returned non-empty, never both. Tapping a pin opens
+`poi_detail_sheet` via `GET /pois/:id`; tapping a cluster zooms in (no separate
+expand-cluster endpoint).
+
+**Error handling convention**: `ApiException.code` is pattern-matched for exactly the
+cases the UI treats specially (`rate/limited` → "try again in a moment"; local
+`auth/session_expired` → route to auth screen); everything else shows a generic
+"something went wrong, pull to retry" — never the raw `message` (§11: server strings are
+for developers).
+
+## 13. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.
