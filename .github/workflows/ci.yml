@@ -41,3 +41,20 @@ jobs:
       - name: Apply migrations to an empty database
         run: npm run db:migrate
       - run: npx vitest run
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8' # SPEC §1 — pinned, matches the validated version
+          channel: stable
+      - run: flutter pub get
+      # *.freezed.dart is committed (SPEC §10) — no codegen step needed for CI to be
+      # reproducible; regenerating here would just mask a stale-generated-file drift bug.
+      - run: flutter analyze
+      - run: flutter test

@@ -515,7 +515,8 @@ CREATE TABLE reports (
 
 - `npm run check` = Biome + `tsc --noEmit` + `vitest run`. CI runs it on every PR; red = no
   merge. CI also boots `postgis/postgis:16-3.4`, applies ALL migrations to an empty DB, and
-  runs route tests against it.
+  runs route tests against it. A separate CI job runs `flutter analyze` + `flutter test`
+  for `app/` on every PR — both jobs must be green (`.github/workflows/ci.yml`).
 - `src/verification/**` and (when built) vault/entitlement logic: ≥ 90% line coverage,
   table-driven tests, MUST include every worked example in §5.3 plus: nonce replay,
   nonce expiry, duplicate check-in, teleport violation, degraded integrity capping at
@@ -531,8 +532,16 @@ CREATE TABLE reports (
   refresh failure). No live device/emulator is available in this sandbox — widget/golden
   tests for map rendering are deferred to when one is; `flutter test` covers
   non-rendering logic only for this slice.
-- Flutter, M1 step 4 (check-in flow): adds the check-in state machine unit tests and a
-  golden test for the stamp animation frame, per the original plan — not built yet.
+- Flutter, M1 step 4 (check-in flow): the check-in state machine (`CheckinController`) has
+  exhaustive plain-Dart unit tests (every response branch — verified/pending/rejected/
+  duplicate/photo-blocked/fix-timeout/nonce-expired-retry). **Revised from the original
+  plan:** a golden test for the stamp-animation frame, and a fuller tap-through-to-
+  verified `testWidgets` test, were both attempted and abandoned — `flutter test`'s
+  `AutomatedTestWidgetsFlutterBinding` pump loop didn't reliably drain the real Dio async
+  chain within a bounded number of `pump()` calls (with or without `Stream.timeout()` in
+  play), and `pumpAndSettle()` times out outright against the `inProgress` state's
+  indeterminate spinner. A `testWidgets` test covering the screen's initial render under
+  the real provider graph exists instead; the flow logic itself is the unit tests' job.
 
 ## 11. Localization & place names
 
