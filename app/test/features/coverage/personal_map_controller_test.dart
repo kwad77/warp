@@ -81,6 +81,7 @@ void main() {
         },
       ],
       'created': <Map<String, dynamic>>[],
+      'saved': <Map<String, dynamic>>[],
       'vaulted': <Map<String, dynamic>>[],
     });
     adapter.onJson('GET', '/v1/pois', 200, {
@@ -111,6 +112,7 @@ void main() {
     adapter.onJson('GET', '/v1/me/map', 200, {
       'checkedIn': <Map<String, dynamic>>[],
       'created': <Map<String, dynamic>>[],
+      'saved': <Map<String, dynamic>>[],
       'vaulted': <Map<String, dynamic>>[],
     });
     adapter.onJson('GET', '/v1/pois', 200, {'pois': <Map<String, dynamic>>[], 'clusters': <Map<String, dynamic>>[]});

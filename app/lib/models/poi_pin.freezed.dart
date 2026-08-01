@@ -22,6 +22,7 @@ mixin _$PoiPin {
   String get category => throw _privateConstructorUsedError;
   LatLng get location => throw _privateConstructorUsedError;
   int get checkinCount => throw _privateConstructorUsedError;
+  String? get thumbnailUrl => throw _privateConstructorUsedError;
 
   /// Create a copy of PoiPin
   /// with the given fields replaced by the non-null parameter values.
@@ -40,6 +41,7 @@ abstract class $PoiPinCopyWith<$Res> {
     String category,
     LatLng location,
     int checkinCount,
+    String? thumbnailUrl,
   });
 
   $LatLngCopyWith<$Res> get location;
@@ -65,6 +67,7 @@ class _$PoiPinCopyWithImpl<$Res, $Val extends PoiPin>
     Object? category = null,
     Object? location = null,
     Object? checkinCount = null,
+    Object? thumbnailUrl = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -88,6 +91,10 @@ class _$PoiPinCopyWithImpl<$Res, $Val extends PoiPin>
                 ? _value.checkinCount
                 : checkinCount // ignore: cast_nullable_to_non_nullable
                       as int,
+            thumbnailUrl: freezed == thumbnailUrl
+                ? _value.thumbnailUrl
+                : thumbnailUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -118,6 +125,7 @@ abstract class _$$PoiPinImplCopyWith<$Res> implements $PoiPinCopyWith<$Res> {
     String category,
     LatLng location,
     int checkinCount,
+    String? thumbnailUrl,
   });
 
   @override
@@ -143,6 +151,7 @@ class __$$PoiPinImplCopyWithImpl<$Res>
     Object? category = null,
     Object? location = null,
     Object? checkinCount = null,
+    Object? thumbnailUrl = freezed,
   }) {
     return _then(
       _$PoiPinImpl(
@@ -166,6 +175,10 @@ class __$$PoiPinImplCopyWithImpl<$Res>
             ? _value.checkinCount
             : checkinCount // ignore: cast_nullable_to_non_nullable
                   as int,
+        thumbnailUrl: freezed == thumbnailUrl
+            ? _value.thumbnailUrl
+            : thumbnailUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -180,6 +193,7 @@ class _$PoiPinImpl implements _PoiPin {
     required this.category,
     required this.location,
     required this.checkinCount,
+    this.thumbnailUrl,
   });
 
   @override
@@ -192,10 +206,12 @@ class _$PoiPinImpl implements _PoiPin {
   final LatLng location;
   @override
   final int checkinCount;
+  @override
+  final String? thumbnailUrl;
 
   @override
   String toString() {
-    return 'PoiPin(id: $id, title: $title, category: $category, location: $location, checkinCount: $checkinCount)';
+    return 'PoiPin(id: $id, title: $title, category: $category, location: $location, checkinCount: $checkinCount, thumbnailUrl: $thumbnailUrl)';
   }
 
   @override
@@ -210,12 +226,21 @@ class _$PoiPinImpl implements _PoiPin {
             (identical(other.location, location) ||
                 other.location == location) &&
             (identical(other.checkinCount, checkinCount) ||
-                other.checkinCount == checkinCount));
+                other.checkinCount == checkinCount) &&
+            (identical(other.thumbnailUrl, thumbnailUrl) ||
+                other.thumbnailUrl == thumbnailUrl));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, title, category, location, checkinCount);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    title,
+    category,
+    location,
+    checkinCount,
+    thumbnailUrl,
+  );
 
   /// Create a copy of PoiPin
   /// with the given fields replaced by the non-null parameter values.
@@ -233,6 +258,7 @@ abstract class _PoiPin implements PoiPin {
     required final String category,
     required final LatLng location,
     required final int checkinCount,
+    final String? thumbnailUrl,
   }) = _$PoiPinImpl;
 
   @override
@@ -245,6 +271,8 @@ abstract class _PoiPin implements PoiPin {
   LatLng get location;
   @override
   int get checkinCount;
+  @override
+  String? get thumbnailUrl;
 
   /// Create a copy of PoiPin
   /// with the given fields replaced by the non-null parameter values.

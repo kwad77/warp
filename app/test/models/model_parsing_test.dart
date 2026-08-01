@@ -27,6 +27,19 @@ void main() {
     expect(pin.id, 'p1');
     expect(pin.location.lat, 38.7);
     expect(pin.checkinCount, 5);
+    expect(pin.thumbnailUrl, isNull);
+  });
+
+  test('PoiPin.fromMap parses a present thumbnailUrl (SPEC §19)', () {
+    final pin = PoiPin.fromMap({
+      'id': 'p1',
+      'title': 'Miradouro',
+      'category': 'viewpoint',
+      'location': {'lat': 38.7, 'lng': -9.1},
+      'checkinCount': 5,
+      'thumbnailUrl': '/media/thumb/photos/p1/ph1.jpg',
+    });
+    expect(pin.thumbnailUrl, '/media/thumb/photos/p1/ph1.jpg');
   });
 
   test('Cluster.fromMap parses centroid', () {
@@ -228,7 +241,7 @@ void main() {
     expect(stats.poisCreated, 1);
   });
 
-  test('MeMap.fromMap parses checkedIn/created/vaulted independently', () {
+  test('MeMap.fromMap parses checkedIn/created/saved/vaulted independently (SPEC §19)', () {
     final meMap = MeMap.fromMap({
       'checkedIn': [
         {
@@ -240,10 +253,22 @@ void main() {
         },
       ],
       'created': <Map<String, dynamic>>[],
+      'saved': [
+        {
+          'id': 'p2',
+          'title': 'B',
+          'category': 'viewpoint',
+          'location': {'lat': 3, 'lng': 4},
+          'checkinCount': 0,
+          'thumbnailUrl': '/media/thumb/photos/p2/ph1.jpg',
+        },
+      ],
       'vaulted': <Map<String, dynamic>>[],
     });
     expect(meMap.checkedIn, hasLength(1));
     expect(meMap.created, isEmpty);
+    expect(meMap.saved, hasLength(1));
+    expect(meMap.saved.single.thumbnailUrl, '/media/thumb/photos/p2/ph1.jpg');
     expect(meMap.vaulted, isEmpty);
   });
 

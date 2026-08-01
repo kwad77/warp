@@ -19,6 +19,7 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$MeMap {
   List<PoiPin> get checkedIn => throw _privateConstructorUsedError;
   List<PoiPin> get created => throw _privateConstructorUsedError;
+  List<PoiPin> get saved => throw _privateConstructorUsedError;
   List<PoiPin> get vaulted => throw _privateConstructorUsedError;
 
   /// Create a copy of MeMap
@@ -35,6 +36,7 @@ abstract class $MeMapCopyWith<$Res> {
   $Res call({
     List<PoiPin> checkedIn,
     List<PoiPin> created,
+    List<PoiPin> saved,
     List<PoiPin> vaulted,
   });
 }
@@ -56,6 +58,7 @@ class _$MeMapCopyWithImpl<$Res, $Val extends MeMap>
   $Res call({
     Object? checkedIn = null,
     Object? created = null,
+    Object? saved = null,
     Object? vaulted = null,
   }) {
     return _then(
@@ -67,6 +70,10 @@ class _$MeMapCopyWithImpl<$Res, $Val extends MeMap>
             created: null == created
                 ? _value.created
                 : created // ignore: cast_nullable_to_non_nullable
+                      as List<PoiPin>,
+            saved: null == saved
+                ? _value.saved
+                : saved // ignore: cast_nullable_to_non_nullable
                       as List<PoiPin>,
             vaulted: null == vaulted
                 ? _value.vaulted
@@ -89,6 +96,7 @@ abstract class _$$MeMapImplCopyWith<$Res> implements $MeMapCopyWith<$Res> {
   $Res call({
     List<PoiPin> checkedIn,
     List<PoiPin> created,
+    List<PoiPin> saved,
     List<PoiPin> vaulted,
   });
 }
@@ -109,6 +117,7 @@ class __$$MeMapImplCopyWithImpl<$Res>
   $Res call({
     Object? checkedIn = null,
     Object? created = null,
+    Object? saved = null,
     Object? vaulted = null,
   }) {
     return _then(
@@ -120,6 +129,10 @@ class __$$MeMapImplCopyWithImpl<$Res>
         created: null == created
             ? _value._created
             : created // ignore: cast_nullable_to_non_nullable
+                  as List<PoiPin>,
+        saved: null == saved
+            ? _value._saved
+            : saved // ignore: cast_nullable_to_non_nullable
                   as List<PoiPin>,
         vaulted: null == vaulted
             ? _value._vaulted
@@ -136,9 +149,11 @@ class _$MeMapImpl implements _MeMap {
   const _$MeMapImpl({
     required final List<PoiPin> checkedIn,
     required final List<PoiPin> created,
+    required final List<PoiPin> saved,
     required final List<PoiPin> vaulted,
   }) : _checkedIn = checkedIn,
        _created = created,
+       _saved = saved,
        _vaulted = vaulted;
 
   final List<PoiPin> _checkedIn;
@@ -157,6 +172,14 @@ class _$MeMapImpl implements _MeMap {
     return EqualUnmodifiableListView(_created);
   }
 
+  final List<PoiPin> _saved;
+  @override
+  List<PoiPin> get saved {
+    if (_saved is EqualUnmodifiableListView) return _saved;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_saved);
+  }
+
   final List<PoiPin> _vaulted;
   @override
   List<PoiPin> get vaulted {
@@ -167,7 +190,7 @@ class _$MeMapImpl implements _MeMap {
 
   @override
   String toString() {
-    return 'MeMap(checkedIn: $checkedIn, created: $created, vaulted: $vaulted)';
+    return 'MeMap(checkedIn: $checkedIn, created: $created, saved: $saved, vaulted: $vaulted)';
   }
 
   @override
@@ -180,6 +203,7 @@ class _$MeMapImpl implements _MeMap {
               _checkedIn,
             ) &&
             const DeepCollectionEquality().equals(other._created, _created) &&
+            const DeepCollectionEquality().equals(other._saved, _saved) &&
             const DeepCollectionEquality().equals(other._vaulted, _vaulted));
   }
 
@@ -188,6 +212,7 @@ class _$MeMapImpl implements _MeMap {
     runtimeType,
     const DeepCollectionEquality().hash(_checkedIn),
     const DeepCollectionEquality().hash(_created),
+    const DeepCollectionEquality().hash(_saved),
     const DeepCollectionEquality().hash(_vaulted),
   );
 
@@ -204,6 +229,7 @@ abstract class _MeMap implements MeMap {
   const factory _MeMap({
     required final List<PoiPin> checkedIn,
     required final List<PoiPin> created,
+    required final List<PoiPin> saved,
     required final List<PoiPin> vaulted,
   }) = _$MeMapImpl;
 
@@ -211,6 +237,8 @@ abstract class _MeMap implements MeMap {
   List<PoiPin> get checkedIn;
   @override
   List<PoiPin> get created;
+  @override
+  List<PoiPin> get saved;
   @override
   List<PoiPin> get vaulted;
 

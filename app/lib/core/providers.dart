@@ -10,6 +10,8 @@ import '../features/checkin/checkin_outbox_state.dart';
 import '../features/checkin/integrity_token_provider.dart';
 import '../features/coverage/personal_map_controller.dart';
 import '../features/coverage/personal_map_state.dart';
+import '../features/feed/feed_controller.dart';
+import '../features/feed/feed_state.dart';
 import '../features/map/map_controller.dart';
 import '../features/map/map_view_state.dart';
 import '../features/poi/face_gate.dart';
@@ -58,6 +60,16 @@ final StateNotifierProvider<AuthController, AuthState> authControllerProvider =
 final StateNotifierProvider<MapController, MapViewState> mapControllerProvider =
     StateNotifierProvider<MapController, MapViewState>((ref) {
   return MapController(ref.watch(wanderpostApiProvider));
+});
+
+// SPEC §19 — discovery feed (nearby + saved). Not autoDispose: same rationale as
+// mapControllerProvider, a persistent tab rather than a pushed screen.
+final StateNotifierProvider<FeedController, FeedState> feedControllerProvider =
+    StateNotifierProvider<FeedController, FeedState>((ref) {
+  return FeedController(
+    api: ref.watch(wanderpostApiProvider),
+    locationSource: ref.watch(locationSourceProvider),
+  );
 });
 
 // SPEC §13.1 — POI creation. Real (device-backed) implementations; tests inject fakes

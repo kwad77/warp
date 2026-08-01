@@ -5,9 +5,11 @@ import '../../core/providers.dart';
 import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
+import '../../models/poi_pin.dart';
 import '../../models/user.dart';
 import '../coverage/personal_map_screen.dart';
-import '../map/map_screen.dart';
+import '../poi/poi_thumbnail.dart';
+import 'poi_grid_viewer_screen.dart';
 
 /// SPEC §14 — stats, My Places, coverage, weekly leaderboard, sign-out. Replaces the
 /// Account tab's placeholder in `main.dart`.
@@ -91,28 +93,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SizedBox(height: 24),
         Text('My places', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        if (map.created.isEmpty && map.checkedIn.isEmpty)
-          const Text('Nothing yet — create a place or check in to get started.')
-        else ...[
-          if (map.created.isNotEmpty) ...[
-            const Text('Created', style: TextStyle(fontWeight: FontWeight.bold)),
-            for (final poi in map.created)
-              ListTile(
-                title: Text(poi.title),
-                subtitle: Text(poi.category),
-                onTap: () => openPoiDetail(context, poi.id),
-              ),
-          ],
-          if (map.checkedIn.isNotEmpty) ...[
-            const Text('Checked in', style: TextStyle(fontWeight: FontWeight.bold)),
-            for (final poi in map.checkedIn)
-              ListTile(
-                title: Text(poi.title),
-                subtitle: Text(poi.category),
-                onTap: () => openPoiDetail(context, poi.id),
-              ),
-          ],
-        ],
+        _PoiGrid(items: _myPlaces(map)),
         const SizedBox(height: 24),
         Text('Weekly leaderboard', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -136,6 +117,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  /// SPEC §19 — `created` + `checkedIn`, deduplicated by id (a POI the caller both
+  /// created and checked into shouldn't appear twice in the grid).
+  List<PoiPin> _myPlaces(MeMap map) {
+    final byId = <String, PoiPin>{};
+    for (final poi in [...map.created, ...map.checkedIn]) {
+      byId[poi.id] = poi;
+    }
+    return byId.values.toList();
   }
 }
 
@@ -178,6 +169,42 @@ class _OutboxBanner extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// SPEC §19 — an Instagram-profile-style 3-column photo grid. Tapping a cell opens a
+/// full-screen swipeable viewer across `items`, starting at the tapped one.
+class _PoiGrid extends StatelessWidget {
+  final List<PoiPin> items;
+
+  const _PoiGrid({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const Text('Nothing yet — create a place or check in to get started.');
+    }
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
+      ),
+      itemBuilder: (context, index) {
+        final poi = items[index];
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PoiGridViewerScreen(items: items, initialIndex: index),
+            ),
+          ),
+          child: PoiThumbnail(thumbnailUrl: poi.thumbnailUrl, category: poi.category),
+        );
+      },
     );
   }
 }

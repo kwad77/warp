@@ -73,6 +73,15 @@ class WanderpostApi {
     return Poi.fromMap(body['poi'] as Map<String, dynamic>);
   }
 
+  /// SPEC §7/§19 `POST /pois/:id/save`. `save: false` retracts (`value: 0`).
+  Future<bool> setSavedPoi(String poiId, {required bool save}) async {
+    final body = await client.postJson(
+      '/v1/pois/$poiId/save',
+      body: {'value': save ? 1 : 0},
+    );
+    return body['saved'] as bool;
+  }
+
   /// SPEC §7 `POST /pois` / §13.1. `force: true` skips the dedupe prompt server-side.
   Future<PoiCreateResult> createPoi({
     required String title,

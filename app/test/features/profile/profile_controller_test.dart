@@ -45,6 +45,7 @@ void _stubHappyPath(FakeAdapter adapter) {
   adapter.onJson('GET', '/v1/me/map', 200, {
     'checkedIn': <Map<String, dynamic>>[],
     'created': <Map<String, dynamic>>[],
+    'saved': <Map<String, dynamic>>[],
     'vaulted': <Map<String, dynamic>>[],
   });
   adapter.onJson('GET', '/v1/me/coverage', 200, {'cells': <String>[], 'count': 3});

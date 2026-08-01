@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers.dart';
 import 'features/auth/auth_state.dart';
 import 'features/auth/email_auth_screen.dart';
+import 'features/feed/feed_screen.dart';
 import 'features/map/map_screen.dart';
 import 'features/profile/profile_screen.dart';
 
@@ -60,15 +61,18 @@ class _RootScreenState extends ConsumerState<RootScreen> {
       );
     });
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Wanderpost'),
-          bottom: const TabBar(tabs: [Tab(text: 'Map'), Tab(text: 'Account')]),
+          bottom: const TabBar(
+            tabs: [Tab(text: 'Map'), Tab(text: 'Discover'), Tab(text: 'Account')],
+          ),
         ),
         body: TabBarView(
           children: [
             const MapScreen(),
+            const FeedScreen(),
             auth.maybeWhen(
               loggedIn: (user) => const ProfileScreen(),
               orElse: () => const EmailAuthScreen(),
