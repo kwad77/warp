@@ -128,6 +128,7 @@ export interface CheckinListItem {
   poiId: string;
   status: string;
   mode: string;
+  evidence: string;
   createdAt: string;
   verifiedAt: string | null;
 }
@@ -161,14 +162,14 @@ export async function listMeCheckins(
   const after = cursor ? decodeCursor(cursor) : null;
   const rows = after
     ? await pg`
-        SELECT id, poi_id, status, mode, created_at, verified_at
+        SELECT id, poi_id, status, mode, evidence, created_at, verified_at
         FROM checkins
         WHERE user_id = ${userId}
           AND (created_at, id) < (${after.createdAt.toISOString()}, ${after.id})
         ORDER BY created_at DESC, id DESC
         LIMIT ${limit + 1}`
     : await pg`
-        SELECT id, poi_id, status, mode, created_at, verified_at
+        SELECT id, poi_id, status, mode, evidence, created_at, verified_at
         FROM checkins
         WHERE user_id = ${userId}
         ORDER BY created_at DESC, id DESC
@@ -183,6 +184,7 @@ export async function listMeCheckins(
     poi_id: string;
     status: string;
     mode: string;
+    evidence: string;
     created_at: string;
     verified_at: string | null;
   }[];
@@ -197,6 +199,7 @@ export async function listMeCheckins(
     poiId: r.poi_id,
     status: r.status,
     mode: r.mode,
+    evidence: r.evidence,
     createdAt: r.created_at.toISOString(),
     verifiedAt: r.verified_at ? r.verified_at.toISOString() : null,
   }));

@@ -35,6 +35,11 @@ export const SPEC_CONSTANTS = {
   nonce: {
     CHECKIN_NONCE_TTL_S: 120,
   },
+  evidence: {
+    CLOCK_SKEW_S: 30,
+    CHECKIN_LIVE_MAX_AGE_S: 150,
+    CHECKIN_DEFERRED_MAX_AGE_S: 86_400,
+  },
   trust: {
     START: 100,
     MIN: 0,

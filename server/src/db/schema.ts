@@ -56,6 +56,7 @@ export const badgeKey = pgEnum('badge_key', [
   'poi_milestone_50',
   'poi_milestone_100',
 ]);
+export const checkinEvidenceMode = pgEnum('checkin_evidence_mode', ['live', 'deferred']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -176,6 +177,7 @@ export const checkins = pgTable(
     status: checkinStatus('status').notNull(),
     vaulted: boolean('vaulted').notNull().default(false),
     h3R7: bigint('h3_r7', { mode: 'bigint' }).notNull(),
+    evidence: checkinEvidenceMode('evidence').notNull().default('live'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
   },

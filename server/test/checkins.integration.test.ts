@@ -362,5 +362,87 @@ describe.runIf(!!url)('check-in pipeline (SPEC §5)', () => {
       const res = await freshSubmit(nonce, { mode: 'photo' });
       expect(res.statusCode).toBe(400);
     });
+
+    it('evidence defaults to "live" when omitted', async () => {
+      await fresh();
+      const nonce = await freshIntent();
+      const res = await freshSubmit(nonce);
+      expect(res.statusCode).toBe(201);
+      expect(res.json().checkin.evidence).toBe('live');
+    });
+
+    it('SPEC §17: fixes captured 200s ago exceed CHECKIN_LIVE_MAX_AGE_S (150s) → stale_evidence', async () => {
+      await fresh();
+      const nonce = await freshIntent();
+      const res = await freshSubmit(nonce, { fixes: fixes(POI_LL, 20, Date.now() - 200_000) });
+      expect(res.statusCode).toBe(422);
+      expect(res.json().error.details.reasons).toContain('stale_evidence');
+    });
+
+    it('SPEC §17: fixes captured 12h ago verify with evidence: "deferred"', async () => {
+      await fresh();
+      const nonce = await freshIntent();
+      const twelveHoursAgo = Date.now() - 12 * 3_600_000;
+      const res = await freshSubmit(nonce, {
+        evidence: 'deferred',
+        fixes: fixes(POI_LL, 20, twelveHoursAgo),
+      });
+      expect(res.statusCode).toBe(201);
+      expect(res.json().checkin.status).toBe('verified');
+      expect(res.json().checkin.evidence).toBe('deferred');
+    });
+
+    it('SPEC §17: fixes captured 25h ago exceed CHECKIN_DEFERRED_MAX_AGE_S (24h) → stale_evidence', async () => {
+      await fresh();
+      const nonce = await freshIntent();
+      const twentyFiveHoursAgo = Date.now() - 25 * 3_600_000;
+      const res = await freshSubmit(nonce, {
+        evidence: 'deferred',
+        fixes: fixes(POI_LL, 20, twentyFiveHoursAgo),
+      });
+      expect(res.statusCode).toBe(422);
+      expect(res.json().error.details.reasons).toContain('stale_evidence');
+    });
+
+    it('SPEC §17: photo mode deferred — capture.capturedAt from 12h ago passes with evidence: "deferred"', async () => {
+      await fresh();
+      const nonce = await freshIntent();
+      const twelveHoursAgoIso = new Date(Date.now() - 12 * 3_600_000).toISOString();
+      const storageKey = `checkin/${u.userId}/${randomUUID()}.jpg`;
+      await handle.pg`
+        INSERT INTO photos (id, poi_id, uploader_id, storage_key, source)
+        VALUES (${uuidv7()}, ${p}, ${u.userId}, ${storageKey}, 'checkin')`;
+      const token = createHash('sha256')
+        .update(`${nonce}.${Date.parse(twelveHoursAgoIso)}`)
+        .digest('hex');
+      const res = await freshSubmit(nonce, {
+        mode: 'photo',
+        evidence: 'deferred',
+        fixes: fixes(POI_LL, 20, Date.parse(twelveHoursAgoIso)),
+        capture: { token, capturedAt: twelveHoursAgoIso, storageKey },
+      });
+      expect(res.statusCode).toBe(201);
+      expect(res.json().checkin.status).toBe('verified');
+    });
+
+    it('SPEC §17: photo mode capture from 12h ago WITHOUT evidence: "deferred" → capture_invalid', async () => {
+      await fresh();
+      const nonce = await freshIntent();
+      const twelveHoursAgoIso = new Date(Date.now() - 12 * 3_600_000).toISOString();
+      const storageKey = `checkin/${u.userId}/${randomUUID()}.jpg`;
+      await handle.pg`
+        INSERT INTO photos (id, poi_id, uploader_id, storage_key, source)
+        VALUES (${uuidv7()}, ${p}, ${u.userId}, ${storageKey}, 'checkin')`;
+      const token = createHash('sha256')
+        .update(`${nonce}.${Date.parse(twelveHoursAgoIso)}`)
+        .digest('hex');
+      const res = await freshSubmit(nonce, {
+        mode: 'photo',
+        fixes: fixes(POI_LL, 20, Date.now() - 5_000),
+        capture: { token, capturedAt: twelveHoursAgoIso, storageKey },
+      });
+      expect(res.statusCode).toBe(422);
+      expect(res.json().error.details.reasons).toContain('capture_invalid');
+    });
   });
 });

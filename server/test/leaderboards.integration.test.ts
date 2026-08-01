@@ -56,6 +56,7 @@ describe.runIf(!!url)('leaderboards (SPEC §7)', () => {
     userId: string,
     ll: { lat: number; lng: number },
     createdAt: Date,
+    evidence: 'live' | 'deferred' = 'live',
   ): Promise<void> {
     const poiId = uuidv7();
     await handle.pg`
@@ -66,8 +67,8 @@ describe.runIf(!!url)('leaderboards (SPEC §7)', () => {
     const checkinId = uuidv7();
     const cell = h3ToBigint(coverageCell(ll)).toString();
     await handle.pg`
-      INSERT INTO checkins (id, user_id, poi_id, mode, status, h3_r7, created_at, verified_at)
-      VALUES (${checkinId}, ${userId}, ${poiId}, 'confirm', 'verified', ${cell},
+      INSERT INTO checkins (id, user_id, poi_id, mode, status, h3_r7, evidence, created_at, verified_at)
+      VALUES (${checkinId}, ${userId}, ${poiId}, 'confirm', 'verified', ${cell}, ${evidence},
               ${createdAt.toISOString()}, ${createdAt.toISOString()})`;
     await handle.pg`
       INSERT INTO user_coverage (user_id, h3_r7, first_checkin_id, created_at)
@@ -146,6 +147,32 @@ describe.runIf(!!url)('leaderboards (SPEC §7)', () => {
     expect(withoutAuth.json().me).toBeUndefined();
   });
 
+  it('a cell first proven via deferred evidence does not count toward this ranking (SPEC §17)', async () => {
+    const u = await makeUser();
+    await addCoverage(u.userId, offsetLatMeters(BASE_LL, RUN_SALT_M + 60_000), new Date(), 'live');
+    await addCoverage(
+      u.userId,
+      offsetLatMeters(BASE_LL, RUN_SALT_M + 66_000),
+      new Date(),
+      'deferred',
+    );
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/leaderboards/coverage?window=all&scope=global',
+      headers: u.headers,
+    });
+    // GET /me/coverage counts both cells; the leaderboard counts only the live one.
+    expect(res.json().me.cells).toBe(1);
+
+    const meCoverage = await app.inject({
+      method: 'GET',
+      url: '/v1/me/coverage',
+      headers: u.headers,
+    });
+    expect(meCoverage.json().count).toBe(2);
+  });
+
   it('scope other than global → 400 request/invalid', async () => {
     const res = await app.inject({
       method: 'GET',
@@ -190,8 +217,11 @@ describe.runIf(!!url)('leaderboards (SPEC §7)', () => {
 
     const expectedAbove = await handle.pg`
       SELECT count(*)::int AS n FROM (
-        SELECT user_id, count(*) AS c FROM user_coverage
-        GROUP BY user_id HAVING count(*) > 1
+        SELECT uc.user_id, count(*) AS cnt
+        FROM user_coverage uc
+        JOIN checkins ck ON ck.id = uc.first_checkin_id
+        WHERE ck.evidence = 'live'
+        GROUP BY uc.user_id HAVING count(*) > 1
       ) ranked_above`;
     const expectedRank = Number((expectedAbove[0] as { n: number }).n) + 1;
 

@@ -60,7 +60,12 @@ plugin for this (position + accuracy + its own permission-request flow — no se
 `permission_handler` needed for the read-only foreground use this app makes of it).
 **`image`** (pure Dart, no platform channel) is added for the client-side photo resize
 §13.1 always deferred until now — decode/resize/re-encode only, no camera/gallery access
-of its own, so it doesn't expand native permission surface the way the others did. No `json_serializable`
+of its own, so it doesn't expand native permission surface the way the others did.
+**`path_provider`** is added in the offline check-in outbox slice (§17, M2) — the standard
+Flutter plugin for locating the app's own documents directory; needed for a durable
+(survives-restart) local queue of unsent check-ins (JSON manifest + copied photo files).
+No credentials/cost and no new native permission prompt (it's app-sandboxed storage the
+app already implicitly has access to, unlike camera/location/photo-library). No `json_serializable`
 — model classes write `fromJson`/`toJson` by hand (freezed's immutability/`copyWith`/
 union support doesn't require it, and it avoids a second codegen package for a handful
 of simple DTOs). No routing package — `Navigator`/`MaterialApp` routes suffice at this
@@ -116,6 +121,11 @@ VELOCITY (§5.4)
 
 NONCE
   CHECKIN_NONCE_TTL_S        = 120       // single use, bound to (user, device, poi)
+
+EVIDENCE (§5.1/§5.3/§5.5, §17 offline outbox)
+  CLOCK_SKEW_S               = 30        // existing L4 tolerance, now named + shared
+  CHECKIN_LIVE_MAX_AGE_S     = 150       // CHECKIN_NONCE_TTL_S + CLOCK_SKEW_S
+  CHECKIN_DEFERRED_MAX_AGE_S = 86_400    // 24h bound on offline-captured (deferred) evidence
 
 TRUST (§5.6) — score starts at 100, clamped [0, 100]
   D_INTEGRITY_FAIL           = −25
@@ -221,6 +231,12 @@ Every non-2xx response body is exactly:
    short-circuiting only on hard rejects. Every layer appends to `reasons[]` and the full
    input+verdicts are persisted to `checkin_evidence` **even on rejection**.
 
+The submit body carries an optional `evidence: "live"|"deferred"` (default `"live"`, §17
+offline outbox). It is the only thing that changes L1→L5's behavior: it selects the
+freshness bound fixes/capture are checked against (§5.3, §5.5) and whether the resulting
+coverage counts toward the competitive leaderboard (§7) — confidence, velocity, and trust
+math are identical either way.
+
 ### 5.2 L1 Integrity
 
 Verify the platform verdict server-side (Play Integrity decodeIntegrityToken; App Attest
@@ -264,6 +280,13 @@ Worked examples (MUST be test cases): `(d=20,a=60,r=75)→c≈0.958 pass` ·
 `(d=75,a=60,r=75)→c=0.5 pending` · `(d=130,a=60,r=75)→c≈0.04 reject` ·
 `(d=0,a=150,r=75)→c=0.75 pass_degraded`.
 
+**Evidence freshness (§17 offline outbox; pure, `src/verification/freshness.ts`):** before
+any of the above, the most recent fix's `capturedAt` is checked against `now`: it must be
+no more than `CLOCK_SKEW_S` in the future, and no older than `CHECKIN_LIVE_MAX_AGE_S`
+(`evidence: "live"`) or `CHECKIN_DEFERRED_MAX_AGE_S` (`evidence: "deferred"`). A violation
+is evidence integrity, not a confidence signal — it hard `reject(stale_evidence)`s
+regardless of how well the fixes would otherwise score, same tier as `accuracy_ceiling`.
+
 ### 5.4 L3 Velocity (pure, same module)
 
 Against the user's most recent check-in with status `verified` or `pending`:
@@ -276,7 +299,11 @@ clock skew exist). First-ever check-in: skip.
 
 `capture.token` MUST equal hex sha256 of `"<nonce>.<capturedAtMs>"` (minted app-side at
 shutter — tamper-evidence only; real assurance is the attested app, L1), and
-`capture.capturedAt` MUST fall within the nonce window ± 30 s clock-skew allowance.
+`capture.capturedAt` MUST pass the same evidence-freshness check as fixes (§5.3) — this
+replaces M1's narrower nonce-window-only bound with the named `CHECKIN_LIVE_MAX_AGE_S`/
+`CHECKIN_DEFERRED_MAX_AGE_S` ± `CLOCK_SKEW_S` check, a superset for `evidence: "live"` (a
+live check-in's nonce window is inside `CHECKIN_LIVE_MAX_AGE_S` by construction), not a
+behavior change for any check-in that could pass before.
 `capture.storageKey` MUST resolve to an existing `photos` row with `uploader_id` = caller,
 `poi_id` = target POI, `source = 'checkin'`; the check-in links its `photo_id`. EXIF is
 stored in evidence, never used as a pass/fail signal. Any violation ⇒
@@ -394,7 +421,7 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /pois/:id/photos/presign` | ✅ | `{contentType ∈ ALLOWED_MIME, source: "poi_creation"\|"checkin"}` → `{uploadUrl, storageKey, maxBytes}` (key format §6; no row created yet) |
 | `POST /pois/:id/photos/complete` | ✅ | `{storageKey, source}` → `201 {photo: Photo(moderation=pending)}` — key embeds photoId; server checks HEAD + mints row with uploader = caller (§6). **Idempotent**: the same caller re-completing the same key gets the existing photo back (retry-safe); a different caller ⇒ `request/invalid`. |
 | `POST /checkins/intent` | ✅ | `{poiId, deviceId}` → `{nonce, expiresInS}` |
-| `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, verifiedAt?}}`; rejected ⇒ `422` per §5.7; `Fix = {lat, lng, accuracyM, capturedAt}` |
+| `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, evidence?: "live"\|"deferred" (default "live", §17), capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, mode, evidence, verifiedAt?}}`; rejected ⇒ `422` per §5.7 (now also `stale_evidence`, §5.3); `Fix = {lat, lng, accuracyM, capturedAt}` |
 | `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
 | `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated, creatorScore}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count; `creatorScore` = sum of `checkin_count` across those same POIs (§16, M2) |
 | `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller; `created` = caller's POIs with `status <> 'removed'`; `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md) |
@@ -406,7 +433,12 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `GET /me/export` | ✅ | *(M1.5 — requires the job queue, which does not exist yet; until then, 501 `service/unavailable`)* |
 | `POST /photos/:id/vote` | ✅ | `{value: 1\|0}` (0 = retract) → `{voteScore}` — upsert on `(user_id, photo_id)`; `voteScore` on `photos` is the denormalized sum, updated in the same transaction; voting on a non-`approved` photo ⇒ `resource/not_found` (no visibility leak into pending/rejected review state) |
 | `POST /reports` | ✅ | `{targetType: "poi"\|"photo", targetId, reason: "people"\|"unsafe"\|"wrong_location"\|"duplicate"\|"other", note?(..280)}` → `201 {ok}` — target must exist (else `resource/not_found`); rate limit §2; no dedupe on repeat reports from the same user in M1 (moderation queue is M1.5+, so nothing consumes this yet beyond the row existing) |
-| `GET /leaderboards/coverage?window=weekly\|all&scope=global` | 🌐 (optional auth) | → `{entries: [{rank, handle, cells}], me?: {rank, cells}}`, entries capped at `LEADERBOARD_ENTRIES_MAX` (§2). `scope` accepts only `global` in M1 (other scopes ⇒ `request/invalid`); `window=weekly` counts distinct `user_coverage.h3_r7` rows whose `created_at` falls in the current ISO week (Monday 00:00 UTC start, UTC throughout); `window=all` counts all rows. `me` is present only when the request carries a valid bearer token (optional auth — a missing/invalid token omits `me` rather than erroring). **M1 implementation note:** computed live (`GROUP BY user_id ORDER BY count DESC LIMIT`); precomputed snapshots (`leaderboard_snapshots`, ARCHITECTURE.md) are deferred until live cost requires them — no such table exists yet. |
+| `GET /leaderboards/coverage?window=weekly\|all&scope=global` | 🌐 (optional auth) | → `{entries: [{rank, handle, cells}], me?: {rank, cells}}`, entries capped at `LEADERBOARD_ENTRIES_MAX` (§2). `scope` accepts only `global` in M1 (other scopes ⇒ `request/invalid`); `window=weekly` counts distinct `user_coverage.h3_r7` rows whose `created_at` falls in the current ISO week (Monday 00:00 UTC start, UTC throughout); `window=all` counts all rows. `me` is present only when the request carries a valid bearer token (optional auth — a missing/invalid token omits `me` rather than erroring). **Deferred-evidence exclusion (§17, M2):** a cell counts here only if its
+`user_coverage` row's `first_checkin_id` checkin has `evidence='live'` — a cell first
+proven via offline/deferred evidence doesn't count competitively until re-covered by a
+live check-in, though it always counts fully toward `GET /me/coverage`, the heatmap (§15),
+`creatorScore`, and badges (§16), none of which are competitive-ranking surfaces. **M1
+implementation note:** computed live (`GROUP BY user_id ORDER BY count DESC LIMIT`); precomputed snapshots (`leaderboard_snapshots`, ARCHITECTURE.md) are deferred until live cost requires them — no such table exists yet. |
 
 **Pagination convention** (`GET /me/checkins` and any future cursor-paginated list): cursor
 is base64 of `"<createdAt ISO>|<id>"` for the last row of the previous page; results order
@@ -425,7 +457,8 @@ postgis`). Drizzle schema mirrors the *cumulative* state after all migrations; d
 defect. UUIDv7 generated in app code. Applied deltas: **0001** drops
 `checkins_user_poi_unique` and creates
 `UNIQUE INDEX checkins_user_poi_active ON checkins (user_id, poi_id) WHERE status <>
-'rejected'` (§5.7 retry semantics). **0002** adds `badge_key` + `badges` (§16, M2).
+'rejected'` (§5.7 retry semantics). **0002** adds `badge_key` + `badges` (§16, M2). **0003**
+adds `checkin_evidence_mode` + `checkins.evidence` (§17, M2).
 
 ```sql
 CREATE TYPE poi_category AS ENUM ('landmark','viewpoint','nature','architecture','street_art','other');
@@ -495,6 +528,7 @@ CREATE TABLE checkins (
   h3_r7 BIGINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), verified_at TIMESTAMPTZ,
   UNIQUE (user_id, poi_id));
+-- Migration 0003 adds: evidence checkin_evidence_mode NOT NULL DEFAULT 'live' (§17, M2).
 CREATE INDEX ON checkins (user_id, created_at DESC);
 
 CREATE TABLE checkin_evidence (
@@ -530,6 +564,10 @@ CREATE TYPE badge_key AS ENUM ('first_in_region', 'poi_milestone_10', 'poi_miles
 CREATE TABLE badges (
   user_id UUID NOT NULL REFERENCES users(id), badge_key badge_key NOT NULL,
   awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, badge_key));
+
+-- Migration 0003 (§17, M2):
+CREATE TYPE checkin_evidence_mode AS ENUM ('live', 'deferred');
+ALTER TABLE checkins ADD COLUMN evidence checkin_evidence_mode NOT NULL DEFAULT 'live';
 
 -- [M2] health_daily · [M3] entitlements — declared in docs, created when built.
 ```
@@ -1028,7 +1066,86 @@ notifications" item, needs APNs/FCM credentials — a real blocker, unlike pHash
 mobile UI surfacing badges (this PR is server-only, matching how M1's moderation loop
 step landed server-first before the profile screen consumed its data).
 
-## 17. Definition of done (every PR)
+## 17. Offline check-in outbox — deferred evidence (M2; exact)
+
+Scope: `docs/MILESTONES.md`'s M2 "Offline check-in outbox (deferred-evidence flow)",
+making exact the design `docs/ARCHITECTURE.md` §8 already sketched narratively (durable
+local outbox, replay on connectivity, wider tolerance + lower leaderboard weight). **The
+exact ages/bounds below are this PR's proposal**, same treatment as the badge thresholds
+(§16) and the H3 heatmap resolutions (§15) — ARCHITECTURE.md named the shape but not the
+numbers.
+
+**Why a new field, not a new endpoint:** the check-in submission itself (`POST
+/checkins`) doesn't need to change shape to support this — only what it's willing to
+accept as fresh does. `evidence: "live"|"deferred"` (default `"live"`) on the existing
+`POST /checkins` body (§7) is the entire server-visible surface of this feature; intent
+issuance (`POST /checkins/intent`) is unaffected because a nonce can only ever be
+requested live regardless of how old the fixes ultimately submitted with it are (nonce
+freshness — §5.1 — is exactly why offline check-ins can't pre-issue an intent at capture
+time and must replay the whole intent→submit sequence later).
+
+**Server (§2, §5, §7, §8):**
+- New constants `CLOCK_SKEW_S = 30` (naming M1's existing inline 30 s tolerance),
+  `CHECKIN_LIVE_MAX_AGE_S = 150` (`CHECKIN_NONCE_TTL_S + CLOCK_SKEW_S`),
+  `CHECKIN_DEFERRED_MAX_AGE_S = 86_400` (24 h).
+- Evidence freshness (§5.3, §5.5): the most recent fix's/capture's `capturedAt` must be no
+  more than `CLOCK_SKEW_S` in the future and no older than the mode's max age. Violation ⇒
+  hard `reject(stale_evidence)` — evidence integrity, never just a confidence cap. This
+  closes a latent gap: M1 never actually enforced fix recency for `mode: "confirm"`
+  check-ins (only `mode: "photo"`'s capture token had a freshness bound) — this feature
+  gives both modes the same enforced bound, gated by `evidence`.
+- `evidence` never changes L1/L2/L3/L5 pass/pending/reject math itself — only the
+  freshness bound (§5.3/§5.5) and the leaderboard weight (§7) differ between `"live"` and
+  `"deferred"`.
+- Persisted on the `checkins` row (`checkin_evidence_mode` enum, migration
+  `0003_checkin_evidence.sql`, §8) and returned on it (§7) so the client can show
+  "synced later" truthfully rather than rendering a deferred check-in indistinguishably
+  from a live one.
+- Leaderboard weight (§7 `GET /leaderboards/coverage`): a `user_coverage` cell counts
+  toward this ranking only if its `first_checkin_id` checkin has `evidence='live'`. A cell
+  first proven via deferred evidence simply doesn't count there until re-covered live —
+  deliberately the simplest faithful rule (keyed off the cell's *first* prover, not a
+  per-checkin weighted sum, matching creatorScore's §16 "simplest faithful definition"
+  precedent) — while `GET /me/coverage`, the heatmap (§15), `creatorScore`, and badges
+  (§16) all still count it fully, since none of those are competitive-ranking surfaces.
+  `first_in_region` (§16) is unaffected by evidence mode for the same reason: it rewards
+  genuine first presence, not live-ness.
+
+**Mobile (`app/lib/features/checkin/`):**
+- Trigger: a network-class failure (no connectivity, timeout, `service/unavailable`)
+  interrupting `POST /checkins/intent` or `POST /checkins` during a check-in the user
+  explicitly started. A rejected/invalid attempt the server actually answered (nonce
+  expired, `checkin/rejected`, `checkin/duplicate`, …) is never queued — only genuine
+  connectivity failure is.
+- `CheckinOutbox`: a durable (survives app restart) local queue — a JSON manifest plus any
+  already-captured photo file, in the app's documents directory (`path_provider`, §1).
+  Each queued item keeps the real `fixes` (with their true `capturedAt`), `mode`, `poiId`,
+  and the photo file path if one was captured, exactly as gathered — nothing about it is
+  submitted yet, since no nonce can exist for an offline attempt.
+- Replay, opportunistic (app foreground/launch, or a manual retry action — no background
+  sync, consistent with §9's no-background-anything invariant): per queued item, in order,
+  (1) fresh `POST /checkins/intent`, (2) photo mode only — presign/upload/complete the
+  photo now (upload timestamp reflects replay time; only `capture.capturedAt` preserves
+  the original shutter moment), (3) `POST /checkins` with the original `fixes`/
+  `capture.capturedAt` and `evidence: "deferred"`. A replay that fails for a
+  non-connectivity reason drops that item (no infinite retry on a verdict the server has
+  already given).
+- Client-side age drop: an item whose original capture moment is already past
+  `CHECKIN_DEFERRED_MAX_AGE_S` by the time it's replayed is discarded without a server
+  round trip — the server would `stale_evidence`-reject it anyway (§5.3); this just avoids
+  a doomed request. `app/lib/core/constants.dart` mirrors the 24 h bound for this check.
+- UI: `evidence: 'deferred'` on a returned or listed check-in (§7) renders a "synced
+  later" indicator — never silently shown as identical to a live check-in.
+
+**Deferred, flagged, not built here:** exponential backoff/jitter on repeated replay
+failure (fine at current scale — no thundering-herd risk yet); any background-triggered
+replay (push-woken sync would violate §9's no-background-location spirit even though this
+outbox itself gathers no new location data, so it's out of scope on principle, not just
+unbuilt); surfacing outbox depth/age anywhere in the UI beyond the per-check-in "synced
+later" tag (e.g. a dedicated "pending sync" list) — `GET /me/checkins` already shows every
+check-in once it lands, deferred or not, so this is a nice-to-have, not a gap.
+
+## 18. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

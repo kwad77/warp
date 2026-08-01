@@ -27,6 +27,7 @@ const submitSchema = z.object({
   mode: z.enum(['photo', 'confirm']),
   fixes: z.array(fixSchema).min(P.MIN_FIXES).max(P.MAX_FIXES),
   integrityToken: z.string().min(1).max(8192),
+  evidence: z.enum(['live', 'deferred']).default('live'),
   capture: z
     .object({
       token: z.string().regex(/^[0-9a-f]{64}$/),
@@ -61,6 +62,7 @@ export function registerCheckinRoutes(app: FastifyInstance): void {
       mode: body.mode,
       fixes: body.fixes,
       integrityToken: body.integrityToken,
+      evidence: body.evidence,
       ...(body.capture ? { capture: body.capture } : {}),
     };
     const checkin = await submitCheckin(db, pg, verifier, userId, input, new Date());

@@ -25,10 +25,16 @@ export async function getCoverageLeaderboard(
 ): Promise<LeaderboardResult> {
   const since = window === 'weekly' ? isoWeekStartUtc(now) : new Date(0);
 
+  // SPEC §17 (M2): a cell counts here only if its first-ever verified check-in was live —
+  // one first proven via deferred (offline) evidence doesn't count competitively until
+  // re-covered live. GET /me/coverage, the heatmap, creatorScore, and badges are unaffected
+  // (they join through no such filter) since none of those are competitive-ranking surfaces.
   const rows = await pg`
     SELECT u.handle, u.id, count(*)::int AS cells
-    FROM user_coverage uc JOIN users u ON u.id = uc.user_id
-    WHERE uc.created_at >= ${since.toISOString()}
+    FROM user_coverage uc
+    JOIN users u ON u.id = uc.user_id
+    JOIN checkins c ON c.id = uc.first_checkin_id
+    WHERE uc.created_at >= ${since.toISOString()} AND c.evidence = 'live'
     GROUP BY u.id, u.handle
     ORDER BY cells DESC, u.id ASC
     LIMIT ${MAX}`;
@@ -47,15 +53,19 @@ export async function getCoverageLeaderboard(
       me = { rank: inTop + 1, cells: typed[inTop]?.cells ?? 0 };
     } else {
       const meRows = await pg`
-        SELECT count(*)::int AS cells FROM user_coverage
-        WHERE user_id = ${requesterId} AND created_at >= ${since.toISOString()}`;
+        SELECT count(*)::int AS cells
+        FROM user_coverage uc
+        JOIN checkins c ON c.id = uc.first_checkin_id
+        WHERE uc.user_id = ${requesterId} AND uc.created_at >= ${since.toISOString()}
+          AND c.evidence = 'live'`;
       const myCells = Number((meRows[0] as { cells: number } | undefined)?.cells ?? 0);
       if (myCells > 0) {
         const rankRows = await pg`
           SELECT count(*)::int AS n FROM (
             SELECT uc.user_id, count(*) AS c
             FROM user_coverage uc
-            WHERE uc.created_at >= ${since.toISOString()}
+            JOIN checkins c ON c.id = uc.first_checkin_id
+            WHERE uc.created_at >= ${since.toISOString()} AND c.evidence = 'live'
             GROUP BY uc.user_id
             HAVING count(*) > ${myCells}
           ) ranked_above`;

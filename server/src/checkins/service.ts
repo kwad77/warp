@@ -19,6 +19,7 @@ import { AppError } from '../errors.js';
 import { coverageCell, h3ToBigint } from '../geo/h3.js';
 import { uuidv7 } from '../lib/uuid.js';
 import { recordTrustEvent } from '../trust/service.js';
+import { type EvidenceMode, evaluateFreshness } from '../verification/freshness.js';
 import type { IntegrityVerifier } from '../verification/integrity.js';
 import { type GpsFix, type PresenceResult, evaluatePresence } from '../verification/presence.js';
 import { type VelocityResult, evaluateVelocity } from '../verification/velocity.js';
@@ -36,6 +37,7 @@ export interface CheckinView {
   poiId: string;
   status: 'verified' | 'pending' | 'rejected';
   mode: 'photo' | 'confirm';
+  evidence: EvidenceMode;
   createdAt: string;
   verifiedAt?: string;
 }
@@ -130,6 +132,7 @@ export interface SubmitInput {
   mode: 'photo' | 'confirm';
   fixes: { lat: number; lng: number; accuracyM: number; capturedAt: string }[];
   integrityToken: string;
+  evidence?: EvidenceMode;
   capture?: { token: string; capturedAt: string; storageKey: string };
 }
 
@@ -171,6 +174,7 @@ export async function submitCheckin(
   )[0];
   if (!user) throw new AppError('auth/invalid', 'Unknown user');
 
+  const evidence: EvidenceMode = input.evidence ?? 'live';
   const reasons: string[] = [];
   let status: 'verified' | 'pending' | 'rejected' = 'verified';
   const cap = (r: string) => {
@@ -187,13 +191,22 @@ export async function submitCheckin(
     cap('integrity_degraded');
   }
 
-  // L2 presence
+  // Evidence freshness (SPEC §5.3/§17) — hard reject, short-circuits like L1.
   const gpsFixes: GpsFix[] = input.fixes.map((f) => ({
     lat: f.lat,
     lng: f.lng,
     accuracyM: f.accuracyM,
     capturedAtMs: Date.parse(f.capturedAt),
   }));
+  if (status !== 'rejected') {
+    const latestFixMs = Math.max(...gpsFixes.map((f) => f.capturedAtMs));
+    if (!evaluateFreshness(latestFixMs, now.getTime(), evidence).ok) {
+      status = 'rejected';
+      reasons.push('stale_evidence');
+    }
+  }
+
+  // L2 presence
   let presence: PresenceResult | null = null;
   if (status !== 'rejected') {
     presence = evaluatePresence(gpsFixes, poi, poi.radiusM);
@@ -240,10 +253,8 @@ export async function submitCheckin(
   if (status !== 'rejected' && input.mode === 'photo') {
     const c = input.capture;
     const capturedAtMs = c ? Date.parse(c.capturedAt) : Number.NaN;
-    const windowStartMs = nonceRow.expiresAt.getTime() - N.CHECKIN_NONCE_TTL_S * 1000 - 30_000;
-    const windowEndMs = now.getTime() + 30_000;
     const tokenOk = c && c.token === sha256(`${input.nonce}.${capturedAtMs}`);
-    const timeOk = capturedAtMs >= windowStartMs && capturedAtMs <= windowEndMs;
+    const timeOk = c ? evaluateFreshness(capturedAtMs, now.getTime(), evidence).ok : false;
     const photo = c
       ? (
           await db
@@ -302,6 +313,7 @@ export async function submitCheckin(
       photoId,
       status,
       h3R7: h3ToBigint(coverageCell(poi)),
+      evidence,
       verifiedAt,
     });
     await tx.insert(checkinEvidence).values({
@@ -349,6 +361,7 @@ export async function submitCheckin(
     poiId: input.poiId,
     status,
     mode: input.mode,
+    evidence,
     createdAt: now.toISOString(),
     ...(verifiedAt ? { verifiedAt: verifiedAt.toISOString() } : {}),
   };
@@ -374,6 +387,7 @@ export async function getCheckin(db: Db, userId: string, id: string): Promise<Ch
     poiId: row.poiId,
     status: row.status,
     mode: row.mode,
+    evidence: row.evidence,
     createdAt: row.createdAt.toISOString(),
     ...(row.verifiedAt ? { verifiedAt: row.verifiedAt.toISOString() } : {}),
   };
