@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_exception.dart';
+import '../../core/constants.dart';
 import '../../core/providers.dart';
 import '../../models/poi.dart';
 import '../checkin/checkin_screen.dart';
@@ -87,7 +88,11 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, i) => ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(poi.gallery[i].urlThumb, width: 120, fit: BoxFit.cover),
+                  child: Image.network(
+                    AppConfig.resolveMediaUrl(poi.gallery[i].urlThumb),
+                    width: 120,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ),

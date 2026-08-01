@@ -53,4 +53,10 @@ class AppConfig {
   /// it's replayed is dropped without a server round trip (the server would
   /// `stale_evidence`-reject it anyway).
   static const int checkinDeferredMaxAgeS = 86400;
+
+  /// SPEC §6 — photo URLs (`Photo.urlCard`/`urlThumb`, `PoiPin.thumbnailUrl`) come back
+  /// from the server as paths relative to it (e.g. `/media/thumb/...`), never absolute —
+  /// resolve against [apiBaseUrl] before handing one to `Image.network` or a download.
+  static String resolveMediaUrl(String path) =>
+      path.startsWith('http://') || path.startsWith('https://') ? path : '$apiBaseUrl$path';
 }

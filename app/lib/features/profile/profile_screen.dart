@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/share_image.dart';
 import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
@@ -21,10 +22,31 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _leaderboardShareKey = GlobalKey();
+  bool _sharingLeaderboard = false;
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() => ref.read(profileControllerProvider.notifier).load());
+  }
+
+  /// SPEC §19 — shares the leaderboard section as it's currently rendered (same
+  /// "whatever's on screen" approach as the map share in `PersonalMapScreen`).
+  Future<void> _shareLeaderboard() async {
+    if (_sharingLeaderboard) return;
+    setState(() => _sharingLeaderboard = true);
+    try {
+      final bytes = await captureRepaintBoundary(_leaderboardShareKey);
+      if (bytes == null) return;
+      await shareImageBytes(
+        bytes,
+        filename: 'my-leaderboard-rank.png',
+        text: 'My Wanderpost leaderboard standing',
+      );
+    } finally {
+      if (mounted) setState(() => _sharingLeaderboard = false);
+    }
   }
 
   @override
@@ -95,21 +117,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SizedBox(height: 8),
         _PoiGrid(items: _myPlaces(map)),
         const SizedBox(height: 24),
-        Text('Weekly leaderboard', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        if (leaderboard.entries.isEmpty) const Text('No coverage yet this week.'),
-        for (final entry in leaderboard.entries)
-          ListTile(
-            leading: Text('#${entry.rank}'),
-            title: Text(entry.handle),
-            trailing: Text('${entry.cells} cells'),
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            icon: _sharingLeaderboard
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.share),
+            onPressed: _sharingLeaderboard ? null : _shareLeaderboard,
+            tooltip: 'Share leaderboard',
           ),
-        if (leaderboard.me != null && !leaderboard.entries.any((e) => e.rank == leaderboard.me!.rank))
-          ListTile(
-            leading: Text('#${leaderboard.me!.rank}'),
-            title: const Text('You'),
-            trailing: Text('${leaderboard.me!.cells} cells'),
+        ),
+        RepaintBoundary(
+          key: _leaderboardShareKey,
+          child: Container(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Weekly leaderboard', style: Theme.of(context).textTheme.titleMedium),
+                if (leaderboard.entries.isEmpty) const Text('No coverage yet this week.'),
+                for (final entry in leaderboard.entries)
+                  ListTile(
+                    leading: Text('#${entry.rank}'),
+                    title: Text(entry.handle),
+                    trailing: Text('${entry.cells} cells'),
+                  ),
+                if (leaderboard.me != null &&
+                    !leaderboard.entries.any((e) => e.rank == leaderboard.me!.rank))
+                  ListTile(
+                    leading: Text('#${leaderboard.me!.rank}'),
+                    title: const Text('You'),
+                    trailing: Text('${leaderboard.me!.cells} cells'),
+                  ),
+              ],
+            ),
           ),
+        ),
         const SizedBox(height: 24),
         OutlinedButton(
           onPressed: () => ref.read(authControllerProvider.notifier).signOut(),

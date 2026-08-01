@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants.dart';
 import 'poi_category_icon.dart';
 
 /// SPEC §19 — a `thumbnailUrl` image, or a category-icon placeholder tile when it's
@@ -28,7 +29,7 @@ class PoiThumbnail extends StatelessWidget {
       );
     }
     return Image.network(
-      url,
+      AppConfig.resolveMediaUrl(url),
       fit: fit,
       errorBuilder: (context, error, stackTrace) => ColoredBox(
         color: Colors.grey.shade200,

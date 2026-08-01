@@ -50,7 +50,7 @@ Map<String, dynamic> _pinJson(String id, {String? thumbnailUrl}) => {
       'category': 'landmark',
       'location': {'lat': 38.7, 'lng': -9.1},
       'checkinCount': 1,
-      if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
+      'thumbnailUrl': ?thumbnailUrl,
     };
 
 FeedController _controller(FakeAdapter adapter, {GpsFix? fix}) {

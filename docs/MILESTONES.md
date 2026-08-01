@@ -119,7 +119,7 @@ mock-location apps and emulators are caught.
   one tier. Noted, not fixed here: the discovery `MapScreen` doesn't render any
   pins/clusters at all — a pre-existing gap this feature's `CircleManager` plumbing didn't
   need to touch.
-- Shareable map image with precision controls.
+- ~~Shareable map image with precision controls.~~ Done — see SPEC §19 above.
 - **Postcard sending v1** (ARCHITECTURE.md §10): share-image + unlisted web-postcard link
   from any verified check-in, message moderation, photographer credit. First job of the
   thin web renderer; the send→open→install funnel is instrumented from day one.
@@ -156,6 +156,28 @@ mock-location apps and emulators are caught.
   outboxes. Found and fixed along the way: the check-in outbox's replay loop was dropping
   a queued item on `rate/limited` (a transient rate-limit hit, not a real verdict) — now
   treated like a network failure (stop the pass, keep everything queued) in both outboxes.
+- **Instagram-style browsing & sharing (SPEC §19; done, server + mobile).** Real photo
+  thumbnails (`thumbnailUrl` — best-approved-photo-by-vote-score, same tie-break `GET
+  /pois/:id`'s gallery already used) on `GET /pois/nearby`, `GET /me/map`, and `GET
+  /pois/:id`; deliberately not computed on the panning-heavy `GET /pois?bbox=&zoom=` to
+  avoid per-row query cost on up to 200 results. New bookmark feature: `saved_pois` table
+  (migration 0004) + `POST /pois/:id/save`, surfaced via `GET /me/map`'s new `saved` array.
+  Mobile: a 3-column Instagram-style profile grid (My Places) that opens a full-screen
+  swipeable viewer on tap — feed-style browsing over the caller's *own* content, not a new
+  endpoint or a public feed of other users' activity (SPEC §9's check-in-history-is-private
+  invariant stays intact). A new Discover tab merges two independently-fetched sources —
+  `GET /pois/nearby` (public) and `saved` (needs auth, so a logged-out 401 doesn't blank
+  the rest of the feed) — into "places around me" / "places I want to visit" sections.
+  Sharing (`share_plus`, new mobile dependency, flagged in SPEC §1): a share action on the
+  grid viewer (the current photo), the personal map screen (`RepaintBoundary` capture of
+  the map + heatmap as currently zoomed), and the profile's leaderboard section (ditto).
+  This is deliberately how M2's "shareable map image with precision controls" item below
+  gets satisfied — the already-built H3 zoom-tier heatmap (SPEC §15) *is* the precision
+  control, not a new slider. Postcard sending v1 (below) is explicitly out of scope for
+  this slice. Not yet verified on a real device: `RepaintBoundary.toImage()` capturing a
+  MapLibre `PlatformView` is expected to work for texture-backed platform views on modern
+  Flutter, but this sandbox has no device/emulator to confirm it visually (same caveat as
+  the map widget itself, see M1 step 3).
 - Ops: rejection-rate-by-cause dashboard, trust-event monitoring, moderation SLA.
 
 Testable: retention (D7 second check-in ≥ 30%), verification false-reject < 5% outdoors,

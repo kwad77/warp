@@ -7,6 +7,7 @@ import 'package:maplibre_gl/maplibre_gl.dart' as mlgl;
 
 import '../../core/constants.dart';
 import '../../core/providers.dart';
+import '../../core/share_image.dart';
 import '../../models/lat_lng.dart' as models;
 import '../map/map_query.dart';
 import '../map/map_screen.dart';
@@ -33,6 +34,24 @@ class _PersonalMapScreenState extends ConsumerState<PersonalMapScreen> {
   mlgl.CircleManager? _circleManager;
   Timer? _debounce;
   bool _heatmapLayerAdded = false;
+  final _shareBoundaryKey = GlobalKey();
+  bool _sharing = false;
+
+  /// SPEC §19 — shares whatever's currently on screen. This is deliberately how
+  /// MILESTONES.md's "shareable map image with precision controls" is satisfied: the
+  /// already-built H3 zoom-tier heatmap (§15) *is* the precision control, so the shared
+  /// image never shows anything finer than the current zoom's resolution.
+  Future<void> _share() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final bytes = await captureRepaintBoundary(_shareBoundaryKey);
+      if (bytes == null) return;
+      await shareImageBytes(bytes, filename: 'my-coverage-map.png', text: 'My Wanderpost map');
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
 
   void _onCameraIdle() {
     _debounce?.cancel();
@@ -185,24 +204,41 @@ class _PersonalMapScreenState extends ConsumerState<PersonalMapScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Map')),
-      body: Stack(
-        children: [
-          mlgl.MapLibreMap(
-            styleString: AppConfig.mapStyleUrl,
-            initialCameraPosition: const mlgl.CameraPosition(target: mlgl.LatLng(0, 0), zoom: 2),
-            onMapCreated: _onMapCreated,
-            onMapClick: _onMapClick,
-            onCameraIdle: _onCameraIdle,
-            onStyleLoadedCallback: _loadCurrentViewport,
-          ),
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: _Banner(state: state),
+      appBar: AppBar(
+        title: const Text('My Map'),
+        actions: [
+          IconButton(
+            icon: _sharing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.share),
+            onPressed: _sharing ? null : _share,
           ),
         ],
+      ),
+      body: RepaintBoundary(
+        key: _shareBoundaryKey,
+        child: Stack(
+          children: [
+            mlgl.MapLibreMap(
+              styleString: AppConfig.mapStyleUrl,
+              initialCameraPosition: const mlgl.CameraPosition(target: mlgl.LatLng(0, 0), zoom: 2),
+              onMapCreated: _onMapCreated,
+              onMapClick: _onMapClick,
+              onCameraIdle: _onCameraIdle,
+              onStyleLoadedCallback: _loadCurrentViewport,
+            ),
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: _Banner(state: state),
+            ),
+          ],
+        ),
       ),
     );
   }

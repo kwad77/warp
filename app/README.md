@@ -11,7 +11,11 @@ weekly leaderboard, sign-out. M1 step 5 (moderation loop) is server-only and alr
 shipped (`server/README.md`). M2 (SPEC §15): personal coverage map — a heatmap below the
 pin-mode zoom threshold, own postcards + nearby POIs above it, reachable from Profile's
 "View my map". M2 (SPEC §17/§18): offline outbox — a check-in or POI creation attempted
-with no connectivity is captured locally and replayed once the app is back online.
+with no connectivity is captured locally and replayed once the app is back online. M2
+(SPEC §19): Instagram-style browsing & sharing — a 3-column profile grid with a
+full-screen swipeable viewer, a Discover feed ("places around me" / "places I want to
+visit"), and a share action (native share sheet via `share_plus`) on a grid photo, the
+personal map, and the leaderboard.
 
 ## Setup
 
@@ -75,7 +79,8 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (131 tests as of the offline POI-creation outbox slice). No live device is
+All three must be clean/green (139 tests as of the Instagram-style browsing & sharing
+slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -89,7 +94,13 @@ lib/core/       API client (auth interceptor, refresh-on-401), token storage
                 (geo.dart), a SHA-256 helper (hash.dart, SPEC §5.5's capture token), the
                 pre-upload photo resize (image_resize.dart — pure function, no platform
                 channel, so it's tested directly rather than behind a fake interface),
-                app-wide constants, Riverpod provider wiring
+                app-wide constants (constants.dart — also `AppConfig.resolveMediaUrl`,
+                resolving a server-relative photo path against `apiBaseUrl` before handing
+                it to `Image.network`), share_image.dart (SPEC §19 — `shareImageBytes`
+                writes bytes to a temp file and hands them to the native share sheet via
+                `share_plus`; `captureRepaintBoundary` grabs whatever a `RepaintBoundary`
+                currently renders as a PNG, shared by all three share call sites),
+                Riverpod provider wiring
 lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed.
                 poi_create_result.dart is client→server-only (toMap, no fromMap);
                 gps_fix.dart gained fromMap for the offline outbox's local persistence
@@ -108,18 +119,30 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 + opportunistic replay for a check-in attempted with no connectivity, same
                 shape as `PoiCreateOutbox`, kept separate rather than unified since two
                 call sites isn't yet enough to justify the abstraction); profile/ (stats,
-                My Places, coverage count, weekly leaderboard, sign-out, a combined
-                "N items waiting to sync" banner across both outboxes — loads GET /me +
-                /me/map + /me/coverage + /leaderboards/coverage concurrently);
-                coverage/ (SPEC §15 personal map — heatmap below the pin-mode zoom
-                threshold via MapLibre's addHeatmapLayer, CircleManager pins above it,
-                GET /me/map cached and re-filtered client-side per viewport since that
-                endpoint isn't bbox-aware). Every platform-channel-backed piece (camera/ML
-                Kit, geolocator, R2 PUT, device attestation) sits behind a small interface
-                so controllers are unit-testable, same pattern as SecureStore —
-                `CheckinOutbox` takes the same approach for its one platform-channel call
-                (`path_provider`'s directory lookup), injectable so tests exercise its
-                real file-I/O logic against a temp directory instead of faking it away.
+                My Places — a 3-column Instagram-style grid (`_PoiGrid`) opening
+                `PoiGridViewerScreen`'s full-screen swipeable viewer with a share action
+                (SPEC §19) — coverage count, weekly leaderboard with its own share action
+                (a `RepaintBoundary`-captured card, kept out of the shared image itself),
+                sign-out, a combined "N items waiting to sync" banner across both
+                outboxes — loads GET /me + /me/map + /me/coverage +
+                /leaderboards/coverage concurrently); poi/ also has poi_thumbnail.dart
+                (SPEC §19 — renders `PoiPin.thumbnailUrl` or a category-icon placeholder
+                via poi_category_icon.dart) alongside the existing detail sheet/creation
+                pieces; feed/ (SPEC §19 Discover tab — `FeedController` independently
+                fetches `GET /pois/nearby` and `GET /me/map`'s `saved` array so a
+                logged-out 401 on the latter doesn't blank the former, merging them into
+                "places around me" / "places I want to visit" sections with a bookmark
+                toggle calling `POST /pois/:id/save`); coverage/ (SPEC §15 personal map —
+                heatmap below the pin-mode zoom threshold via MapLibre's addHeatmapLayer,
+                CircleManager pins above it, GET /me/map cached and re-filtered
+                client-side per viewport since that endpoint isn't bbox-aware; SPEC §19
+                added a share action capturing the map + heatmap as currently zoomed).
+                Every platform-channel-backed piece (camera/ML Kit, geolocator, R2 PUT,
+                device attestation) sits behind a small interface so controllers are
+                unit-testable, same pattern as SecureStore — `CheckinOutbox` takes the
+                same approach for its one platform-channel call (`path_provider`'s
+                directory lookup), injectable so tests exercise its real file-I/O logic
+                against a temp directory instead of faking it away.
 test/           Mirrors lib/; test/helpers/fake_adapter.dart is a small in-repo Dio
                 HttpClientAdapter fake (no mock-http package needed) used across every
                 controller test (auth, map, POI creation, check-in, profile), and
