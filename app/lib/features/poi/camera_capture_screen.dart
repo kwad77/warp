@@ -1,9 +1,11 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
-/// In-app camera capture for POI-creation photos (SPEC §6/§13.1). No gallery affordance
-/// here — the gallery path is a separate, explicit action in [PoiCreateScreen]. Pops with
-/// the captured file's path, or `null` if the user backs out.
+/// In-app camera capture, shared by POI creation (SPEC §13.1) and check-in's photo mode
+/// (SPEC §13.2, which also needs the shutter timestamp for its capture token — SPEC
+/// §5.5). No gallery affordance here — POI creation's gallery path is a separate, explicit
+/// action, and check-in never offers one (§6). Pops with the captured file's path and
+/// shutter time, or `null` if the user backs out.
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
 
@@ -52,8 +54,9 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
     final file = await controller.takePicture();
+    final capturedAt = DateTime.now().toUtc();
     if (!mounted) return;
-    Navigator.of(context).pop(file.path);
+    Navigator.of(context).pop((path: file.path, capturedAt: capturedAt));
   }
 
   @override

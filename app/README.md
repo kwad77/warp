@@ -2,10 +2,11 @@
 
 Flutter client. Everything here implements [SPEC.md §12/§13](../SPEC.md) — read the
 relevant section before changing behavior. M1 step 3 covers map browsing, POI detail, and
-email-code auth. M1 step 4 is split in two: **POI creation** (this slice — SPEC §13.1:
-pin adjustment, camera/gallery capture with the on-device face-detection gate, dedupe
-picker) is done; the check-in flow itself (nonce intent, multi-fix gathering, capture
-token, success/retry UX) is a follow-up PR.
+email-code auth. M1 step 4 (both halves done): **POI creation** (SPEC §13.1 — pin
+adjustment, camera/gallery capture with the on-device face-detection gate, dedupe picker)
+and **check-in** (SPEC §13.2 — mode choice, device registration, nonce intent, multi-fix
+gathering, capture-token construction, verified/pending/rejected/duplicate result
+handling).
 
 ## Setup
 
@@ -69,7 +70,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (45 tests as of the POI-creation slice). No live device is
+All three must be clean/green (58 tests as of the check-in slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -79,30 +80,36 @@ of the unit-test path.
 ```
 lib/core/       API client (auth interceptor, refresh-on-401), token storage
                 (Keychain/Keystore via a small SecureStore interface so it's testable),
-                app-wide constants (incl. a haversine helper, geo.dart), Riverpod
-                provider wiring
+                device-id storage (device_store.dart, same pattern), a haversine helper
+                (geo.dart), a SHA-256 helper (hash.dart, SPEC §5.5's capture token),
+                app-wide constants, Riverpod provider wiring
 lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed. gps_fix.dart
                 and poi_create_result.dart are client→server-only (toMap, no fromMap).
-lib/features/   auth/ (email-code flow), map/ (MapLibre + server-driven clustering,
-                "create POI" FAB), poi/ (detail sheet + POI creation: form, camera capture
-                screen, face-detection gate, R2 photo uploader, GPS location source —
-                each platform-channel-backed piece sits behind a small interface so the
-                controller is unit-testable, same pattern as SecureStore)
+lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clustering,
+                "create POI" FAB); poi/ (detail sheet + "Check in" action, POI creation:
+                form, shared in-app camera capture screen, face-detection gate, R2 photo
+                uploader, GPS location source); checkin/ (mode choice, lazy device
+                registration, `FixCollector` — pure multi-fix gathering over each fix's
+                own timestamp, integrity-token seam, controller driving intent → fixes →
+                photo → submit). Every platform-channel-backed piece (camera/ML Kit,
+                geolocator, R2 PUT, device attestation) sits behind a small interface so
+                controllers are unit-testable, same pattern as SecureStore.
 test/           Mirrors lib/; test/helpers/fake_adapter.dart is a small in-repo Dio
-                HttpClientAdapter fake (no mock-http package needed) used across the
-                API client, map controller, auth controller, and POI-creation controller
-                tests. POI creation's controller test also injects fake FaceGate/
-                PhotoUploader implementations — no ML Kit/camera/network calls in CI.
+                HttpClientAdapter fake (no mock-http package needed) used across the API
+                client, map/auth/POI-creation/check-in controller tests, and
+                `FixCollector`'s tests run against a synthetic fix stream — no clock or
+                device needed for either.
 ```
 
-**Testability note (SPEC §13.1):** `camera`, `google_mlkit_face_detection`, and
+**Testability note (SPEC §13.1/§13.2):** `camera`, `google_mlkit_face_detection`, and
 `geolocator` all need a real device/emulator to run their concrete implementations —
 none of which exists in this sandbox (see the "No real device" section below). Each is
-wrapped in a small interface (`FaceGate`, `PhotoUploader`, `LocationSource`) so
-`PoiCreateController` — the actual decision logic (submit vs. block vs. dedupe vs.
-pin-adjust error) — is fully unit-tested with fakes. The UI screens that call the real
-implementations directly (`PoiCreateScreen`, `CameraCaptureScreen`) are not unit-tested,
-same as `MapScreen`'s MapLibre widget isn't — consistent with the rest of this slice.
+wrapped in a small interface (`FaceGate`, `PhotoUploader`, `LocationSource`,
+`IntegrityTokenProvider`) so `PoiCreateController`/`CheckinController` — the actual
+decision logic (submit vs. block vs. dedupe/reject/retry) — are fully unit-tested with
+fakes. The UI screens that call the real implementations directly (`PoiCreateScreen`,
+`CameraCaptureScreen`, `CheckinScreen`) are not unit-tested, same as `MapScreen`'s
+MapLibre widget isn't — consistent with the rest of this app.
 
 **Why `fromMap`, not `fromJson`:** naming a factory `fromJson` inside a `@freezed` class
 triggers freezed's json_serializable-integration codegen path regardless of the factory's

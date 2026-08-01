@@ -214,7 +214,16 @@ assertion) and that it is bound to our nonce. Outcomes:
 (emulator, root/jailbreak signals, wrong nonce). `fail` ⇒ status `rejected`, trust event
 `integrity_fail`, stop. `degraded` ⇒ continue; final status caps at `pending`.
 **[M1 step 2 ships the interface + nonce binding + `DevIntegrityVerifier`; real platform
-verifiers are M1 step 4.]** `DevIntegrityVerifier` (active only when `NODE_ENV ≠
+verifiers were planned for M1 step 4 — scoped back out, flagged in §13.2: Play Integrity
+decodeIntegrityToken needs a Google Cloud/Play Console project + service account, App
+Attest verification needs Apple's root CA and a paid Developer Program enrollment —
+credentials this environment cannot obtain or provision. `RealIntegrityVerifier` stays an
+unbuilt named seam (same treatment as `RekognitionModerationProvider`, §6) behind
+`INTEGRITY_VERIFIER` env (default `dev`); mobile step 4 sends a `DevIntegrityTokenProvider`
+token shaped like the server's own dev format so the flow is exercised end-to-end. In
+production this is unchanged from step 2: every integrity evaluation returns `degraded`
+until a real verifier is wired in — honest by construction, never a fabricated `pass`.]**
+`DevIntegrityVerifier` (active only when `NODE_ENV ≠
 production`): `integrityToken` MUST be exactly `dev.<pass|degraded|fail>.<nonce>`; a
 malformed token or nonce mismatch ⇒ `fail`. In production, until platform verifiers ship,
 every integrity evaluation returns `degraded` (so nothing can reach `verified` on the
@@ -695,6 +704,73 @@ resolution/encoding, `contentType` hardcoded to `image/jpeg`. Server-side HEAD v
 `photo/rejected(quality)` rather than silently succeeding. Resizing is deferred alongside
 the pixel-dimension checks already noted as M1.5 work in §6, or sooner if oversized
 uploads prove common before then.
+
+### 13.2 Check-in flow
+
+**New dependency** (mobile allowlist, §1): `crypto` (dart-lang official package) — needed
+for the SHA-256 capture-token hash (§5.5). Minimal, no transitive deps, same publisher
+family as the SDK itself; the smallest correct choice for one hash function.
+
+**Device registration**: lazy, once, cached. Before the first `checkins/intent` call in
+the life of the install, if no `deviceId` is cached, `POST /devices {platform, model?}` →
+cache `deviceId` (new `DeviceStore`, `SecureStore`-backed, same pattern as `TokenStore`;
+`platform` from `Platform.isIOS ? 'ios' : 'android'`, `model` omitted — no device-model
+lookup dependency for a field the server already treats as optional).
+
+**Entry point**: a "Check in" action on `PoiDetailSheet` (SPEC §12) opens a check-in
+screen for that POI. Mode choice first: **photo** or **confirm** (no default — SPEC §5.6
+can hard-reject a low-trust `confirm` with `photo_required`, so the choice matters and
+isn't hidden). Confirm mode has no camera step at all.
+
+**Flow** (`lib/features/checkin/`):
+1. Ensure device registered (above); `POST /checkins/intent {poiId, deviceId}` →
+   `{nonce, expiresInS}`. `checkin/duplicate` here ⇒ "You've already checked in here,"
+   no retry affordance (not a transient failure).
+2. Collect fixes: `FixCollector.collect(fixStream, minFixes: MIN_FIXES, maxFixes:
+   MAX_FIXES, minSpan: FIX_SPAN_MIN_S, maxWindow: FIX_WINDOW_MAX_S)` — pure over each
+   fix's own `capturedAt` (no wall-clock reads, so it's unit-testable against a synthetic
+   fix stream); stops once `maxFixes` reached OR (`minFixes` reached AND span ≥
+   `minSpan`), else runs until `maxWindow` elapsed. The real `LocationSource.fixStream()`
+   (extends the §13.1 interface with a continuous stream, `Geolocator
+   .getPositionStream`) is wrapped in a real wall-clock `.timeout(FIX_WINDOW_MAX_S + 10s)`
+   by the caller, not inside the pure collector, so a stalled GPS stream can't hang the
+   screen forever. Fewer than `MIN_FIXES` collected when the window closes ⇒ "Couldn't
+   get a clear location fix — try again outdoors" with a retry (fresh intent, step 1).
+3. Photo mode only: open the same in-app camera capture screen as §13.1 (extended to also
+   return the shutter timestamp) — no gallery option, ever, in this flow (§6). At shutter:
+   `capturedAt = DateTime.now().toUtc()`, `token = sha256("<nonce>.<capturedAt
+   .millisecondsSinceEpoch>")` hex — MUST match the server's `Date.parse` of the same
+   `capturedAt` ISO string it's sent alongside (§5.5's exact formula, computed client-side
+   here since the server only re-derives the same ms value from the string we send). Runs
+   through the same `FaceGate` as §13.1 before upload; a face ⇒ retake, same as POI
+   creation. Photo then uploads via presign → PUT → complete (`source: "checkin"`) BEFORE
+   submit, so `capture.storageKey` resolves to an existing row (§5.5's `photoFound` check).
+4. `integrityToken`: `IntegrityTokenProvider.token(nonce)` — `DevIntegrityTokenProvider`
+   (the only implementation; real platform attestation is scoped out, §5.2) returns
+   `"dev.pass.<nonce>"`, matching the server's `DevIntegrityVerifier` format exactly so the
+   dev/local flow is exercised end-to-end.
+5. `POST /checkins {nonce, poiId, mode, fixes, integrityToken, capture?}`.
+
+**Response handling**:
+- `201 {checkin}`, `status: 'verified'` → success screen (stamp/animation per
+  `docs/MILESTONES.md`'s "success animation").
+- `201 {checkin}`, `status: 'pending'` → pending screen — explicitly NOT the same as
+  success; copy explains review is in progress, no false confirmation.
+- `422 checkin/rejected` → `details.reasons[]` shown plainly (no jargon translation
+  table in this PR — raw reason codes are still more honest than a generic failure, and
+  §11's "server strings are for developers" is about `message`, not this `details` array,
+  which SPEC already treats as user-facing via UI, e.g. `photo_required` ⇒ prompt
+  switching to photo mode). Retry ⇒ fresh intent (step 1); the nonce is already consumed
+  (§5.7) so re-submitting the same nonce is never attempted.
+- `409 checkin/duplicate` → "Already checked in," no retry.
+- `410 checkin/nonce_expired` → silently retries once from step 1 (fresh intent) without
+  surfacing an error — an expired nonce during normal use is a UX papercut, not a user
+  mistake to explain.
+- `429 rate/limited` → `details.retryAfterS`, existing §12 convention.
+- Any other error ⇒ existing generic `ApiException` handling (§12).
+
+`Checkin = {id, poiId, status: 'verified'|'pending'|'rejected', mode, createdAt,
+verifiedAt?}` (mirrors `CheckinView` server-side exactly, §7).
 
 ## 14. Definition of done (every PR)
 

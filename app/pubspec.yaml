@@ -12,7 +12,8 @@ environment:
 # are step-4 additions flagged in SPEC §1/§13.1 — image_picker for the gallery path §6
 # allows for POI-creation photos only (camera's own plugin surface has no library
 # picker); geolocator because nothing in this allowlist previously read a GPS fix at all,
-# and both POI creation and check-in need one.
+# and both POI creation and check-in need one. crypto (dart-lang official, SPEC §13.2) is
+# the SHA-256 capture token — already a transitive dep, promoted since we call it directly.
 dependencies:
   flutter:
     sdk: flutter
@@ -25,6 +26,7 @@ dependencies:
   google_mlkit_face_detection: ^0.13.1
   image_picker: ^1.1.2
   geolocator: ^13.0.2
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:

@@ -89,11 +89,11 @@ class _PoiCreateScreenState extends ConsumerState<PoiCreateScreen> {
   }
 
   Future<void> _takePhoto() async {
-    final path = await Navigator.of(context).push<String>(
+    final result = await Navigator.of(context).push<({String path, DateTime capturedAt})>(
       MaterialPageRoute(builder: (_) => const CameraCaptureScreen()),
     );
-    if (path == null) return;
-    await _acceptCandidatePhoto(path);
+    if (result == null) return;
+    await _acceptCandidatePhoto(result.path);
   }
 
   Future<void> _pickFromGallery() async {

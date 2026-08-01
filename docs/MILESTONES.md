@@ -34,8 +34,19 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      Flagged scope reduction: client-side photo resize to `UPLOAD_MAX_LONG_EDGE_PX` (§6)
      is not implemented yet — uploads go at native resolution, server HEAD validation
      still enforces `UPLOAD_MAX_BYTES`.
-   - **Check-in flow** (not started): nonce intent, multi-fix gathering, integrity token,
-     capture-token construction, success animation, retry/pending UX.
+   - **Check-in flow** (done, SPEC §13.2): mode choice (photo/confirm) on POI detail's new
+     "Check in" action, lazy device registration, `checkins/intent`, `FixCollector`
+     gathering `MIN_FIXES..MAX_FIXES` fixes off each fix's own timestamp (pure, unit
+     tested against a synthetic stream), photo mode's in-app-camera-only capture (shared
+     screen with POI creation) feeding the SPEC §5.5 capture-token hash, submit, and a
+     result screen covering verified/pending/rejected/duplicate/photo-blocked/fix-timeout/
+     error with a retry path per case. Flagged scope-back: real platform integrity
+     attestation (Play Integrity/App Attest) needs credentials this environment can't
+     provision (Google Cloud + Play Console, paid Apple Developer enrollment) — SPEC §5.2
+     amended to keep `DevIntegrityVerifier`/`DevIntegrityTokenProvider` as the only M1
+     implementation, with a named, unbuilt seam for the real thing (same treatment as
+     `RekognitionModerationProvider`). New dependency: `crypto` (dart-lang official,
+     already a transitive dep, promoted for the SHA-256 capture token).
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
    completion (`DevModerationProvider` auto-approves); reports and photo voting shipped.
    Deferred pending explicit decisions (SPEC §6 M1 note): the real detector (needs an AWS

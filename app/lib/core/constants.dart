@@ -35,4 +35,10 @@ class AppConfig {
 
   /// SPEC §6 `ALLOWED_MIME`.
   static const String photoContentType = 'image/jpeg';
+
+  /// SPEC §2 `presence` — check-in fix-gathering (§13.2).
+  static const int minFixes = 2;
+  static const int maxFixes = 5;
+  static const int fixSpanMinS = 8;
+  static const int fixWindowMaxS = 25;
 }

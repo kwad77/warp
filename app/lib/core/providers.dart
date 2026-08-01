@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/auth_controller.dart';
 import '../features/auth/auth_state.dart';
+import '../features/checkin/checkin_controller.dart';
+import '../features/checkin/checkin_state.dart';
+import '../features/checkin/integrity_token_provider.dart';
 import '../features/map/map_controller.dart';
 import '../features/map/map_view_state.dart';
 import '../features/poi/face_gate.dart';
@@ -11,6 +14,7 @@ import '../features/poi/poi_create_controller.dart';
 import '../features/poi/poi_create_state.dart';
 import 'api_client.dart';
 import 'constants.dart';
+import 'device_store.dart';
 import 'token_store.dart';
 import 'wanderpost_api.dart';
 
@@ -60,6 +64,24 @@ final AutoDisposeStateNotifierProvider<PoiCreateController, PoiCreateState>
     StateNotifierProvider.autoDispose<PoiCreateController, PoiCreateState>((ref) {
   return PoiCreateController(
     api: ref.watch(wanderpostApiProvider),
+    faceGate: ref.watch(faceGateProvider),
+    uploader: ref.watch(photoUploaderProvider),
+  );
+});
+
+// SPEC §13.2 — check-in. DeviceStore mirrors TokenStore; DevIntegrityTokenProvider is the
+// only IntegrityTokenProvider implementation in M1 (real platform attestation is a scoped-
+// out named seam, §5.2). autoDispose for the same reason as poiCreateControllerProvider.
+final Provider<DeviceStore> deviceStoreProvider = Provider<DeviceStore>((ref) => DeviceStore());
+final Provider<IntegrityTokenProvider> checkinIntegrityTokenProvider =
+    Provider<IntegrityTokenProvider>((ref) => DevIntegrityTokenProvider());
+
+final AutoDisposeStateNotifierProvider<CheckinController, CheckinState> checkinControllerProvider =
+    StateNotifierProvider.autoDispose<CheckinController, CheckinState>((ref) {
+  return CheckinController(
+    api: ref.watch(wanderpostApiProvider),
+    locationSource: ref.watch(locationSourceProvider),
+    integrityTokenProvider: ref.watch(checkinIntegrityTokenProvider),
     faceGate: ref.watch(faceGateProvider),
     uploader: ref.watch(photoUploaderProvider),
   );

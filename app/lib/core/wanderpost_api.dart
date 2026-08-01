@@ -1,3 +1,4 @@
+import '../models/checkin.dart';
 import '../models/gps_fix.dart';
 import '../models/lat_lng.dart';
 import '../models/photo.dart';
@@ -125,5 +126,52 @@ class WanderpostApi {
       body: {'storageKey': storageKey, 'source': source},
     );
     return Photo.fromMap(body['photo'] as Map<String, dynamic>);
+  }
+
+  /// SPEC §7/§13.2 `POST /devices`. `model` is intentionally omitted — no device-model
+  /// lookup dependency for a field the server already treats as optional.
+  Future<String> registerDevice({required String platform}) async {
+    final body = await client.postJson('/v1/devices', body: {'platform': platform});
+    return body['deviceId'] as String;
+  }
+
+  /// SPEC §5.1/§7 `POST /checkins/intent`.
+  Future<({String nonce, int expiresInS})> checkinIntent({
+    required String poiId,
+    required String deviceId,
+  }) async {
+    final body = await client.postJson(
+      '/v1/checkins/intent',
+      body: {'poiId': poiId, 'deviceId': deviceId},
+    );
+    return (nonce: body['nonce'] as String, expiresInS: body['expiresInS'] as int);
+  }
+
+  /// SPEC §5/§7 `POST /checkins`. `capture` is required for `mode: 'photo'` (§13.2).
+  Future<Checkin> submitCheckin({
+    required String nonce,
+    required String poiId,
+    required String mode,
+    required List<GpsFix> fixes,
+    required String integrityToken,
+    ({String token, String capturedAt, String storageKey})? capture,
+  }) async {
+    final body = await client.postJson(
+      '/v1/checkins',
+      body: {
+        'nonce': nonce,
+        'poiId': poiId,
+        'mode': mode,
+        'fixes': fixes.map((f) => f.toMap()).toList(),
+        'integrityToken': integrityToken,
+        if (capture != null)
+          'capture': {
+            'token': capture.token,
+            'capturedAt': capture.capturedAt,
+            'storageKey': capture.storageKey,
+          },
+      },
+    );
+    return Checkin.fromMap(body['checkin'] as Map<String, dynamic>);
   }
 }

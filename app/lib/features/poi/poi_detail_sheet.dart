@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_exception.dart';
 import '../../core/providers.dart';
 import '../../models/poi.dart';
+import '../checkin/checkin_screen.dart';
 
 /// SPEC §12 — fetches `GET /pois/:id` on open; postcard gallery, check-in count,
 /// creator credit. Check-in itself is M1 step 4, not built here.
@@ -67,6 +68,13 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
           ],
           const SizedBox(height: 8),
           Text('${poi.checkinCount} check-ins · created by ${poi.creatorHandle}'),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => CheckinScreen(poiId: poi.id)),
+            ),
+            child: const Text('Check in'),
+          ),
           const SizedBox(height: 16),
           if (poi.gallery.isEmpty)
             const Text('No postcards yet — be the first.')
