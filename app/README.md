@@ -1,12 +1,14 @@
 # Wanderpost app
 
-Flutter client. Everything here implements [SPEC.md §12/§13](../SPEC.md) — read the
+Flutter client. Everything here implements [SPEC.md §12–§14](../SPEC.md) — read the
 relevant section before changing behavior. M1 step 3 covers map browsing, POI detail, and
 email-code auth. M1 step 4 (both halves done): **POI creation** (SPEC §13.1 — pin
 adjustment, camera/gallery capture with the on-device face-detection gate, dedupe picker)
 and **check-in** (SPEC §13.2 — mode choice, device registration, nonce intent, multi-fix
 gathering, capture-token construction, verified/pending/rejected/duplicate result
-handling).
+handling). M1 step 6 (SPEC §14): profile screen — stats, My Places, coverage count,
+weekly leaderboard, sign-out. M1 step 5 (moderation loop) is server-only and already
+shipped (`server/README.md`).
 
 ## Setup
 
@@ -70,7 +72,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (58 tests as of the check-in slice). No live device is
+All three must be clean/green (65 tests as of the profile slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -91,12 +93,15 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 uploader, GPS location source); checkin/ (mode choice, lazy device
                 registration, `FixCollector` — pure multi-fix gathering over each fix's
                 own timestamp, integrity-token seam, controller driving intent → fixes →
-                photo → submit). Every platform-channel-backed piece (camera/ML Kit,
-                geolocator, R2 PUT, device attestation) sits behind a small interface so
-                controllers are unit-testable, same pattern as SecureStore.
+                photo → submit); profile/ (stats, My Places, coverage count, weekly
+                leaderboard, sign-out — loads GET /me + /me/map + /me/coverage +
+                /leaderboards/coverage concurrently). Every platform-channel-backed piece
+                (camera/ML Kit, geolocator, R2 PUT, device attestation) sits behind a
+                small interface so controllers are unit-testable, same pattern as
+                SecureStore.
 test/           Mirrors lib/; test/helpers/fake_adapter.dart is a small in-repo Dio
-                HttpClientAdapter fake (no mock-http package needed) used across the API
-                client, map/auth/POI-creation/check-in controller tests, and
+                HttpClientAdapter fake (no mock-http package needed) used across every
+                controller test (auth, map, POI creation, check-in, profile), and
                 `FixCollector`'s tests run against a synthetic fix stream — no clock or
                 device needed for either.
 ```

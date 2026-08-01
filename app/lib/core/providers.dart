@@ -12,6 +12,8 @@ import '../features/poi/location_source.dart';
 import '../features/poi/photo_uploader.dart';
 import '../features/poi/poi_create_controller.dart';
 import '../features/poi/poi_create_state.dart';
+import '../features/profile/profile_controller.dart';
+import '../features/profile/profile_state.dart';
 import 'api_client.dart';
 import 'constants.dart';
 import 'device_store.dart';
@@ -85,4 +87,10 @@ final AutoDisposeStateNotifierProvider<CheckinController, CheckinState> checkinC
     faceGate: ref.watch(faceGateProvider),
     uploader: ref.watch(photoUploaderProvider),
   );
+});
+
+// SPEC §14 — profile screen.
+final StateNotifierProvider<ProfileController, ProfileState> profileControllerProvider =
+    StateNotifierProvider<ProfileController, ProfileState>((ref) {
+  return ProfileController(ref.watch(wanderpostApiProvider));
 });

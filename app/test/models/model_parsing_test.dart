@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderpost/models/cluster.dart';
 import 'package:wanderpost/models/gps_fix.dart';
 import 'package:wanderpost/models/lat_lng.dart';
+import 'package:wanderpost/models/leaderboard_result.dart';
+import 'package:wanderpost/models/me_map.dart';
+import 'package:wanderpost/models/me_stats.dart';
 import 'package:wanderpost/models/poi.dart';
 import 'package:wanderpost/models/poi_create_result.dart';
 import 'package:wanderpost/models/poi_pin.dart';
@@ -130,5 +133,51 @@ void main() {
 
     expect(created.maybeWhen(created: (p) => p.id, orElse: () => null), 'poi1');
     expect(dedupe.maybeWhen(dedupe: (c) => c.single.id, orElse: () => null), 'p1');
+  });
+
+  test('MeStats.fromMap parses the SPEC §7 GET /me stats shape', () {
+    final stats = MeStats.fromMap({'checkins': 5, 'cellsCovered': 3, 'poisCreated': 1});
+    expect(stats.checkins, 5);
+    expect(stats.cellsCovered, 3);
+    expect(stats.poisCreated, 1);
+  });
+
+  test('MeMap.fromMap parses checkedIn/created/vaulted independently', () {
+    final meMap = MeMap.fromMap({
+      'checkedIn': [
+        {
+          'id': 'p1',
+          'title': 'A',
+          'category': 'landmark',
+          'location': {'lat': 1, 'lng': 2},
+          'checkinCount': 1,
+        },
+      ],
+      'created': <Map<String, dynamic>>[],
+      'vaulted': <Map<String, dynamic>>[],
+    });
+    expect(meMap.checkedIn, hasLength(1));
+    expect(meMap.created, isEmpty);
+    expect(meMap.vaulted, isEmpty);
+  });
+
+  test('LeaderboardResult.fromMap parses entries and an absent me', () {
+    final result = LeaderboardResult.fromMap({
+      'entries': [
+        {'rank': 1, 'handle': 'explorer_x', 'cells': 10},
+      ],
+    });
+    expect(result.entries.single.handle, 'explorer_x');
+    expect(result.me, isNull);
+  });
+
+  test('LeaderboardResult.fromMap parses a present me (no handle)', () {
+    final result = LeaderboardResult.fromMap({
+      'entries': <Map<String, dynamic>>[],
+      'me': {'rank': 42, 'cells': 3},
+    });
+    expect(result.me, isNotNull);
+    expect(result.me!.rank, 42);
+    expect(result.me!.cells, 3);
   });
 }

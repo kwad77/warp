@@ -52,7 +52,15 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
    Deferred pending explicit decisions (SPEC §6 M1 note): the real detector (needs an AWS
    SDK dependency not yet approved), pHash (needs image-byte fetch + `sharp`), and the
    human-review admin surface (needs an undesigned admin auth realm).
-6. **Personal map + coverage + weekly leaderboard.**
+6. **Personal map + coverage + weekly leaderboard** (SPEC §14; done). Replaces the
+   Account tab's "Signed in as {handle}" placeholder with a real profile screen: stats
+   (`GET /me`), My Places — created/checked-in `PoiPin` lists tappable into the existing
+   POI detail sheet (`GET /me/map`), a coverage cell count (`GET /me/coverage` — the raw
+   H3 cell list is fetched but not rendered as a map overlay yet, flagged in SPEC §14 as a
+   deferred visualization, not a silent gap), the weekly coverage leaderboard (`GET
+   /leaderboards/coverage`), and sign-out (wired to the `AuthController.signOut()` method
+   that existed since step 3 but had no button). No server changes — all four endpoints
+   were already implemented and tested.
 
 Testable: full loop on real devices in one seeded city; spoofing attempts with
 mock-location apps and emulators are caught.

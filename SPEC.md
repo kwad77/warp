@@ -772,7 +772,58 @@ isn't hidden). Confirm mode has no camera step at all.
 `Checkin = {id, poiId, status: 'verified'|'pending'|'rejected', mode, createdAt,
 verifiedAt?}` (mirrors `CheckinView` server-side exactly, §7).
 
-## 14. Definition of done (every PR)
+## 14. Mobile app — profile, personal map, coverage, leaderboard (M1 step 6; exact)
+
+Scope: everything under `docs/MILESTONES.md`'s M1 step 6 one-liner. Replaces the
+Account tab's placeholder (`main.dart`'s `RootScreen`, currently just "Signed in as
+{handle}") with a real profile screen. No new server work — SPEC §7's `GET /me`, `GET
+/me/map`, `GET /me/coverage`, `GET /leaderboards/coverage` are unchanged and already
+implemented; this section is purely the mobile consumption of them.
+
+**Layout additions** (`app/lib/features/profile/`):
+```
+profile_screen.dart       stats header, My Places (created/checked-in lists), coverage
+                          count, weekly leaderboard, sign-out
+profile_controller.dart   Riverpod: loads GET /me + /me/map + /me/coverage +
+                          /leaderboards/coverage?window=weekly&scope=global concurrently
+                          (Future.wait) on open; single loading/loaded/error state, no
+                          per-section spinners — SPEC has no requirement forcing
+                          progressive reveal, and one round-trip is simpler
+```
+
+**New models** (`app/lib/models/`): `MeStats {checkins, cellsCovered, poisCreated}`,
+`MeMap {checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` (`vaulted` rendered
+as an empty section in M1 — always `[]` server-side until M3), `LeaderboardEntry {rank,
+handle, cells}` (top-list rows), `MeStanding {rank, cells}` (the optional `me` field —
+deliberately a separate type: it never has a `handle`, so this avoids a
+nullable-and-sometimes-missing field on `LeaderboardEntry`).
+
+**Content**:
+- Stats header: `stats.checkins` check-ins, `stats.cellsCovered` cells, `stats.poisCreated`
+  places created (SPEC §7's exact `GET /me` counts — verified check-ins only, POIs with
+  `status <> 'removed'`).
+- My Places: two lists (created / checked-in) of `PoiPin`s, each row tappable → the
+  existing `PoiDetailSheet` (§12), same as map pins. `vaulted` renders only if non-empty
+  (never is, in M1) — no separate "sealed" UI is built for a state that can't occur yet.
+- Coverage: `GET /me/coverage`'s `count` shown as "N map cells explored." **Scope
+  reduction, flagged:** the `cells` array (H3 r7 hex ids) is fetched but not rendered as a
+  map overlay in this PR — a personal coverage heatmap is a real feature, not a one-line
+  addition, and SPEC's step-6 one-liner doesn't itself demand the visualization, only "the
+  coverage." Deferred to a follow-up if the count-only view proves insufficient.
+- Weekly leaderboard: `GET /leaderboards/coverage?window=weekly&scope=global`'s
+  `entries` (rank/handle/cells) in a simple ranked list; `me` (when present, i.e. the
+  request carried a valid bearer token) shown pinned below the list if not already in it,
+  matching §7's "entries capped at `LEADERBOARD_ENTRIES_MAX`" — `me` existing outside that
+  cap is the normal case being handled, not an edge case being ignored.
+- Sign out: calls the existing `AuthController.signOut()` (SPEC §12) — wired here because
+  this is the first screen with a natural place for it; §12 built the method but never a
+  button.
+
+**Error handling**: existing generic `ApiException` handling (§12) — a single load
+failure shows a retry affordance for the whole screen, not per-section (same one-round-
+trip reasoning as above).
+
+## 15. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

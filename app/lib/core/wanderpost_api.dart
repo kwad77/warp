@@ -1,6 +1,9 @@
 import '../models/checkin.dart';
 import '../models/gps_fix.dart';
 import '../models/lat_lng.dart';
+import '../models/leaderboard_result.dart';
+import '../models/me_map.dart';
+import '../models/me_stats.dart';
 import '../models/photo.dart';
 import '../models/poi.dart';
 import '../models/poi_create_result.dart';
@@ -173,5 +176,38 @@ class WanderpostApi {
       },
     );
     return Checkin.fromMap(body['checkin'] as Map<String, dynamic>);
+  }
+
+  /// SPEC §7/§14 `GET /me`.
+  Future<({User user, MeStats stats})> me() async {
+    final body = await client.getJson('/v1/me');
+    return (
+      user: User.fromMap(body['user'] as Map<String, dynamic>),
+      stats: MeStats.fromMap(body['stats'] as Map<String, dynamic>),
+    );
+  }
+
+  /// SPEC §7/§14 `GET /me/map`.
+  Future<MeMap> meMap() async {
+    final body = await client.getJson('/v1/me/map');
+    return MeMap.fromMap(body);
+  }
+
+  /// SPEC §7/§14 `GET /me/coverage`.
+  Future<({List<String> cells, int count})> meCoverage() async {
+    final body = await client.getJson('/v1/me/coverage');
+    return (
+      cells: (body['cells'] as List<dynamic>).cast<String>(),
+      count: body['count'] as int,
+    );
+  }
+
+  /// SPEC §7/§14 `GET /leaderboards/coverage`.
+  Future<LeaderboardResult> leaderboardCoverage({required String window}) async {
+    final body = await client.getJson(
+      '/v1/leaderboards/coverage',
+      query: {'window': window, 'scope': 'global'},
+    );
+    return LeaderboardResult.fromMap(body);
   }
 }

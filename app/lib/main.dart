@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/providers.dart';
 import 'features/auth/email_auth_screen.dart';
 import 'features/map/map_screen.dart';
+import 'features/profile/profile_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: WanderpostApp()));
@@ -41,7 +42,7 @@ class RootScreen extends ConsumerWidget {
           children: [
             const MapScreen(),
             auth.maybeWhen(
-              loggedIn: (user) => Center(child: Text('Signed in as ${user.handle}')),
+              loggedIn: (user) => const ProfileScreen(),
               orElse: () => const EmailAuthScreen(),
             ),
           ],
