@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderpost/models/cluster.dart';
+import 'package:wanderpost/models/gps_fix.dart';
+import 'package:wanderpost/models/lat_lng.dart';
 import 'package:wanderpost/models/poi.dart';
+import 'package:wanderpost/models/poi_create_result.dart';
 import 'package:wanderpost/models/poi_pin.dart';
 import 'package:wanderpost/models/pois_result.dart';
 
@@ -85,5 +88,47 @@ void main() {
     });
     expect(poi.description, isNull);
     expect(poi.gallery, isEmpty);
+  });
+
+  test('GpsFix.toMap serializes capturedAt as UTC ISO-8601 with a trailing Z', () {
+    final fix = GpsFix(
+      lat: 38.7,
+      lng: -9.1,
+      accuracyM: 12.5,
+      capturedAt: DateTime.utc(2026, 3, 4, 5, 6, 7),
+    );
+    expect(fix.toMap(), {
+      'lat': 38.7,
+      'lng': -9.1,
+      'accuracyM': 12.5,
+      'capturedAt': '2026-03-04T05:06:07.000Z',
+    });
+  });
+
+  test('PoiCreateResult distinguishes created vs dedupe', () {
+    const poi = Poi(
+      id: 'poi1',
+      title: 'Torre',
+      category: 'landmark',
+      location: LatLng(lat: 1, lng: 2),
+      checkinCount: 0,
+      creatorId: 'u1',
+      creatorHandle: 'explorer_x',
+      checkinRadiusM: 75,
+      gallery: [],
+    );
+    const pin = PoiPin(
+      id: 'p1',
+      title: 'Existing',
+      category: 'landmark',
+      location: LatLng(lat: 1, lng: 2),
+      checkinCount: 3,
+    );
+
+    const created = PoiCreateResult.created(poi);
+    const dedupe = PoiCreateResult.dedupe([pin]);
+
+    expect(created.maybeWhen(created: (p) => p.id, orElse: () => null), 'poi1');
+    expect(dedupe.maybeWhen(dedupe: (c) => c.single.id, orElse: () => null), 'p1');
   });
 }

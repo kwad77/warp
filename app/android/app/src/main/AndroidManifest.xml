@@ -2,6 +2,12 @@
     <!-- Debug builds get this for free from Flutter's tooling; release builds don't —
          every feature in this app is network-dependent (API + map tiles). -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- SPEC §13.1: in-app camera + on-device face-gate for POI-creation photos. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- SPEC §13.1: single GPS fix for the pin-adjust check (foreground only, never
+         background — SPEC §9). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:label="wanderpost"
         android:name="${applicationName}"

@@ -6,6 +6,8 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../core/constants.dart';
 import '../../core/providers.dart';
+import '../../models/lat_lng.dart' as models;
+import '../poi/poi_create_screen.dart';
 import '../poi/poi_detail_sheet.dart';
 import 'map_query.dart';
 
@@ -47,10 +49,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     super.dispose();
   }
 
+  /// SPEC §13.1 — opens POI creation centered on the current viewport; on success shows
+  /// the new POI's detail sheet.
+  Future<void> _createPoi() async {
+    final target = _mapController?.cameraPosition?.target;
+    if (target == null) return;
+    final poiId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => PoiCreateScreen(
+          initialLocation: models.LatLng(lat: target.latitude, lng: target.longitude),
+        ),
+      ),
+    );
+    if (poiId != null && mounted) {
+      openPoiDetail(context, poiId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: _createPoi,
+        child: const Icon(Icons.add_location_alt),
+      ),
       body: Stack(
         children: [
           MapLibreMap(

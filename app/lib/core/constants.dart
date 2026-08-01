@@ -19,4 +19,20 @@ class AppConfig {
 
   /// Below this zoom, the server returns clusters instead of individual POI pins.
   static const int clusterZoomThreshold = 13;
+
+  /// SPEC §2 `PIN_ADJUST_MAX_M` — local hint only; the server is authoritative (§13.1).
+  static const double pinAdjustMaxM = 30;
+
+  /// SPEC §8 `poi_category` enum, in the server's declared order.
+  static const List<String> poiCategories = [
+    'landmark',
+    'architecture',
+    'street_art',
+    'nature',
+    'viewpoint',
+    'other',
+  ];
+
+  /// SPEC §6 `ALLOWED_MIME`.
+  static const String photoContentType = 'image/jpeg';
 }

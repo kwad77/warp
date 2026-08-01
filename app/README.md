@@ -1,8 +1,11 @@
 # Wanderpost app
 
-Flutter client. Everything here implements [SPEC.md §12](../SPEC.md) — read it before
-changing behavior. This slice (M1 step 3) covers map browsing, POI detail, and
-email-code auth. Check-in, camera capture, and on-device face detection are M1 step 4.
+Flutter client. Everything here implements [SPEC.md §12/§13](../SPEC.md) — read the
+relevant section before changing behavior. M1 step 3 covers map browsing, POI detail, and
+email-code auth. M1 step 4 is split in two: **POI creation** (this slice — SPEC §13.1:
+pin adjustment, camera/gallery capture with the on-device face-detection gate, dedupe
+picker) is done; the check-in flow itself (nonce intent, multi-fix gathering, capture
+token, success/retry UX) is a follow-up PR.
 
 ## Setup
 
@@ -66,21 +69,40 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green. No live device is required for any of them.
+All three must be clean/green (45 tests as of the POI-creation slice). No live device is
+required for any of them — see the testability note below on how `camera`,
+`google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
+of the unit-test path.
 
 ## Layout
 
 ```
 lib/core/       API client (auth interceptor, refresh-on-401), token storage
                 (Keychain/Keystore via a small SecureStore interface so it's testable),
-                app-wide constants, Riverpod provider wiring
-lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed
-lib/features/   auth/ (email-code flow), map/ (MapLibre + server-driven clustering),
-                poi/ (detail sheet)
+                app-wide constants (incl. a haversine helper, geo.dart), Riverpod
+                provider wiring
+lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed. gps_fix.dart
+                and poi_create_result.dart are client→server-only (toMap, no fromMap).
+lib/features/   auth/ (email-code flow), map/ (MapLibre + server-driven clustering,
+                "create POI" FAB), poi/ (detail sheet + POI creation: form, camera capture
+                screen, face-detection gate, R2 photo uploader, GPS location source —
+                each platform-channel-backed piece sits behind a small interface so the
+                controller is unit-testable, same pattern as SecureStore)
 test/           Mirrors lib/; test/helpers/fake_adapter.dart is a small in-repo Dio
                 HttpClientAdapter fake (no mock-http package needed) used across the
-                API client, map controller, and auth controller tests.
+                API client, map controller, auth controller, and POI-creation controller
+                tests. POI creation's controller test also injects fake FaceGate/
+                PhotoUploader implementations — no ML Kit/camera/network calls in CI.
 ```
+
+**Testability note (SPEC §13.1):** `camera`, `google_mlkit_face_detection`, and
+`geolocator` all need a real device/emulator to run their concrete implementations —
+none of which exists in this sandbox (see the "No real device" section below). Each is
+wrapped in a small interface (`FaceGate`, `PhotoUploader`, `LocationSource`) so
+`PoiCreateController` — the actual decision logic (submit vs. block vs. dedupe vs.
+pin-adjust error) — is fully unit-tested with fakes. The UI screens that call the real
+implementations directly (`PoiCreateScreen`, `CameraCaptureScreen`) are not unit-tested,
+same as `MapScreen`'s MapLibre widget isn't — consistent with the rest of this slice.
 
 **Why `fromMap`, not `fromJson`:** naming a factory `fromJson` inside a `@freezed` class
 triggers freezed's json_serializable-integration codegen path regardless of the factory's

@@ -48,7 +48,16 @@ plaintext, which fails SPEC §9's spirit even though §9 is written for the serv
 `camera` and `google_mlkit_face_detection` are pre-approved but NOT yet in
 `pubspec.yaml` — nothing in step 3 uses them, and adding them now would mean unused
 native platform surface (camera/photo permissions) sitting in this PR for no reason;
-they land in step 4 alongside the code that actually calls them. No `json_serializable`
+they land in step 4 alongside the code that actually calls them (§13). **`image_picker`**
+is added in step 4 alongside them — a NEW dependency not named in the original product
+brief, flagged here: §6 explicitly allows a gallery/roll picker for POI-creation photos
+("POI-creation flow MAY [offer gallery]"), and `camera`'s plugin surface has no photo-
+library picker of its own. **`geolocator`** is also added in step 4 — flagged here as a
+gap the original brief never named: nothing in this allowlist reads the device's GPS fix
+at all, and both POI creation (a single `gpsFix`, §13.1) and check-in (`MIN_FIXES..
+MAX_FIXES` fused fixes, §5.1) need one. `geolocator` is the standard maintained Flutter
+plugin for this (position + accuracy + its own permission-request flow — no separate
+`permission_handler` needed for the read-only foreground use this app makes of it). No `json_serializable`
 — model classes write `fromJson`/`toJson` by hand (freezed's immutability/`copyWith`/
 union support doesn't require it, and it avoids a second codegen package for a handful
 of simple DTOs). No routing package — `Navigator`/`MaterialApp` routes suffice at this
@@ -602,7 +611,92 @@ cases the UI treats specially (`rate/limited` → "try again in a moment"; local
 "something went wrong, pull to retry" — never the raw `message` (§11: server strings are
 for developers).
 
-## 13. Definition of done (every PR)
+## 13. Mobile app — POI creation & check-in (M1 step 4; exact)
+
+Scope: everything gated behind "Flutter app: create + check in" in `docs/MILESTONES.md`.
+Built as two PRs; this section is written incrementally — the **POI creation** subsection
+below is exact and implemented; **check-in flow** (nonce intent, fix gathering, capture
+token, success/retry UX) follows in a subsequent PR and is appended here, not filed as a
+new section, when it lands.
+
+### 13.1 POI creation
+
+**New dependencies** (mobile allowlist, §1): `camera` and `google_mlkit_face_detection`
+land in `pubspec.yaml` now — pre-approved in the original brief, deferred until this PR
+per §1's note. `image_picker` also lands now — flagged as a new dependency in §1's entry
+above (needed for the gallery path §6 explicitly allows for POI-creation photos only).
+`geolocator` also lands now — flagged in §1 as a genuine spec gap (nothing previously
+named a GPS-fix package at all); this PR uses only its single-fix read
+(`LocationSource.currentFix()` below), the multi-fix gathering check-in needs is built on
+the same package in the follow-up PR.
+
+**Location abstraction** (`lib/features/poi/location_source.dart`, reused by check-in):
+`abstract class LocationSource { Future<GpsFix> currentFix(); }`, backed by
+`GeolocatorLocationSource` (real: `Geolocator.requestPermission()` then
+`Geolocator.getCurrentPosition()`). A small interface, not a direct `geolocator`
+dependency in the controller, for the same testability reason as `SecureStore`/`FaceGate`
+— `geolocator`'s concrete implementation needs a real device/emulator to run.
+
+**Layout additions** (`app/lib/`):
+```
+features/poi/
+  poi_create_screen.dart     title/description/category form + pin-adjust map + photo step
+  poi_create_controller.dart Riverpod: holds draft state, calls POST /pois, handles the
+                              201 vs 200 dedupeCandidates branch, drives photo upload after
+  face_gate.dart              wraps google_mlkit_face_detection: given an image file/bytes,
+                              returns pass/blocked; used by both camera and gallery paths
+```
+
+**Entry point**: a "Create POI" affordance on the map screen (long-press on the map, or an
+app-bar action that drops a pin at the current map center) opens `poi_create_screen` with
+the tapped/centered map coordinate as the initial `location` candidate. The device's
+current single GPS fix (not the multi-fix check-in flow — this is one fix, best-effort) is
+captured as `gpsFix` at screen-open time.
+
+**Pin adjustment**: the user may drag the pin on a small embedded map before submitting.
+Client enforces `haversine(location, gpsFix) ≤ PIN_ADJUST_MAX_M` (§2) locally for
+immediate feedback (drag beyond that radius snaps back / shows a "too far from your
+location" hint); the server remains authoritative and a `422 poi/outside_pin_adjust` is
+still handled (inline error on the map, not a toast — the user needs to see the pin to
+correct it), since the local check is advisory only (stale/low-accuracy `gpsFix`).
+
+**Form fields**: title (3..80 code points, enforced client-side before submit as well as
+server-side), description (optional, ≤280), category (single-select over the §8 enum:
+`landmark | viewpoint | nature | architecture | street_art | other`).
+
+**Photo (optional for POI creation)**: user picks camera (`camera` package) or gallery
+(`image_picker`), both explicitly labeled "for creating places only" (§6). Whichever image
+results, it MUST pass the face-detection gate (`face_gate.dart`, ML Kit) before anything
+uploads — this runs for both paths identically (§6: "this gate runs before upload for BOTH
+flows"). Any face detected ⇒ block, offer retake (camera) or reselect (gallery); never a
+silent auto-crop, blur, or bypass. No photo is a valid submission — `POST /pois` has no
+photo field (§7); a photo, if present, uploads only after the POI exists.
+
+**Submit flow**: `POST /pois {title, description?, category, location, gpsFix, force?}`.
+- `201 {poi}` → if a photo was captured/picked and passed the gate, upload it now against
+  the new POI (`POST /pois/:id/photos/presign {contentType, source: "poi_creation"}` → PUT
+  the resized (≤ `UPLOAD_MAX_LONG_EDGE_PX`) bytes → `POST /pois/:id/photos/complete
+  {storageKey, source: "poi_creation"}`); then navigate to the POI's detail screen
+  regardless of upload outcome (a failed photo upload does not undo POI creation — surface
+  a retry affordance on the detail screen instead of blocking navigation).
+- `200 {dedupeCandidates: PoiPin[]}` → dedupe picker screen: list/mini-map of the
+  candidates ("Is this place already here?"). Selecting one navigates to its detail
+  screen; nothing is created. "None of these — create mine" resubmits the identical
+  payload with `force: true`.
+- `422 poi/outside_pin_adjust` → inline pin-adjust error (not the generic error handler).
+- `429 rate/limited` → `details.retryAfterS` surfaced per the existing §12 error
+  convention (POI_CREATE = 20/day, §2).
+- Any other error ⇒ the existing generic `ApiException` handling (§12).
+
+**Scope reduction, flagged:** client-side resize to ≤ `UPLOAD_MAX_LONG_EDGE_PX` (§6) is
+NOT implemented in this PR — captured/picked photos upload at their native
+resolution/encoding, `contentType` hardcoded to `image/jpeg`. Server-side HEAD validation
+(§6) still enforces `UPLOAD_MAX_BYTES`; an oversized photo fails presign/complete with
+`photo/rejected(quality)` rather than silently succeeding. Resizing is deferred alongside
+the pixel-dimension checks already noted as M1.5 work in §6, or sooner if oversized
+uploads prove common before then.
+
+## 14. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

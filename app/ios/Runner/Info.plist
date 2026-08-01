@@ -26,6 +26,16 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- SPEC §13.1: in-app camera + on-device face-gate for POI-creation photos. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Wanderpost uses your camera to take a photo when you create a place.</string>
+	<!-- SPEC §13.1/§6: the gallery path POI creation (only) allows for its photo. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Wanderpost can use a photo from your library when you create a place.</string>
+	<!-- SPEC §13.1: single foreground GPS fix for the pin-adjust check — never
+	     background (SPEC §9). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Wanderpost uses your location to confirm the place you're creating is nearby.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

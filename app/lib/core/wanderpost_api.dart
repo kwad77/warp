@@ -1,6 +1,10 @@
-import '../models/pois_result.dart';
+import '../models/gps_fix.dart';
+import '../models/lat_lng.dart';
+import '../models/photo.dart';
 import '../models/poi.dart';
+import '../models/poi_create_result.dart';
 import '../models/poi_pin.dart';
+import '../models/pois_result.dart';
 import '../models/user.dart';
 import 'api_client.dart';
 
@@ -62,5 +66,64 @@ class WanderpostApi {
   Future<Poi> poiDetail(String id) async {
     final body = await client.getJson('/v1/pois/$id');
     return Poi.fromMap(body['poi'] as Map<String, dynamic>);
+  }
+
+  /// SPEC §7 `POST /pois` / §13.1. `force: true` skips the dedupe prompt server-side.
+  Future<PoiCreateResult> createPoi({
+    required String title,
+    String? description,
+    required String category,
+    required LatLng location,
+    required GpsFix gpsFix,
+    bool force = false,
+  }) async {
+    final body = await client.postJson(
+      '/v1/pois',
+      body: {
+        'title': title,
+        'description': ?description,
+        'category': category,
+        'location': {'lat': location.lat, 'lng': location.lng},
+        'gpsFix': gpsFix.toMap(),
+        if (force) 'force': true,
+      },
+    );
+    if (body.containsKey('dedupeCandidates')) {
+      final candidates = (body['dedupeCandidates'] as List<dynamic>)
+          .map((e) => PoiPin.fromMap(e as Map<String, dynamic>))
+          .toList();
+      return PoiCreateResult.dedupe(candidates);
+    }
+    return PoiCreateResult.created(Poi.fromMap(body['poi'] as Map<String, dynamic>));
+  }
+
+  /// SPEC §6/§7 `POST /pois/:id/photos/presign`. `source` is `poi_creation` or `checkin`.
+  Future<({String uploadUrl, String storageKey, int maxBytes})> presignPhoto(
+    String poiId, {
+    required String contentType,
+    required String source,
+  }) async {
+    final body = await client.postJson(
+      '/v1/pois/$poiId/photos/presign',
+      body: {'contentType': contentType, 'source': source},
+    );
+    return (
+      uploadUrl: body['uploadUrl'] as String,
+      storageKey: body['storageKey'] as String,
+      maxBytes: body['maxBytes'] as int,
+    );
+  }
+
+  /// SPEC §6/§7 `POST /pois/:id/photos/complete`. Idempotent server-side on retry.
+  Future<Photo> completePhoto(
+    String poiId, {
+    required String storageKey,
+    required String source,
+  }) async {
+    final body = await client.postJson(
+      '/v1/pois/$poiId/photos/complete',
+      body: {'storageKey': storageKey, 'source': source},
+    );
+    return Photo.fromMap(body['photo'] as Map<String, dynamic>);
   }
 }

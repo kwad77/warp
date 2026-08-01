@@ -23,8 +23,19 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
    confirmed environment reasons (no `/dev/kvm` in this Docker container; no macOS for
    iOS). The map itself — the MapLibre widget rendering actual tiles/markers — is still
    unverified and is the one piece a real device run still owes.
-4. **Flutter app: create + check in** — in-app camera with on-device face check, POI
-   creation with dedupe prompt, both check-in modes, success animation, retry/pending UX.
+4. **Flutter app: create + check in** (SPEC §13) — split in two:
+   - **POI creation** (done): pin-adjust map, title/description/category form, camera
+     (`camera` package) or gallery (`image_picker`) photo — either gated by on-device
+     `google_mlkit_face_detection` before anything uploads — dedupe picker
+     (`200 dedupeCandidates` → pick existing or "create mine" with `force: true`), photo
+     upload after creation (presign → PUT → complete). New dependencies this slice:
+     `camera`, `google_mlkit_face_detection`, `image_picker`, and `geolocator` (a spec
+     gap — nothing previously read a GPS fix at all; both this and check-in need one).
+     Flagged scope reduction: client-side photo resize to `UPLOAD_MAX_LONG_EDGE_PX` (§6)
+     is not implemented yet — uploads go at native resolution, server HEAD validation
+     still enforces `UPLOAD_MAX_BYTES`.
+   - **Check-in flow** (not started): nonce intent, multi-fix gathering, integrity token,
+     capture-token construction, success animation, retry/pending UX.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
    completion (`DevModerationProvider` auto-approves); reports and photo voting shipped.
    Deferred pending explicit decisions (SPEC §6 M1 note): the real detector (needs an AWS
