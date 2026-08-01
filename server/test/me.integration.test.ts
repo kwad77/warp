@@ -1,6 +1,7 @@
 // SPEC §7 — /me surface, against real PostGIS.
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
+import { cellToChildren, cellToLatLng, latLngToCell } from 'h3-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
@@ -15,6 +16,23 @@ const url = process.env.TEST_DATABASE_URL;
 
 function offsetLatMeters(ll: { lat: number; lng: number }, meters: number) {
   return { lat: ll.lat + meters / 111_320, lng: ll.lng };
+}
+
+/**
+ * Two DISTINCT r7 cells that share the same res-2 ancestor, guaranteed by construction
+ * (both are children of it) rather than by an arbitrary meter offset that can flake if
+ * `ll` happens to land near a res-2 boundary (H3 cells span ~150km at res 2 — a 5km
+ * offset "should" usually stay put, but "usually" is exactly the kind of flake this
+ * session already hit once, for r7, in the badges suite).
+ */
+function distinctR7SiblingsUnderSameRes2(ll: { lat: number; lng: number }) {
+  const res2 = latLngToCell(ll.lat, ll.lng, 2);
+  const [a, b] = cellToChildren(res2, 7);
+  const toLatLng = (cell: string) => {
+    const [lat, lng] = cellToLatLng(cell);
+    return { lat, lng };
+  };
+  return [toLatLng(a as string), toLatLng(b as string)] as const;
 }
 
 const BASE_LL = { lat: 12.0, lng: 40.0 };
@@ -171,10 +189,11 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
   it('GET /me/coverage/heatmap: zoom < 4 buckets distinct r7 cells into one res-2 ancestor', async () => {
     const u = await makeUser();
     const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 3_500);
-    const poiA = await makePoi(u.userId, ll);
-    const poiB = await makePoi(u.userId, offsetLatMeters(ll, 5_000)); // distinct r7, same res-2
-    await makeVerifiedCheckin(u.userId, poiA, ll);
-    await makeVerifiedCheckin(u.userId, poiB, offsetLatMeters(ll, 5_000));
+    const [llA, llB] = distinctR7SiblingsUnderSameRes2(ll);
+    const poiA = await makePoi(u.userId, llA);
+    const poiB = await makePoi(u.userId, llB);
+    await makeVerifiedCheckin(u.userId, poiA, llA);
+    await makeVerifiedCheckin(u.userId, poiB, llB);
 
     const res = await app.inject({
       method: 'GET',
@@ -193,10 +212,11 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
   it('GET /me/coverage/heatmap: zoom in [9,13) is resolution 7 — one cell per r7 (no bucketing)', async () => {
     const u = await makeUser();
     const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 3_600);
-    const poiA = await makePoi(u.userId, ll);
-    const poiB = await makePoi(u.userId, offsetLatMeters(ll, 5_000));
-    await makeVerifiedCheckin(u.userId, poiA, ll);
-    await makeVerifiedCheckin(u.userId, poiB, offsetLatMeters(ll, 5_000));
+    const [llA, llB] = distinctR7SiblingsUnderSameRes2(ll);
+    const poiA = await makePoi(u.userId, llA);
+    const poiB = await makePoi(u.userId, llB);
+    await makeVerifiedCheckin(u.userId, poiA, llA);
+    await makeVerifiedCheckin(u.userId, poiB, llB);
 
     const res = await app.inject({
       method: 'GET',
