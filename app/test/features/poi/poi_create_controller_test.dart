@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:wanderpost/core/api_client.dart';
 import 'package:wanderpost/core/secure_store.dart';
 import 'package:wanderpost/core/token_store.dart';
@@ -9,6 +11,7 @@ import 'package:wanderpost/features/poi/face_gate.dart';
 import 'package:wanderpost/features/poi/pending_photo.dart';
 import 'package:wanderpost/features/poi/photo_uploader.dart';
 import 'package:wanderpost/features/poi/poi_create_controller.dart';
+import 'package:wanderpost/features/poi/poi_create_outbox.dart';
 import 'package:wanderpost/features/poi/poi_create_state.dart';
 import 'package:wanderpost/models/gps_fix.dart';
 import 'package:wanderpost/models/lat_lng.dart';
@@ -56,11 +59,23 @@ class _FakePhotoUploader implements PhotoUploader {
 final _gpsFix = GpsFix(lat: 1.0, lng: 2.0, accuracyM: 10, capturedAt: DateTime.utc(2026, 1, 1));
 const _location = LatLng(lat: 1.0001, lng: 2.0001);
 
+/// Real `PoiCreateOutbox`, pointed at a fresh temp directory per test — no fake needed,
+/// its file-I/O logic just runs for real (see `poi_create_outbox_test.dart` for its own
+/// dedicated coverage).
+PoiCreateOutbox _tempOutbox() {
+  Directory? dir;
+  return PoiCreateOutbox(
+    directoryProvider: () async =>
+        dir ??= await Directory.systemTemp.createTemp('poi_create_outbox_test_'),
+  );
+}
+
 ({
   WanderpostApi api,
   FakeAdapter adapter,
   _FakeFaceGate faceGate,
   _FakePhotoUploader uploader,
+  PoiCreateOutbox outbox,
 }) _build() {
   final adapter = FakeAdapter();
   final api = WanderpostApi(
@@ -70,7 +85,13 @@ const _location = LatLng(lat: 1.0001, lng: 2.0001);
       dio: buildFakeDio(adapter),
     ),
   );
-  return (api: api, adapter: adapter, faceGate: _FakeFaceGate(), uploader: _FakePhotoUploader());
+  return (
+    api: api,
+    adapter: adapter,
+    faceGate: _FakeFaceGate(),
+    uploader: _FakePhotoUploader(),
+    outbox: _tempOutbox(),
+  );
 }
 
 PoiCreateController _controller(
@@ -79,9 +100,15 @@ PoiCreateController _controller(
     FakeAdapter adapter,
     _FakeFaceGate faceGate,
     _FakePhotoUploader uploader,
+    PoiCreateOutbox outbox,
   }) built,
 ) =>
-    PoiCreateController(api: built.api, faceGate: built.faceGate, uploader: built.uploader);
+    PoiCreateController(
+      api: built.api,
+      faceGate: built.faceGate,
+      uploader: built.uploader,
+      outbox: built.outbox,
+    );
 
 void main() {
   test('starts editing', () {
@@ -124,6 +151,7 @@ void main() {
       photoBlocked: () => fail('expected created'),
       photoProcessingFailed: () => fail('expected created'),
       error: (_) => fail('expected created'),
+      queued: () => fail('expected created'),
     );
     expect(built.uploader.uploadedUrls, isEmpty);
     final sentBody = built.adapter.requests.single.data as Map<String, dynamic>;
@@ -294,5 +322,103 @@ void main() {
     controller.resetToEditing();
 
     expect(controller.state, const PoiCreateState.editing());
+  });
+
+  group('SPEC §18 — offline POI-creation outbox', () {
+    void stubCreateNetworkFailure(FakeAdapter adapter) {
+      adapter.on(
+        'POST',
+        '/v1/pois',
+        (options) =>
+            throw DioException(requestOptions: options, type: DioExceptionType.connectionError),
+      );
+    }
+
+    test('no connectivity queues the submission, no PoiCreateState.error', () async {
+      final built = _build();
+      stubCreateNetworkFailure(built.adapter);
+      final controller = _controller(built);
+
+      await controller.submit(
+        title: 'Torre',
+        description: 'A tower',
+        category: 'landmark',
+        location: _location,
+        gpsFix: _gpsFix,
+      );
+
+      expect(controller.state, const PoiCreateState.queued());
+      final queued = await built.outbox.load();
+      expect(queued, hasLength(1));
+      expect(queued.single.title, 'Torre');
+      expect(queued.single.description, 'A tower');
+      expect(queued.single.category, 'landmark');
+      expect(queued.single.location, _location);
+      expect(queued.single.photoPath, isNull);
+    });
+
+    test('no connectivity with a photo still face-gates and resizes before queuing', () async {
+      final built = _build();
+      stubCreateNetworkFailure(built.adapter);
+      final controller = _controller(built);
+      final tempFile =
+          File.fromUri(Directory.systemTemp.uri.resolve('poi_create_outbox_photo.jpg'))
+            ..writeAsBytesSync(img.encodeJpg(img.Image(width: 10, height: 10)));
+
+      await controller.submit(
+        title: 'Torre',
+        category: 'landmark',
+        location: _location,
+        gpsFix: _gpsFix,
+        photo: PendingPhoto(path: tempFile.path, contentType: 'image/jpeg'),
+      );
+
+      expect(controller.state, const PoiCreateState.queued());
+      expect(built.faceGate.checkedPaths, [tempFile.path]);
+      expect(built.uploader.uploadedUrls, isEmpty);
+      final queued = await built.outbox.load();
+      expect(queued, hasLength(1));
+      expect(queued.single.photoPath, isNotNull);
+      expect(File(queued.single.photoPath!).existsSync(), isTrue);
+    });
+
+    test('a face detected still blocks before queuing, even with no connectivity', () async {
+      final built = _build();
+      built.faceGate.result = true;
+      stubCreateNetworkFailure(built.adapter);
+      final controller = _controller(built);
+
+      await controller.submit(
+        title: 'Torre',
+        category: 'landmark',
+        location: _location,
+        gpsFix: _gpsFix,
+        photo: const PendingPhoto(path: '/tmp/photo.jpg', contentType: 'image/jpeg'),
+      );
+
+      expect(controller.state, const PoiCreateState.photoBlocked());
+      expect(await built.outbox.load(), isEmpty);
+    });
+
+    test('forceCreateAnyway with no connectivity also queues (not force-specific)', () async {
+      final built = _build();
+      built.adapter.onJson('POST', '/v1/pois', 200, {
+        'dedupeCandidates': <Map<String, dynamic>>[],
+      });
+      final controller = _controller(built);
+      await controller.submit(
+        title: 'Torre',
+        category: 'landmark',
+        location: _location,
+        gpsFix: _gpsFix,
+      );
+      expect(controller.state, isA<PoiCreateState>());
+
+      stubCreateNetworkFailure(built.adapter);
+      await controller.forceCreateAnyway();
+
+      expect(controller.state, const PoiCreateState.queued());
+      expect(await built.outbox.load(), hasLength(1));
+    });
   });
 }

@@ -10,8 +10,8 @@ handling). M1 step 6 (SPEC §14): profile screen — stats, My Places, coverage 
 weekly leaderboard, sign-out. M1 step 5 (moderation loop) is server-only and already
 shipped (`server/README.md`). M2 (SPEC §15): personal coverage map — a heatmap below the
 pin-mode zoom threshold, own postcards + nearby POIs above it, reachable from Profile's
-"View my map". M2 (SPEC §17): offline check-in outbox — a check-in attempted with no
-connectivity is captured locally and replayed once the app is back online.
+"View my map". M2 (SPEC §17/§18): offline outbox — a check-in or POI creation attempted
+with no connectivity is captured locally and replayed once the app is back online.
 
 ## Setup
 
@@ -75,7 +75,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (110 tests as of the offline check-in outbox slice). No live device is
+All three must be clean/green (131 tests as of the offline POI-creation outbox slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -97,14 +97,20 @@ lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed
 lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clustering,
                 "create POI" FAB); poi/ (detail sheet + "Check in" action, POI creation:
                 form, shared in-app camera capture screen, face-detection gate, R2 photo
-                uploader, GPS location source); checkin/ (mode choice, lazy device
-                registration, `FixCollector` — pure multi-fix gathering over each fix's
-                own timestamp, integrity-token seam, controller driving intent → fixes →
-                photo → submit; `CheckinOutbox`/`CheckinOutboxController` — SPEC §17's
-                durable local queue + opportunistic replay for a check-in attempted with
-                no connectivity); profile/ (stats, My Places, coverage count, weekly
-                leaderboard, sign-out, "N check-ins waiting to sync" banner — loads
-                GET /me + /me/map + /me/coverage + /leaderboards/coverage concurrently);
+                uploader, GPS location source; `PoiCreateOutbox`/`PoiCreateOutboxController`
+                — SPEC §18's durable local queue + opportunistic replay for a POI creation
+                attempted with no connectivity, auto-force-resubmitting on a dedupe
+                response since there's no human present at replay time to pick a
+                candidate); checkin/ (mode choice, lazy device registration,
+                `FixCollector` — pure multi-fix gathering over each fix's own timestamp,
+                integrity-token seam, controller driving intent → fixes → photo → submit;
+                `CheckinOutbox`/`CheckinOutboxController` — SPEC §17's durable local queue
+                + opportunistic replay for a check-in attempted with no connectivity, same
+                shape as `PoiCreateOutbox`, kept separate rather than unified since two
+                call sites isn't yet enough to justify the abstraction); profile/ (stats,
+                My Places, coverage count, weekly leaderboard, sign-out, a combined
+                "N items waiting to sync" banner across both outboxes — loads GET /me +
+                /me/map + /me/coverage + /leaderboards/coverage concurrently);
                 coverage/ (SPEC §15 personal map — heatmap below the pin-mode zoom
                 threshold via MapLibre's addHeatmapLayer, CircleManager pins above it,
                 GET /me/map cached and re-filtered client-side per viewport since that

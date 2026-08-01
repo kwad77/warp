@@ -1133,9 +1133,11 @@ time and must replay the whole intent→submit sequence later).
   (1) fresh `POST /checkins/intent`, (2) photo mode only — presign/upload/complete the
   photo now (upload timestamp reflects replay time; only `capture.capturedAt` preserves
   the original shutter moment), (3) `POST /checkins` with the original `fixes`/
-  `capture.capturedAt` and `evidence: "deferred"`. A replay that fails for a
-  non-connectivity reason drops that item (no infinite retry on a verdict the server has
-  already given).
+  `capture.capturedAt` and `evidence: "deferred"`. A network failure OR a `rate/limited`
+  response (transient — `CHECKIN_INTENT_PER_HOUR`, §2 — not a verdict on this check-in;
+  a replay burst can legitimately hit it) stops the whole pass and leaves every remaining
+  item queued, this one included. Any other server-answered outcome drops that one item
+  (no infinite retry on a real verdict the server has already given).
 - Client-side age drop: an item whose original capture moment is already past
   `CHECKIN_DEFERRED_MAX_AGE_S` by the time it's replayed is discarded without a server
   round trip — the server would `stale_evidence`-reject it anyway (§5.3); this just avoids
@@ -1157,7 +1159,66 @@ unbuilt); queuing a network failure that strikes after intent already succeeded 
 trigger note above); a per-check-in "synced later" badge, which needs a check-ins list/
 detail screen that doesn't exist in the mobile app yet.
 
-## 18. Definition of done (every PR)
+## 18. Offline POI-creation outbox (M2; exact)
+
+Extends §17's offline-capture pattern to POI creation. **Architecturally simpler than the
+check-in outbox, and the reason is worth stating plainly:** `POST /pois` (§7, §13.1) has no
+intent/nonce step — it's a single, self-contained call — and, unlike check-in fixes,
+`gpsFix.capturedAt` is never read for freshness server-side (`server/src/pois/service.ts`
+only uses `gpsFix.lat/lng` for the `PIN_ADJUST_MAX_M` distance check; §13.1's own text
+already says the server is authoritative on distance only). **Consequence: this feature
+needs zero server-side changes** — no new field, no migration, no freshness bound. A
+queued POI creation replayed hours or days later is verified by exactly the same rule a
+live one is.
+
+**Trigger:** a network-class failure on the single `POST /pois` call for a POI the user
+explicitly tried to create. Everything needed to queue it — title, description, category,
+location, `gpsFix`, and (if attached) the already face-gated and resized photo — is
+already gathered client-side *before* that call, since POI creation has no server round
+trip earlier in its flow the way check-in's fix-gathering does. So, unlike §17's check-in
+outbox, there's no "only the very first call" carve-out to make here: the network call
+either succeeds or it's the only one that can fail before anything is queued.
+
+**Queued item** (`QueuedPoiCreation`): `title`, `description?`, `category`, `location`,
+`gpsFix`, `photoPath?` — no `attemptedAt`-based age bound (unlike §17's
+`CHECKIN_DEFERRED_MAX_AGE_S`): nothing server-side depends on this data's age, so nothing
+client-side needs to preemptively drop it either.
+
+**Replay** (`PoiCreateOutboxController`, same opportunistic triggers as §17 — app launch,
+manual retry, no background sync):
+1. `POST /pois` with `force: false` (the item's stored fields).
+2. **`200 {dedupeCandidates}` (proximity match found):** unlike the live flow, there's no
+   human present at replay time to compare candidates, so the queued creation is
+   automatically resubmitted with `force: true` rather than left stuck forever or silently
+   dropped — **this PR's chosen behavior, flagged**: creation dedupe is a proximity nudge,
+   not a data-integrity gate (§7's own wording — "creation dedupe is proximity-only"), and
+   losing a user's real, offline-captured creation effort is worse than an occasional
+   avoidable duplicate a human can still merge/report later. The alternative (hold the
+   item pending a manual dedupe-review UI) is deferred below.
+3. **Success (`201 {poi}`, whether direct or after the force-retry above):** if a photo was
+   queued, presign/upload/complete it now against the new POI's id — a failure here is
+   swallowed exactly as it already is in the live flow (§13.1's `_uploadPhoto`; the POI
+   detail screen's own retry affordance is unchanged), not queued a second time. The item
+   is then removed from the outbox regardless of the photo outcome.
+4. A network failure OR `rate/limited` (`POI_CREATE_PER_DAY`, §2) at any point stops the
+   whole pass, same rule as §17's check-in outbox (both now share one `retryLaterCodes`
+   set, `app/lib/features/checkin/checkin_outbox_controller.dart`). Any other
+   server-answered outcome (e.g. `poi/outside_pin_adjust`, which shouldn't recur since the
+   pin/fix distance already passed client-side validation once) drops the item.
+
+**UI:** the POI-creation screen shows a "no connection — saved, will sync automatically"
+state, mirroring §17's check-in screen exactly. The profile screen's existing outbox
+banner (§17) is extended to a combined "N items waiting to sync" count across both queues
+rather than two separate banners.
+
+**Deferred, flagged, not built here:** a "needs your review" UI for dedupe candidates
+instead of auto-force-creating, should duplicate creation prove to be a real curation
+problem in practice; unifying `CheckinOutbox`/`PoiCreateOutbox`'s near-identical
+manifest/photo-file file-I/O into one generic implementation — reasonable with two call
+sites already this similar, but deferred until a third appears (`Three similar lines is
+better than a premature abstraction`) or the duplication itself causes a bug.
+
+## 19. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

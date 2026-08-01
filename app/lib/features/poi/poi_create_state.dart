@@ -25,4 +25,9 @@ class PoiCreateState with _$PoiCreateState {
   /// network call, same as `photoBlocked` (SPEC §13.1).
   const factory PoiCreateState.photoProcessingFailed() = _PhotoProcessingFailed;
   const factory PoiCreateState.error(String message) = _Error;
+
+  /// SPEC §18 — `POST /pois` failed with no connectivity; captured locally and queued in
+  /// the offline outbox instead of erroring outright. Terminal, like `created` — the
+  /// caller finds out the real outcome once the outbox replays.
+  const factory PoiCreateState.queued() = _Queued;
 }

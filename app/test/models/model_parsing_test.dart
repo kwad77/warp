@@ -13,6 +13,7 @@ import 'package:wanderpost/models/poi_create_result.dart';
 import 'package:wanderpost/models/poi_pin.dart';
 import 'package:wanderpost/models/pois_result.dart';
 import 'package:wanderpost/models/queued_checkin.dart';
+import 'package:wanderpost/models/queued_poi_creation.dart';
 
 void main() {
   test('PoiPin.fromMap parses the SPEC §7 shape', () {
@@ -163,6 +164,33 @@ void main() {
       photoCapturedAt: DateTime.utc(2026, 1, 1, 0, 0, 9),
     );
     final roundTripped = QueuedCheckin.fromMap(queued.toMap());
+    expect(roundTripped, queued);
+  });
+
+  test('QueuedPoiCreation round-trips through toMap/fromMap, including a null description', () {
+    final queued = QueuedPoiCreation(
+      id: 'q1',
+      title: 'Torre',
+      category: 'landmark',
+      location: const LatLng(lat: 38.7, lng: -9.1),
+      gpsFix: GpsFix(lat: 38.7, lng: -9.1, accuracyM: 10, capturedAt: DateTime.utc(2026, 1, 1)),
+    );
+    final roundTripped = QueuedPoiCreation.fromMap(queued.toMap());
+    expect(roundTripped, queued);
+    expect(queued.toMap().containsKey('description'), isFalse);
+  });
+
+  test('QueuedPoiCreation round-trips a description and photo path', () {
+    final queued = QueuedPoiCreation(
+      id: 'q1',
+      title: 'Torre',
+      description: 'A tower',
+      category: 'landmark',
+      location: const LatLng(lat: 38.7, lng: -9.1),
+      gpsFix: GpsFix(lat: 38.7, lng: -9.1, accuracyM: 10, capturedAt: DateTime.utc(2026, 1, 1)),
+      photoPath: '/tmp/q1.jpg',
+    );
+    final roundTripped = QueuedPoiCreation.fromMap(queued.toMap());
     expect(roundTripped, queued);
   });
 

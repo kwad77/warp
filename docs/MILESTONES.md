@@ -137,11 +137,25 @@ mock-location apps and emulators are caught.
   first proven via deferred evidence doesn't count toward the competitive coverage
   leaderboard until re-covered live; `GET /me/coverage`, the heatmap, creatorScore, and
   badges are unaffected. Replay is opportunistic (app launch, or a manual "Retry now" on
-  the profile screen's "N check-ins waiting to sync" banner) — no background sync.
-  **Narrower than the general case, flagged:** only a network failure at the very first
-  intent call queues; one striking later in an already-in-progress live flow still
-  surfaces as today's plain error (deciding what to do with an already-uploaded photo
-  mid-flow is deferred until it's a real problem).
+  the profile screen's outbox banner) — no background sync. **Narrower than the general
+  case, flagged:** only a network failure at the very first intent call queues; one
+  striking later in an already-in-progress live flow still surfaces as today's plain error
+  (deciding what to do with an already-uploaded photo mid-flow is deferred until it's a
+  real problem).
+- **Offline POI-creation outbox (SPEC §18; done, mobile-only).** Extends the pattern
+  above to `POST /pois` — architecturally simpler, since POI creation has no intent/nonce
+  step and the server never reads `gpsFix.capturedAt` for freshness (only lat/lng, for the
+  `PIN_ADJUST_MAX_M` distance check), so this needed **zero server-side changes**. A
+  network failure on the single `POST /pois` call queues title/description/category/
+  location/gpsFix/photo locally; replay resubmits with `force: false`, and — since there's
+  no human present to pick a dedupe candidate at replay time — automatically resubmits
+  with `force: true` on a `dedupeCandidates` response rather than losing the queued
+  creation (flagged: proximity dedupe is a nudge, not a data-integrity gate, so an
+  occasional avoidable duplicate is preferred over silently discarding real offline
+  effort). The profile screen's outbox banner now shows a combined count across both
+  outboxes. Found and fixed along the way: the check-in outbox's replay loop was dropping
+  a queued item on `rate/limited` (a transient rate-limit hit, not a real verdict) — now
+  treated like a network failure (stop the pass, keep everything queued) in both outboxes.
 - Ops: rejection-rate-by-cause dashboard, trust-event monitoring, moderation SLA.
 
 Testable: retention (D7 second check-in ≥ 30%), verification false-reject < 5% outdoors,

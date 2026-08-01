@@ -6,7 +6,6 @@ import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
 import '../../models/user.dart';
-import '../checkin/checkin_outbox_state.dart';
 import '../coverage/personal_map_screen.dart';
 import '../map/map_screen.dart';
 
@@ -29,10 +28,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
-    final outbox = ref.watch(checkinOutboxControllerProvider);
+    final checkinOutbox = ref.watch(checkinOutboxControllerProvider);
+    final poiOutbox = ref.watch(poiCreateOutboxControllerProvider);
+    final outboxCount = checkinOutbox.items.length + poiOutbox.items.length;
     return Column(
       children: [
-        if (outbox.items.isNotEmpty) _OutboxBanner(outbox: outbox),
+        if (outboxCount > 0)
+          _OutboxBanner(
+            count: outboxCount,
+            replaying: checkinOutbox.replaying || poiOutbox.replaying,
+          ),
         Expanded(
           child: state.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -134,16 +139,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-/// SPEC §17 — the manual retry action, alongside the app-launch trigger in `main.dart`.
-/// Not shown at all once the outbox is empty (the common case).
+/// SPEC §17/§18 — the manual retry action, alongside the app-launch trigger in
+/// `main.dart`. Not shown at all once both outboxes are empty (the common case). A
+/// combined count across check-ins and POI creations, per §18 — one banner, not two.
 class _OutboxBanner extends ConsumerWidget {
-  final CheckinOutboxState outbox;
+  final int count;
+  final bool replaying;
 
-  const _OutboxBanner({required this.outbox});
+  const _OutboxBanner({required this.count, required this.replaying});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final count = outbox.items.length;
     return Material(
       color: Colors.blueGrey.shade50,
       child: Padding(
@@ -153,11 +159,9 @@ class _OutboxBanner extends ConsumerWidget {
             const Icon(Icons.cloud_off, size: 20),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                count == 1 ? '1 check-in waiting to sync' : '$count check-ins waiting to sync',
-              ),
+              child: Text(count == 1 ? '1 item waiting to sync' : '$count items waiting to sync'),
             ),
-            if (outbox.replaying)
+            if (replaying)
               const SizedBox(
                 width: 16,
                 height: 16,
@@ -165,7 +169,10 @@ class _OutboxBanner extends ConsumerWidget {
               )
             else
               TextButton(
-                onPressed: () => ref.read(checkinOutboxControllerProvider.notifier).replay(),
+                onPressed: () {
+                  ref.read(checkinOutboxControllerProvider.notifier).replay();
+                  ref.read(poiCreateOutboxControllerProvider.notifier).replay();
+                },
                 child: const Text('Retry now'),
               ),
           ],

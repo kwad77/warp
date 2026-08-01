@@ -9,18 +9,24 @@ import '../../core/image_resize.dart';
 import '../../core/wanderpost_api.dart';
 import '../../models/lat_lng.dart';
 import '../../models/gps_fix.dart';
-import 'pending_photo.dart';
 import 'face_gate.dart';
+import 'pending_photo.dart';
 import 'photo_uploader.dart';
+import 'poi_create_outbox.dart';
 import 'poi_create_state.dart';
 
-/// SPEC §13.1 — drives `POST /pois` and the optional photo upload that follows a `201`.
-/// The face-detection gate runs before any network call, for both the camera and gallery
-/// paths (SPEC §6).
+/// SPEC §13.1/§18 — drives `POST /pois` and the optional photo upload that follows a
+/// `201`. The face-detection gate runs before any network call, for both the camera and
+/// gallery paths (SPEC §6). SPEC §18: if `POST /pois` itself fails with no connectivity,
+/// falls back to queuing in the offline outbox instead of surfacing an error — everything
+/// needed (title/description/category/location/gpsFix/processed photo) is already
+/// gathered client-side by that point, since POI creation has no earlier network round
+/// trip the way check-in's fix-gathering does.
 class PoiCreateController extends StateNotifier<PoiCreateState> {
   final WanderpostApi api;
   final FaceGate faceGate;
   final PhotoUploader uploader;
+  final PoiCreateOutbox outbox;
 
   ({
     String title,
@@ -35,6 +41,7 @@ class PoiCreateController extends StateNotifier<PoiCreateState> {
     required this.api,
     required this.faceGate,
     required this.uploader,
+    required this.outbox,
   }) : super(const PoiCreateState.editing());
 
   Future<void> submit({
@@ -110,6 +117,18 @@ class PoiCreateController extends StateNotifier<PoiCreateState> {
         },
       );
     } on ApiException catch (e) {
+      if (e.code == 'network/unreachable') {
+        await outbox.add(
+          title: submission.title,
+          description: submission.description,
+          category: submission.category,
+          location: submission.location,
+          gpsFix: submission.gpsFix,
+          photoBytes: resizedPhotoBytes,
+        );
+        state = const PoiCreateState.queued();
+        return;
+      }
       state = e.code == 'poi/outside_pin_adjust'
           ? const PoiCreateState.pinAdjustError()
           : PoiCreateState.error(e.message);

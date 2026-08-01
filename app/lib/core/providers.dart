@@ -16,6 +16,9 @@ import '../features/poi/face_gate.dart';
 import '../features/poi/location_source.dart';
 import '../features/poi/photo_uploader.dart';
 import '../features/poi/poi_create_controller.dart';
+import '../features/poi/poi_create_outbox.dart';
+import '../features/poi/poi_create_outbox_controller.dart';
+import '../features/poi/poi_create_outbox_state.dart';
 import '../features/poi/poi_create_state.dart';
 import '../features/profile/profile_controller.dart';
 import '../features/profile/profile_state.dart';
@@ -64,6 +67,21 @@ final Provider<PhotoUploader> photoUploaderProvider = Provider<PhotoUploader>((r
 final Provider<LocationSource> locationSourceProvider =
     Provider<LocationSource>((ref) => GeolocatorLocationSource());
 
+// SPEC §18 — offline POI-creation outbox. Not autoDispose, same rationale as
+// checkinOutboxProvider/checkinOutboxControllerProvider (SPEC §17).
+final Provider<PoiCreateOutbox> poiCreateOutboxProvider =
+    Provider<PoiCreateOutbox>((ref) => PoiCreateOutbox());
+
+final StateNotifierProvider<PoiCreateOutboxController, PoiCreateOutboxState>
+    poiCreateOutboxControllerProvider =
+    StateNotifierProvider<PoiCreateOutboxController, PoiCreateOutboxState>((ref) {
+  return PoiCreateOutboxController(
+    api: ref.watch(wanderpostApiProvider),
+    outbox: ref.watch(poiCreateOutboxProvider),
+    uploader: ref.watch(photoUploaderProvider),
+  );
+});
+
 // autoDispose: PoiCreateScreen is the only watcher, and a fresh controller (not stale
 // `created`/`dedupe` state from a prior visit) MUST greet the next time it's opened.
 final AutoDisposeStateNotifierProvider<PoiCreateController, PoiCreateState>
@@ -73,6 +91,7 @@ final AutoDisposeStateNotifierProvider<PoiCreateController, PoiCreateState>
     api: ref.watch(wanderpostApiProvider),
     faceGate: ref.watch(faceGateProvider),
     uploader: ref.watch(photoUploaderProvider),
+    outbox: ref.watch(poiCreateOutboxProvider),
   );
 });
 

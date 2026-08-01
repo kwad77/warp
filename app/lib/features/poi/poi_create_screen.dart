@@ -132,6 +132,9 @@ class _PoiCreateScreenState extends ConsumerState<PoiCreateScreen> {
           onPick: (poiId) => Navigator.of(context).pop(poiId),
           onCreateAnyway: () => ref.read(poiCreateControllerProvider.notifier).forceCreateAnyway(),
         ),
+        // SPEC §18 — no poi id exists yet for a queued creation, so this pops with null
+        // (same as backing out) rather than an id there's nothing to show yet for.
+        queued: () => _QueuedMessage(onDone: () => Navigator.of(context).pop()),
         orElse: () => _buildForm(context, state),
       ),
     );
@@ -274,6 +277,34 @@ class _PoiCreateScreenState extends ConsumerState<PoiCreateScreen> {
               : const Text('Create place'),
         ),
       ],
+    );
+  }
+}
+
+class _QueuedMessage extends StatelessWidget {
+  final VoidCallback onDone;
+
+  const _QueuedMessage({required this.onDone});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 72, color: Colors.blueGrey),
+            const SizedBox(height: 16),
+            const Text(
+              'No connection — saved and will sync automatically once you\'re back online.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onDone, child: const Text('OK')),
+          ],
+        ),
+      ),
     );
   }
 }
