@@ -7,7 +7,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { type DbHandle, createDb } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';
-import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
+import { coverageCell, coverageCentroid, dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
 import { devModerationProvider } from '../src/moderation/provider.js';
 import { createR2Storage } from '../src/storage/r2.js';
@@ -168,10 +168,12 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     await checkIn(first.headers, firstDevice, poiA, ll);
 
     // A second, distinct user + distinct POI, but positioned so its coverage cell (r7,
-    // ~5km²) is the SAME one `first` already covered.
+    // ~5km²) is the SAME one `first` already covered. Using the cell's own centroid
+    // (rather than an arbitrary small offset from `ll`) guarantees this deterministically
+    // — an arbitrary offset can flake if `ll` happens to land near a cell boundary.
     const second = await makeUser();
     const secondDevice = await makeDevice(second.headers);
-    const nearbyLl = offsetLatMeters(ll, 50); // well within the same r7 cell
+    const nearbyLl = coverageCentroid(coverageCell(ll));
     const poiB = await makePoi(creator.userId, nearbyLl);
     await checkIn(second.headers, secondDevice, poiB, nearbyLl);
 
