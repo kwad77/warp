@@ -1,0 +1,97 @@
+// SPEC §6 — applyModerationVerdict / runModerationForPhoto against real PostGIS, isolated
+// from the HTTP layer (route-level wiring is covered in test/pois.integration.test.ts).
+import { randomUUID } from 'node:crypto';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { type DbHandle, createDb } from '../src/db/client.js';
+import { migrate } from '../src/db/migrate.js';
+import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
+import { uuidv7 } from '../src/lib/uuid.js';
+import type { ModerationProvider, ModerationVerdict } from '../src/moderation/provider.js';
+import { applyModerationVerdict, runModerationForPhoto } from '../src/moderation/service.js';
+
+const url = process.env.TEST_DATABASE_URL;
+const POI_LL = { lat: 20.0, lng: -60.0 };
+
+function offsetLatMeters(ll: { lat: number; lng: number }, meters: number) {
+  return { lat: ll.lat + meters / 111_320, lng: ll.lng };
+}
+
+describe.runIf(!!url)('moderation service (SPEC §6)', () => {
+  let handle: DbHandle;
+
+  async function makeUser(): Promise<string> {
+    const id = uuidv7();
+    await handle.pg`INSERT INTO users (id, handle) VALUES (${id}, ${`mod_${randomUUID().slice(0, 8)}`})`;
+    return id;
+  }
+
+  async function makePendingPhoto(userId: string, salt: number): Promise<string> {
+    const ll = offsetLatMeters(POI_LL, salt);
+    const poiId = uuidv7();
+    await handle.pg`
+      INSERT INTO pois (id, creator_id, title, category, location, h3_r9, checkin_radius_m, status)
+      VALUES (${poiId}, ${userId}, 'x', 'landmark',
+              ST_GeogFromText(${`SRID=4326;POINT(${ll.lng} ${ll.lat})`}),
+              ${h3ToBigint(dedupeCell(ll)).toString()}, 75, 'active')`;
+    const photoId = uuidv7();
+    await handle.pg`
+      INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation)
+      VALUES (${photoId}, ${poiId}, ${userId}, ${`photos/${poiId}/${photoId}.jpg`}, 'poi_creation', 'pending')`;
+    return photoId;
+  }
+
+  beforeAll(async () => {
+    await migrate(url as string, () => {});
+    handle = createDb(url as string);
+  });
+  afterAll(async () => {
+    await handle.close();
+  });
+
+  it('applyModerationVerdict: approved sets moderation, leaves rejection_reason null', async () => {
+    const u = await makeUser();
+    const photoId = await makePendingPhoto(u, 1_000);
+    await applyModerationVerdict(handle.pg, photoId, { outcome: 'approved' });
+    const row =
+      await handle.pg`SELECT moderation, rejection_reason FROM photos WHERE id = ${photoId}`;
+    expect(row[0]).toMatchObject({ moderation: 'approved', rejection_reason: null });
+  });
+
+  it('applyModerationVerdict: rejected sets both moderation and reason', async () => {
+    const u = await makeUser();
+    const photoId = await makePendingPhoto(u, 2_000);
+    await applyModerationVerdict(handle.pg, photoId, { outcome: 'rejected', reason: 'unsafe' });
+    const row =
+      await handle.pg`SELECT moderation, rejection_reason FROM photos WHERE id = ${photoId}`;
+    expect(row[0]).toMatchObject({ moderation: 'rejected', rejection_reason: 'unsafe' });
+  });
+
+  it('applyModerationVerdict: escalated sets moderation, no reason', async () => {
+    const u = await makeUser();
+    const photoId = await makePendingPhoto(u, 3_000);
+    await applyModerationVerdict(handle.pg, photoId, { outcome: 'escalated' });
+    const row =
+      await handle.pg`SELECT moderation, rejection_reason FROM photos WHERE id = ${photoId}`;
+    expect(row[0]).toMatchObject({ moderation: 'escalated', rejection_reason: null });
+  });
+
+  it('runModerationForPhoto: calls the provider with (photoId, storageKey) and applies its verdict', async () => {
+    const u = await makeUser();
+    const photoId = await makePendingPhoto(u, 4_000);
+    const keyRows = await handle.pg`SELECT storage_key FROM photos WHERE id = ${photoId}`;
+    const storageKey = keyRows[0]?.storage_key as string;
+
+    const seen: { photoId: string; storageKey: string }[] = [];
+    const provider: ModerationProvider = {
+      async moderate(input) {
+        seen.push(input);
+        return { outcome: 'rejected', reason: 'quality' } satisfies ModerationVerdict;
+      },
+    };
+    const verdict = await runModerationForPhoto(provider, handle.pg, photoId, storageKey);
+    expect(verdict).toEqual({ outcome: 'rejected', reason: 'quality' });
+    expect(seen).toEqual([{ photoId, storageKey }]);
+    const row = await handle.pg`SELECT moderation FROM photos WHERE id = ${photoId}`;
+    expect(row[0]?.moderation).toBe('rejected');
+  });
+});

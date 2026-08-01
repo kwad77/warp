@@ -8,6 +8,7 @@ import { type DbHandle, createDb } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';
 import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
+import { devModerationProvider } from '../src/moderation/provider.js';
 import { createR2Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -78,7 +79,12 @@ describe.runIf(!!url)('community: votes + reports (SPEC §7)', () => {
       NODE_ENV: 'test',
       DATABASE_URL: url,
     });
-    app = buildApp({ config, dbHandle: handle, storage: createR2Storage(config) });
+    app = buildApp({
+      config,
+      dbHandle: handle,
+      storage: createR2Storage(config),
+      moderation: devModerationProvider(() => {}),
+    });
   });
   afterAll(async () => {
     await app.close();

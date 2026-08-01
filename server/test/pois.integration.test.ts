@@ -1,7 +1,7 @@
 // SPEC §7 — POI discovery/creation + photo presign/complete, against real PostGIS.
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { SPEC_CONSTANTS } from '../src/constants.js';
@@ -9,6 +9,7 @@ import { type DbHandle, createDb } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';
 import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
+import type { ModerationProvider, ModerationVerdict } from '../src/moderation/provider.js';
 import type { Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -45,9 +46,21 @@ class FakeStorage implements Storage {
   }
 }
 
+/** Configurable fake so moderation wiring is testable without a real detector. */
+class FakeModerationProvider implements ModerationProvider {
+  nextVerdict: ModerationVerdict = { outcome: 'approved' };
+  calls: { photoId: string; storageKey: string }[] = [];
+
+  async moderate(input: { photoId: string; storageKey: string }) {
+    this.calls.push(input);
+    return this.nextVerdict;
+  }
+}
+
 describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
   let handle: DbHandle;
   let app: FastifyInstance;
+  let moderation: FakeModerationProvider;
   let storage: FakeStorage;
   let auth: { headers: { authorization: string }; userId: string };
 
@@ -118,6 +131,7 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
     await migrate(url as string, () => {});
     handle = createDb(url as string);
     storage = new FakeStorage();
+    moderation = new FakeModerationProvider();
     app = buildApp({
       config: loadConfig({
         JWT_SECRET: 'test-secret-that-is-at-least-32-chars!!',
@@ -126,6 +140,7 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       }),
       dbHandle: handle,
       storage,
+      moderation,
     });
     auth = await makeUser();
     await makeDevice(auth.headers);
@@ -133,6 +148,10 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
   afterAll(async () => {
     await app.close();
     await handle.close();
+  });
+  beforeEach(() => {
+    moderation.nextVerdict = { outcome: 'approved' };
+    moderation.calls = [];
   });
 
   describe('POST /pois', () => {
@@ -392,10 +411,17 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       });
       expect(complete.statusCode).toBe(201);
       const { photo } = complete.json();
+      // The response is a snapshot of the freshly-inserted row (SPEC §6 M1 note) — it
+      // reflects 'pending' even though moderation has already run by the time we get here.
       expect(photo.status).toBe('pending');
       expect(photo.uploader.handle).toBeTruthy();
+      // Dev provider is synchronous and always approves, so the DB has already moved on.
       const row = await handle.pg`SELECT moderation FROM photos WHERE id = ${photo.id}`;
-      expect(row[0]?.moderation).toBe('pending');
+      expect(row[0]?.moderation).toBe('approved');
+      expect(moderation.calls).toContainEqual({
+        photoId: photo.id,
+        storageKey: presign.json().storageKey,
+      });
 
       // Idempotent retry (lost response): same caller re-completes → same photo, no 500.
       const retry = await app.inject({
@@ -462,6 +488,59 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       expect(complete.statusCode).toBe(422);
       expect(complete.json().error.code).toBe('photo/rejected');
       storage.headResult = { bytes: 500_000, contentType: 'image/jpeg' };
+    });
+
+    it('a rejected moderation verdict lands in the DB and the photo never reaches the public gallery', async () => {
+      const u = await makeUser();
+      const poiId = await makePoi(u.userId, offsetLatMeters(POI_LL, 55_000));
+      const presign = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/photos/presign`,
+        headers: u.headers,
+        payload: { contentType: 'image/jpeg', source: 'poi_creation' },
+      });
+      moderation.nextVerdict = { outcome: 'rejected', reason: 'people' };
+      const complete = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/photos/complete`,
+        headers: u.headers,
+        payload: { storageKey: presign.json().storageKey, source: 'poi_creation' },
+      });
+      expect(complete.statusCode).toBe(201); // moderation verdict never affects the HTTP outcome
+      const photoId = complete.json().photo.id;
+
+      const row = await handle.pg`
+        SELECT moderation, rejection_reason FROM photos WHERE id = ${photoId}`;
+      expect(row[0]?.moderation).toBe('rejected');
+      expect(row[0]?.rejection_reason).toBe('people');
+
+      const detail = await app.inject({ method: 'GET', url: `/v1/pois/${poiId}` });
+      expect(detail.json().poi.gallery).toEqual([]);
+    });
+
+    it('an escalated verdict is stored but stays out of the gallery (no reviewer surface yet)', async () => {
+      const u = await makeUser();
+      const poiId = await makePoi(u.userId, offsetLatMeters(POI_LL, 56_000));
+      const presign = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/photos/presign`,
+        headers: u.headers,
+        payload: { contentType: 'image/jpeg', source: 'poi_creation' },
+      });
+      moderation.nextVerdict = { outcome: 'escalated' };
+      const complete = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/photos/complete`,
+        headers: u.headers,
+        payload: { storageKey: presign.json().storageKey, source: 'poi_creation' },
+      });
+      expect(complete.statusCode).toBe(201);
+      const row = await handle.pg`
+        SELECT moderation FROM photos WHERE id = ${complete.json().photo.id}`;
+      expect(row[0]?.moderation).toBe('escalated');
+
+      const detail = await app.inject({ method: 'GET', url: `/v1/pois/${poiId}` });
+      expect(detail.json().poi.gallery).toEqual([]);
     });
   });
 });

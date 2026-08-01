@@ -136,6 +136,7 @@ export function registerPoiRoutes(app: FastifyInstance): void {
     const { pg } = requireDb(app);
     const photo = await completePhoto(
       app.deps.storage,
+      app.deps.moderation,
       pg,
       userId,
       params.id,

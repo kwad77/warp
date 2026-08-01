@@ -10,6 +10,9 @@ const configSchema = z.object({
   R2_BUCKET: z.string().min(1).optional(),
   R2_ACCESS_KEY_ID: z.string().min(1).optional(),
   R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  // SPEC §6: 'rekognition' is a named seam only, not a working integration — selecting it
+  // returns 501 rather than silently pulling in an undecided AWS SDK dependency.
+  MODERATION_PROVIDER: z.enum(['dev', 'rekognition']).default('dev'),
 });
 
 export type Config = z.infer<typeof configSchema>;

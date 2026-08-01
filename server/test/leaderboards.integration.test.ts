@@ -11,6 +11,7 @@ import { coverageCell, dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { getCoverageLeaderboard } from '../src/leaderboards/service.js';
 import { isoWeekStartUtc } from '../src/lib/isoWeek.js';
 import { uuidv7 } from '../src/lib/uuid.js';
+import { devModerationProvider } from '../src/moderation/provider.js';
 import { createR2Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -82,7 +83,12 @@ describe.runIf(!!url)('leaderboards (SPEC §7)', () => {
       NODE_ENV: 'test',
       DATABASE_URL: url,
     });
-    app = buildApp({ config, dbHandle: handle, storage: createR2Storage(config) });
+    app = buildApp({
+      config,
+      dbHandle: handle,
+      storage: createR2Storage(config),
+      moderation: devModerationProvider(() => {}),
+    });
   });
   afterAll(async () => {
     await app.close();

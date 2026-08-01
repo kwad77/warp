@@ -4,6 +4,7 @@ import { verifyAccessToken } from './auth/tokens.js';
 import type { Config } from './config.js';
 import type { DbHandle } from './db/client.js';
 import { AppError } from './errors.js';
+import type { ModerationProvider } from './moderation/provider.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCheckinRoutes } from './routes/checkins.js';
 import { registerCommunityRoutes } from './routes/community.js';
@@ -18,6 +19,7 @@ export const APP_VERSION = '0.1.0';
 export interface AppDeps {
   config: Config;
   dbHandle: DbHandle | null;
+  moderation: ModerationProvider;
   storage: Storage;
 }
 

@@ -13,7 +13,11 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
 3. **Flutter app: map + POI browse** — MapLibre map, clustering, POI page, auth flow.
 4. **Flutter app: create + check in** — in-app camera with on-device face check, POI
    creation with dedupe prompt, both check-in modes, success animation, retry/pending UX.
-5. **Moderation loop** — Rekognition worker, human-review admin page (minimal), reports.
+5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
+   completion (`DevModerationProvider` auto-approves); reports and photo voting shipped.
+   Deferred pending explicit decisions (SPEC §6 M1 note): the real detector (needs an AWS
+   SDK dependency not yet approved), pHash (needs image-byte fetch + `sharp`), and the
+   human-review admin surface (needs an undesigned admin auth realm).
 6. **Personal map + coverage + weekly leaderboard.**
 
 Testable: full loop on real devices in one seeded city; spoofing attempts with

@@ -276,12 +276,39 @@ integrity degraded) · `rejected`. Status transitions allowed: `pending → veri
   `photo/rejected (details.reason='quality')` and no row. Pixel-dimension and quality
   checks require the bytes and run in the moderation worker (M1.5), which rejects
   undersized images there.
-- Worker moderation (async, before ANY public visibility): provider face/person detection +
-  safety labels behind interface `ModerationProvider` (M1 ships `DevModerationProvider`
-  auto-approving with a log line; Rekognition impl is M1 step 5). Any person ⇒
-  `rejected(people)`. Borderline ⇒ `escalated` (human queue). pHash (64-bit) computed here.
+- Moderation (before ANY public visibility): provider face/person detection + safety
+  labels behind interface `ModerationProvider`. Any person ⇒ `rejected(people)`.
+  Borderline ⇒ `escalated` (human queue). pHash (64-bit) computed here.
 - A photo rejection NEVER changes its check-in's status (§5.7 owns that).
 - States: `pending → approved | rejected(reason) | escalated → approved|rejected`.
+
+**M1 implementation note — scoped down from the async worker design, called out
+explicitly:**
+- `completePhoto` invokes the configured `ModerationProvider` **synchronously, in-process**
+  (not via a job queue) immediately after inserting the `pending` row, then applies the
+  verdict to the same row before the request returns. The `201` response body still
+  reflects the row as freshly inserted (`moderation: 'pending'`) — callers re-fetch
+  (`GET /pois/:id`) to see the resolved state; this keeps the response contract stable
+  regardless of which provider is behind it.
+- `DevModerationProvider` (M1's only implementation) always returns `approved` with a log
+  line. It is synchronous and instant, which is *why* M1 can skip the job queue: nothing
+  yet does network I/O here. The async `graphile-worker` design in ARCHITECTURE.md remains
+  the target the moment a real network-calling provider (Rekognition or equivalent) is
+  wired in — a synchronous Rekognition call in the request path would add real, unbounded
+  latency to every photo upload, which is not acceptable once it's real.
+- **Deferred, not decided — needs your call before building:**
+  1. **Real detector.** No AWS SDK (or any Rekognition client) is in the §1 allowlist yet;
+     adding one is a dependency decision (cost, credentials, data-processing terms) this
+     spec isn't making unilaterally. `RekognitionModerationProvider` exists as a named seam
+     (selected via `MODERATION_PROVIDER` env, default `dev`) that throws
+     `service/unavailable` if ever selected, so the integration point is ready without the
+     dependency being added silently.
+  2. **pHash.** Computing it needs the actual image bytes (a GET, not just the HEAD used
+     for validation) plus pixel processing (`sharp`, already allowlisted). Deferred
+     alongside the real detector; `photos.phash` stays `NULL` until then.
+  3. **Human-review admin surface** (docs/MILESTONES.md M1 step 5) needs its own auth
+     realm — undesigned. Not stubbed as a fake-authed endpoint; simply not built yet.
+     `escalated` is a reachable enum state with no consumer until this exists.
 
 ## 7. API surface (M1; exact)
 

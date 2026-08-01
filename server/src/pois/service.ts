@@ -9,6 +9,8 @@ import { AppError } from '../errors.js';
 import { type LatLng, haversineM } from '../geo/distance.js';
 import { coverageCell, dedupeCell, h3ToBigint } from '../geo/h3.js';
 import { uuidv7 } from '../lib/uuid.js';
+import type { ModerationProvider } from '../moderation/provider.js';
+import { runModerationForPhoto } from '../moderation/service.js';
 import type { Storage } from '../storage/r2.js';
 
 const G = SPEC_CONSTANTS.geo;
@@ -324,6 +326,7 @@ function parseStorageKey(storageKey: string, poiId: string): string {
 
 export async function completePhoto(
   storage: Storage,
+  moderation: ModerationProvider,
   pg: Pg,
   userId: string,
   poiId: string,
@@ -388,7 +391,7 @@ export async function completePhoto(
     moderation: string;
     uploader_handle: string;
   };
-  return {
+  const view: PhotoView = {
     id: row.id,
     urlCard: urlCard(row.storage_key),
     urlThumb: urlThumb(row.storage_key),
@@ -396,4 +399,11 @@ export async function completePhoto(
     uploader: { handle: row.uploader_handle },
     status: row.moderation,
   };
+
+  // SPEC §6 M1 note: run synchronously (Dev provider is instant), but the response above
+  // deliberately still reflects the freshly-inserted row — callers re-fetch to see the
+  // resolved verdict, keeping the response contract stable once a real provider lands.
+  await runModerationForPhoto(moderation, pg, photoId, storageKey);
+
+  return view;
 }
