@@ -14,14 +14,26 @@ import { createR2Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
 
-// Salted per run so this suite's "brand-new cell" assumptions never collide with rows a
-// previous run (or a concurrently running suite against the same DB) left behind.
-const RUN_SALT_M = Math.floor(Math.random() * 4_000_000);
-const BASE_LL = { lat: -10.0, lng: 100.0 };
-
 function offsetLatMeters(ll: { lat: number; lng: number }, meters: number) {
   return { lat: ll.lat + meters / 111_320, lng: ll.lng };
 }
+
+function offsetLngMeters(ll: { lat: number; lng: number }, meters: number) {
+  return { lat: ll.lat, lng: ll.lng + meters / (111_320 * Math.cos((ll.lat * Math.PI) / 180)) };
+}
+
+// Salted per run, on BOTH axes, so this suite's "brand-new cell" assumptions never
+// collide with rows a previous run left behind in this shared, never-reset dev/test
+// database. A latitude-only salt (as other integration suites use, safely, since they
+// only need to keep their own cases apart from each other) collapses this suite's random
+// space to a single ~4,000km line at a fixed longitude — and this suite uniquely depends
+// on TRUE global first-ever-covered-cell uniqueness, so that line eventually saturates
+// against its own history. Salting longitude too spreads runs across a ~4,000km square
+// instead, making an accidental collision astronomically less likely.
+const RUN_ORIGIN = offsetLngMeters(
+  offsetLatMeters({ lat: -10.0, lng: 100.0 }, Math.floor(Math.random() * 4_000_000)),
+  Math.floor(Math.random() * 4_000_000),
+);
 
 describe.runIf(!!url)('badges (SPEC §16)', () => {
   let handle: DbHandle;
@@ -138,7 +150,7 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     const creator = await makeUser();
     const checker = await makeUser();
     const device = await makeDevice(checker.headers);
-    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 50_000);
+    const ll = offsetLatMeters(RUN_ORIGIN, 50_000);
     const poiId = await makePoi(creator.userId, ll);
 
     await checkIn(checker.headers, device, poiId, ll);
@@ -151,7 +163,7 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     const creator = await makeUser();
     const first = await makeUser();
     const firstDevice = await makeDevice(first.headers);
-    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 100_000);
+    const ll = offsetLatMeters(RUN_ORIGIN, 100_000);
     const poiA = await makePoi(creator.userId, ll);
     await checkIn(first.headers, firstDevice, poiA, ll);
 
@@ -171,7 +183,7 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     const creator = await makeUser();
     const checker = await makeUser();
     const device = await makeDevice(checker.headers);
-    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 150_000);
+    const ll = offsetLatMeters(RUN_ORIGIN, 150_000);
     const poiId = await makePoi(creator.userId, ll);
     await handle.pg`UPDATE pois SET checkin_count = 9 WHERE id = ${poiId}`;
 
@@ -189,7 +201,7 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     const creator = await makeUser();
     const checker = await makeUser();
     const device = await makeDevice(checker.headers);
-    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 200_000);
+    const ll = offsetLatMeters(RUN_ORIGIN, 200_000);
     const poiId = await makePoi(creator.userId, ll);
     await handle.pg`UPDATE pois SET checkin_count = 49 WHERE id = ${poiId}`;
 
@@ -205,7 +217,7 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     const creator = await makeUser();
     const checker = await makeUser();
     const device = await makeDevice(checker.headers);
-    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 250_000);
+    const ll = offsetLatMeters(RUN_ORIGIN, 250_000);
     const poiId = await makePoi(creator.userId, ll);
 
     await checkIn(checker.headers, device, poiId, ll);
@@ -225,7 +237,7 @@ describe.runIf(!!url)('badges (SPEC §16)', () => {
     const creator = await makeUser();
     const checker = await makeUser();
     const device = await makeDevice(checker.headers);
-    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 300_000);
+    const ll = offsetLatMeters(RUN_ORIGIN, 300_000);
     const farAwayLl = offsetLatMeters(ll, 5_000); // outside the check-in radius
     const poiId = await makePoi(creator.userId, ll);
 
