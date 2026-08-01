@@ -65,7 +65,11 @@ of its own, so it doesn't expand native permission surface the way the others di
 Flutter plugin for locating the app's own documents directory; needed for a durable
 (survives-restart) local queue of unsent check-ins (JSON manifest + copied photo files).
 No credentials/cost and no new native permission prompt (it's app-sandboxed storage the
-app already implicitly has access to, unlike camera/location/photo-library). No `json_serializable`
+app already implicitly has access to, unlike camera/location/photo-library).
+**`share_plus`** is added in the Instagram-style browsing & sharing slice (§19, M2) — the
+standard Flutter plugin wrapping each platform's native share sheet (iOS `UIActivityViewController`,
+Android `Intent.ACTION_SEND`). No credentials/cost; no new native permission beyond what
+the OS's own share UI requires (none, beyond the share sheet itself appearing). No `json_serializable`
 — model classes write `fromJson`/`toJson` by hand (freezed's immutability/`copyWith`/
 union support doesn't require it, and it avoids a second codegen package for a handful
 of simple DTOs). No routing package — `Navigator`/`MaterialApp` routes suffice at this
@@ -415,7 +419,7 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /auth/apple` · `/google` | 🌐 | `{idToken}` → same as verify · *(501 until M1.4)* |
 | `POST /devices` | ✅ | `{platform: "ios"\|"android", model}` → `{deviceId}` |
 | `GET /pois?bbox=w,s,e,n&zoom=` | 🌐 | → zoom ≥ 13: `{pois: PoiPin[]}` (active only, cap 200, `clusters: []`); zoom < 13: `{pois: [], clusters: Cluster[]}` grouped by r7 cell, `Cluster = {h3, count, centroid: {lat, lng}}` (centroid = mean of member POIs). Bbox wider/taller than 2° with zoom ≥ 13 ⇒ `request/invalid`. Antimeridian-crossing bboxes (w > e) unsupported in M1 ⇒ `request/invalid`. |
-| `GET /pois/nearby?lat=&lng=&radiusM=` | 🌐 | `radiusM` optional, default 2000, max 10000 → `{pois: PoiPin[]}` active only, ordered by distance, max 50 |
+| `GET /pois/nearby?lat=&lng=&radiusM=` | 🌐 | `radiusM` optional, default 2000, max 10000 → `{pois: PoiPin[]}` active only, ordered by distance, max 50; `thumbnailUrl` populated (§19, M2 — bounded result count, cheap enough to compute per request) |
 | `GET /pois/:id` | 🌐 | → `{poi: Poi}` (gallery: approved photos, vote-ranked, max 20). Only `removed` ⇒ 404; `pending_review`/`flagged` POIs serve normally until moderation resolves them. |
 | `POST /pois` | ✅ | `{title(3..80 code points), description?(..280), category, location, gpsFix: Fix, force?: bool}` → `201 {poi}` or `200 {dedupeCandidates: PoiPin[]}`. Rules: haversine(location, gpsFix) ≤ `PIN_ADJUST_MAX_M` else `poi/outside_pin_adjust`; creation dedupe is **proximity-only** (active POIs within `DEDUPE_RADIUS_M`, found via r9 neighbor cells) — pHash similarity runs later in photo moderation (M1.5); `force: true` skips the dedupe prompt; rate limit §2. New POI: `status='active'`, radius from category (§2). |
 | `POST /pois/:id/photos/presign` | ✅ | `{contentType ∈ ALLOWED_MIME, source: "poi_creation"\|"checkin"}` → `{uploadUrl, storageKey, maxBytes}` (key format §6; no row created yet) |
@@ -424,7 +428,8 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, evidence?: "live"\|"deferred" (default "live", §17), capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, mode, evidence, verifiedAt?}}`; rejected ⇒ `422` per §5.7 (now also `stale_evidence`, §5.3); `Fix = {lat, lng, accuracyM, capturedAt}` |
 | `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
 | `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated, creatorScore}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count; `creatorScore` = sum of `checkin_count` across those same POIs (§16, M2) |
-| `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller; `created` = caller's POIs with `status <> 'removed'`; `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md) |
+| `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], saved: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller (deduplicated per POI — M2 fix, §19; multiple verified check-ins at the same POI previously produced duplicate pins); `created` = caller's POIs with `status <> 'removed'`; `saved` = the caller's `saved_pois` rows, most recently saved first (§19, M2); `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md). `thumbnailUrl` populated on all three real arrays (§19, M2). |
+| `POST /pois/:id/save` | ✅ | `{value: 1\|0}` (0 = unsave) → `{saved: bool}` — upsert/delete on `(user_id, poi_id)` (§19, M2); saving a non-`active` POI ⇒ `resource/not_found` (no visibility leak, same pattern as photo voting) |
 | `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7, lowercase hex), count}` |
 | `GET /me/coverage/heatmap?zoom=` | ✅ | → `{cells: [{h3, count, centroid: {lat, lng}}], resolution}` — `zoom` (0..22) maps to an H3 resolution per §15's table; `count` = number of the caller's r7 cells under each returned coarser cell (§15, M2) |
 | `GET /me/badges` | ✅ | → `{badges: [{badgeKey, awardedAt}]}`, ordered by `awardedAt ASC` (§16, M2) |
@@ -445,10 +450,12 @@ is base64 of `"<createdAt ISO>|<id>"` for the last row of the previous page; res
 by `(created_at DESC, id DESC)`; an absent/malformed cursor starts from the top; no
 `nextCursor` in the response means no further pages.
 
-`User = {id, handle, createdAt}` · `PoiPin = {id, title, category, location, checkinCount}`
-· Full `Poi` adds `{description, creator: {id, handle}, checkinRadiusM, gallery: Photo[]}`
-· `Photo = {id, urlCard, urlThumb, voteScore, uploader: {handle}, status}` (non-approved
-photos visible only to their uploader).
+`User = {id, handle, createdAt}` · `PoiPin = {id, title, category, location, checkinCount,
+thumbnailUrl}` (`thumbnailUrl: string | null` — §19, M2; the POI's best approved photo,
+computed only where noted below, `null` elsewhere including endpoints that don't compute
+it at all) · Full `Poi` adds `{description, creator: {id, handle}, checkinRadiusM, gallery:
+Photo[]}` · `Photo = {id, urlCard, urlThumb, voteScore, uploader: {handle}, status}`
+(non-approved photos visible only to their uploader).
 
 ## 8. Database schema (authoritative DDL)
 
@@ -458,7 +465,8 @@ defect. UUIDv7 generated in app code. Applied deltas: **0001** drops
 `checkins_user_poi_unique` and creates
 `UNIQUE INDEX checkins_user_poi_active ON checkins (user_id, poi_id) WHERE status <>
 'rejected'` (§5.7 retry semantics). **0002** adds `badge_key` + `badges` (§16, M2). **0003**
-adds `checkin_evidence_mode` + `checkins.evidence` (§17, M2).
+adds `checkin_evidence_mode` + `checkins.evidence` (§17, M2). **0004** adds `saved_pois`
+(§19, M2).
 
 ```sql
 CREATE TYPE poi_category AS ENUM ('landmark','viewpoint','nature','architecture','street_art','other');
@@ -568,6 +576,11 @@ CREATE TABLE badges (
 -- Migration 0003 (§17, M2):
 CREATE TYPE checkin_evidence_mode AS ENUM ('live', 'deferred');
 ALTER TABLE checkins ADD COLUMN evidence checkin_evidence_mode NOT NULL DEFAULT 'live';
+
+-- Migration 0004 (§19, M2):
+CREATE TABLE saved_pois (
+  user_id UUID NOT NULL REFERENCES users(id), poi_id UUID NOT NULL REFERENCES pois(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, poi_id));
 
 -- [M2] health_daily · [M3] entitlements — declared in docs, created when built.
 ```
@@ -1218,7 +1231,81 @@ manifest/photo-file file-I/O into one generic implementation — reasonable with
 sites already this similar, but deferred until a third appears (`Three similar lines is
 better than a premature abstraction`) or the duplication itself causes a bug.
 
-## 19. Definition of done (every PR)
+## 19. Instagram-style browsing & sharing (M2; exact)
+
+Scope: an IG-style profile grid, a discovery feed ("places around me" + "places I want to
+visit"), and sharing (map/photo/leaderboard) to the native share sheet. **Postcard sending
+v1** (ARCHITECTURE.md §10 — a new public web renderer + unlisted links) is explicitly
+*not* part of this: a deliberate product decision to ship the lower-lift pieces first, not
+an oversight. A public/social feed of *other users'* activity is also not built — SPEC §9
+("check-in history is private by default") rules it out; everything here is either the
+caller's own data or already-public POI discovery data (`GET /pois*` are 🌐 today).
+
+**`thumbnailUrl` (§7's `PoiPin`):** the POI's best approved photo — `SELECT storage_key
+FROM photos WHERE poi_id = ? AND moderation = 'approved' ORDER BY vote_score DESC,
+created_at ASC LIMIT 1`, same tie-break `GET /pois/:id`'s gallery already uses — turned
+into a URL via the existing `urlThumb()` (§6). `null` if the POI has no approved photo.
+**Computed for `GET /me/map`, `GET /pois/nearby`, and `GET /pois/:id`** — the first two
+return small, bounded result sets (a caller's own places; ≤ 50, distance-capped); the
+third gets it for free from its already-fetched, already-ranked `gallery` (first entry's
+`urlThumb`, no extra query). **Deliberately not computed for `GET /pois?bbox=&zoom=`**
+(up to 200 results, hit continuously while panning the discovery map) — the extra per-row
+photo lookup is a real added cost there that a first pass doesn't need; `thumbnailUrl` is
+`null` on every pin that endpoint returns. Revisit if
+photo-rich map browsing turns out to matter enough to justify it.
+
+**Saved POIs ("places I want to visit"):** `saved_pois(user_id, poi_id, created_at)`
+(migration `0004`), a plain bookmark — no moderation, no scoring, no leaderboard
+interaction, nothing SPEC §9-sensitive (it's the caller's own list, never exposed for
+anyone else). `POST /pois/:id/save {value: 1|0}` (§7) mirrors `POST /photos/:id/vote`'s
+shape exactly (`value: 0` retracts) rather than inventing a new toggle convention. Surfaced
+back via `GET /me/map`'s new `saved: PoiPin[]` array (most-recently-saved first) — reusing
+the existing endpoint rather than adding a fourth one, the same way `vaulted` already sits
+there as a stub for a not-yet-built M3 feature.
+
+**`checkedIn` uses `SELECT DISTINCT` defensively** — every selected column already comes
+from `pois` (`checkins` only supplies the join condition), so a `SELECT DISTINCT` costs
+nothing here. Not fixing an active bug: `checkins_user_poi_active` (migration 0001)
+already guarantees at most one non-rejected checkin per `(user_id, poi_id)`, so a
+duplicate pin isn't reachable today — this is just correct-by-construction insurance if
+that constraint's rule ever loosens.
+
+**Mobile — profile grid** (`app/lib/features/profile/`): `created` + `checkedIn` render as
+a 3-column photo grid (IG profile style) instead of the current plain list — a
+category-icon tile stands in for `thumbnailUrl: null`. Tapping a cell opens a full-screen,
+swipeable (`PageView`) viewer across that section's items — a lightweight "feed-style"
+browsing experience over the caller's own grid, not a new endpoint or a public feed.
+
+**Mobile — discovery feed** (new `app/lib/features/feed/`, new tab in `main.dart`'s
+`RootScreen` alongside Map/Account): a vertical scroll of cards — nearby POIs
+(`GET /pois/nearby`, centered on the device's current location) interleaved with the
+caller's `saved` list (`GET /me/map`) — each card: `thumbnailUrl` (or a category-icon
+placeholder), title, category, distance (nearby cards only), a save/unsave toggle, tap to
+open `PoiDetailSheet` (§12, unchanged). No new "browse everyone's activity" concept —
+exactly the two `GET`s above, client-merged.
+
+**Mobile — sharing** (new `share_plus` dependency, §1 — the standard Flutter native
+share-sheet plugin; no credentials/cost, no new native permission beyond what the OS share
+UI itself requires): three concrete share actions, each rendering to an image and handing
+it to the OS share sheet:
+1. **A POI photo** (from the grid viewer or POI detail): fetch the image bytes from its
+   `urlCard`, share directly.
+2. **The coverage map** (`PersonalMapScreen`, §15): capture the *currently displayed* view
+   (`RenderRepaintBoundary.toImage()`) and share it. This is deliberately how
+   `docs/MILESTONES.md`'s "shareable map image with precision controls" M2 item is being
+   satisfied — the already-built H3 zoom-tier heatmap (§15) *is* the precision control:
+   whatever's on screen never shows anything finer than the resolution the current zoom
+   maps to, so sharing the visible view can never leak raw coordinates. No separate
+   precision slider is being added on top of it.
+3. **The leaderboard** (`ProfileScreen`, §14): a small rendered "share card" widget
+   (handle, rank, cell count) captured the same way and shared.
+
+**Deferred, flagged, not built here:** postcard sending v1 (own future SPEC section, needs
+the web-renderer/hosting decision called out above); `thumbnailUrl` on the bbox discovery
+endpoint; any notion of following/followers or seeing another user's saved/checked-in
+list (would need its own privacy model, not assumed here).
+
+## 20. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

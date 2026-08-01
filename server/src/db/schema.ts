@@ -261,6 +261,20 @@ export const badges = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.badgeKey] })],
 );
 
+export const savedPois = pgTable(
+  'saved_pois',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    poiId: uuid('poi_id')
+      .notNull()
+      .references(() => pois.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.poiId] })],
+);
+
 export const reports = pgTable('reports', {
   id: uuid('id').primaryKey(),
   reporterId: uuid('reporter_id')

@@ -11,6 +11,7 @@ import {
   listPois,
   parseBbox,
   presignPhoto,
+  setSavedPoi,
 } from '../pois/service.js';
 
 const categorySchema = z.enum(POI_CATEGORIES as [PoiCategory, ...PoiCategory[]]);
@@ -18,6 +19,7 @@ const mimeSchema = z.enum(SPEC_CONSTANTS.photos.ALLOWED_MIME);
 const sourceSchema = z.enum(['poi_creation', 'checkin']);
 
 const idParamsSchema = z.object({ id: z.string().uuid() });
+const saveSchema = z.object({ value: z.union([z.literal(0), z.literal(1)]) });
 
 const poisQuerySchema = z.object({
   bbox: z.string(),
@@ -119,6 +121,14 @@ export function registerPoiRoutes(app: FastifyInstance): void {
       return reply.status(200).send(result);
     }
     return reply.status(201).send({ poi: result.poi });
+  });
+
+  app.post('/pois/:id/save', async (req) => {
+    const userId = await requireAuth(req);
+    const params = parseBody(idParamsSchema, req.params);
+    const body = parseBody(saveSchema, req.body);
+    const { pg } = requireDb(app);
+    return setSavedPoi(pg, userId, params.id, body.value);
   });
 
   app.post('/pois/:id/photos/presign', async (req) => {

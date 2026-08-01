@@ -347,6 +347,31 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       const ids = res.json().pois.map((p: { id: string }) => p.id);
       expect(ids.indexOf(nearId)).toBeLessThan(ids.indexOf(farId));
     });
+
+    it('SPEC §19: thumbnailUrl is the best-voted approved photo, null with no approved photo', async () => {
+      const u = await makeUser();
+      const center = offsetLatMeters(POI_LL, 60_000);
+      const withPhoto = await makePoi(u.userId, offsetLatMeters(center, 50));
+      const withoutPhoto = await makePoi(u.userId, offsetLatMeters(center, 100));
+      const lowVoteKey = `photos/${withPhoto}/${uuidv7()}.jpg`;
+      const highVoteKey = `photos/${withPhoto}/${uuidv7()}.jpg`;
+      await handle.pg`
+        INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation, vote_score)
+        VALUES (${uuidv7()}, ${withPhoto}, ${u.userId}, ${lowVoteKey}, 'poi_creation', 'approved', 1)`;
+      await handle.pg`
+        INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation, vote_score)
+        VALUES (${uuidv7()}, ${withPhoto}, ${u.userId}, ${highVoteKey}, 'poi_creation', 'approved', 5)`;
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/v1/pois/nearby?lat=${center.lat}&lng=${center.lng}&radiusM=1000`,
+      });
+      const pois = res.json().pois as { id: string; thumbnailUrl: string | null }[];
+      expect(pois.find((p) => p.id === withPhoto)?.thumbnailUrl).toBe(
+        `/media/thumb/${highVoteKey}`,
+      );
+      expect(pois.find((p) => p.id === withoutPhoto)?.thumbnailUrl).toBeNull();
+    });
   });
 
   describe('GET /pois/:id', () => {
@@ -367,6 +392,22 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       expect(poi.gallery[0].status).toBe('approved');
     });
 
+    it("SPEC §19: thumbnailUrl mirrors the gallery's first (best) entry, null with no approved photo", async () => {
+      const u = await makeUser();
+      const poiId = await makePoi(u.userId, offsetLatMeters(POI_LL, 31_000));
+
+      const noPhoto = await app.inject({ method: 'GET', url: `/v1/pois/${poiId}` });
+      expect(noPhoto.json().poi.thumbnailUrl).toBeNull();
+
+      const storageKey = `photos/${poiId}/${uuidv7()}.jpg`;
+      await handle.pg`
+        INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation)
+        VALUES (${uuidv7()}, ${poiId}, ${u.userId}, ${storageKey}, 'poi_creation', 'approved')`;
+
+      const withPhoto = await app.inject({ method: 'GET', url: `/v1/pois/${poiId}` });
+      expect(withPhoto.json().poi.thumbnailUrl).toBe(withPhoto.json().poi.gallery[0].urlThumb);
+    });
+
     it('removed POI → 404 resource/not_found', async () => {
       const u = await makeUser();
       const poiId = await makePoi(
@@ -377,6 +418,90 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
         'removed',
       );
       const res = await app.inject({ method: 'GET', url: `/v1/pois/${poiId}` });
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error.code).toBe('resource/not_found');
+    });
+  });
+
+  describe('POST /pois/:id/save (SPEC §19)', () => {
+    it("saves then unsaves, reflected in GET /me/map's saved array", async () => {
+      const u = await makeUser();
+      const poiId = await makePoi(u.userId, offsetLatMeters(POI_LL, 41_000));
+
+      const save = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/save`,
+        headers: u.headers,
+        payload: { value: 1 },
+      });
+      expect(save.statusCode).toBe(200);
+      expect(save.json()).toEqual({ saved: true });
+
+      const map = await app.inject({
+        method: 'GET',
+        url: '/v1/me/map',
+        headers: u.headers,
+      });
+      expect(map.json().saved.map((p: { id: string }) => p.id)).toEqual([poiId]);
+
+      const unsave = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/save`,
+        headers: u.headers,
+        payload: { value: 0 },
+      });
+      expect(unsave.statusCode).toBe(200);
+      expect(unsave.json()).toEqual({ saved: false });
+
+      const mapAfter = await app.inject({
+        method: 'GET',
+        url: '/v1/me/map',
+        headers: u.headers,
+      });
+      expect(mapAfter.json().saved).toEqual([]);
+    });
+
+    it('saving twice is idempotent, no duplicate row/error', async () => {
+      const u = await makeUser();
+      const poiId = await makePoi(u.userId, offsetLatMeters(POI_LL, 42_000));
+
+      await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/save`,
+        headers: u.headers,
+        payload: { value: 1 },
+      });
+      const second = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/save`,
+        headers: u.headers,
+        payload: { value: 1 },
+      });
+      expect(second.statusCode).toBe(200);
+
+      const map = await app.inject({
+        method: 'GET',
+        url: '/v1/me/map',
+        headers: u.headers,
+      });
+      expect(map.json().saved).toHaveLength(1);
+    });
+
+    it('saving a removed POI → 404 resource/not_found', async () => {
+      const u = await makeUser();
+      const poiId = await makePoi(
+        u.userId,
+        offsetLatMeters(POI_LL, 43_000),
+        'landmark',
+        75,
+        'removed',
+      );
+      const res = await app.inject({
+        method: 'POST',
+        url: `/v1/pois/${poiId}/save`,
+        headers: u.headers,
+        payload: { value: 1 },
+      });
       expect(res.statusCode).toBe(404);
       expect(res.json().error.code).toBe('resource/not_found');
     });

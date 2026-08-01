@@ -23,6 +23,8 @@ export interface PoiPinView {
   category: string;
   location: { lat: number; lng: number };
   checkinCount: number;
+  /** SPEC §19 (M2) — best approved photo, computed only where noted; `null` elsewhere. */
+  thumbnailUrl: string | null;
 }
 
 export interface ClusterView {
@@ -54,6 +56,8 @@ interface PoiPinRow {
   checkin_count: number;
   lat: number | string;
   lng: number | string;
+  /** Present only for queries that join the best-approved-photo lookup (SPEC §19). */
+  storage_key?: string | null;
 }
 
 function serializePin(row: PoiPinRow): PoiPinView {
@@ -63,6 +67,7 @@ function serializePin(row: PoiPinRow): PoiPinView {
     category: row.category,
     location: { lat: Number(row.lat), lng: Number(row.lng) },
     checkinCount: Number(row.checkin_count),
+    thumbnailUrl: row.storage_key ? urlThumb(row.storage_key) : null,
   };
 }
 
@@ -152,13 +157,23 @@ export async function listNearby(
   center: LatLng,
   radiusM: number,
 ): Promise<{ pois: PoiPinView[] }> {
+  // thumbnailUrl (SPEC §19, M2): bounded to 50 results, cheap enough for the per-row
+  // best-approved-photo lookup — deliberately not done for the bbox endpoint (up to 200
+  // results, hit continuously while panning).
   const rows = await pg`
-    SELECT id, title, category, checkin_count,
-           ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
-    FROM pois
-    WHERE status = 'active'
-      AND ST_DWithin(location, ST_GeogFromText(${ewkt(center)}), ${radiusM})
-    ORDER BY ST_Distance(location, ST_GeogFromText(${ewkt(center)})) ASC
+    SELECT p.id, p.title, p.category, p.checkin_count,
+           ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng,
+           bp.storage_key
+    FROM pois p
+    LEFT JOIN LATERAL (
+      SELECT storage_key FROM photos
+      WHERE poi_id = p.id AND moderation = 'approved'
+      ORDER BY vote_score DESC, created_at ASC
+      LIMIT 1
+    ) bp ON true
+    WHERE p.status = 'active'
+      AND ST_DWithin(p.location, ST_GeogFromText(${ewkt(center)}), ${radiusM})
+    ORDER BY ST_Distance(p.location, ST_GeogFromText(${ewkt(center)})) ASC
     LIMIT 50`;
   return { pois: (rows as unknown as PoiPinRow[]).map(serializePin) };
 }
@@ -216,6 +231,9 @@ export async function getPoiById(pg: Pg, id: string): Promise<PoiView> {
     category: row.category,
     location: { lat: Number(row.lat), lng: Number(row.lng) },
     checkinCount: Number(row.checkin_count),
+    // gallery is already vote-ranked (SPEC §7) — its first entry is the same "best
+    // approved photo" thumbnailUrl uses elsewhere (SPEC §19), no extra query needed.
+    thumbnailUrl: gallery[0]?.urlThumb ?? null,
     description: row.description,
     creator: { id: row.creator_id, handle: row.creator_handle },
     checkinRadiusM: Number(row.checkin_radius_m),
@@ -406,4 +424,30 @@ export async function completePhoto(
   await runModerationForPhoto(moderation, storage, pg, photoId, storageKey);
 
   return view;
+}
+
+/**
+ * SPEC §19 (M2) — a plain bookmark, same shape as `voteOnPhoto` (`value: 0` retracts).
+ * Saving a non-`active` POI ⇒ `resource/not_found`, same visibility-leak avoidance as
+ * voting on a non-approved photo.
+ */
+export async function setSavedPoi(
+  pg: Pg,
+  userId: string,
+  poiId: string,
+  value: 0 | 1,
+): Promise<{ saved: boolean }> {
+  const poiRows = await pg`SELECT id FROM pois WHERE id = ${poiId} AND status = 'active'`;
+  if (poiRows.length === 0) {
+    throw new AppError('resource/not_found', 'Unknown POI');
+  }
+  if (value === 0) {
+    await pg`DELETE FROM saved_pois WHERE user_id = ${userId} AND poi_id = ${poiId}`;
+  } else {
+    await pg`
+      INSERT INTO saved_pois (user_id, poi_id)
+      VALUES (${userId}, ${poiId})
+      ON CONFLICT (user_id, poi_id) DO NOTHING`;
+  }
+  return { saved: value === 1 };
 }

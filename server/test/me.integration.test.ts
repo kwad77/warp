@@ -159,7 +159,7 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
     expect(res.json().stats.creatorScore).toBe(12);
   });
 
-  it('GET /me/map: checkedIn, created, and always-empty vaulted', async () => {
+  it('GET /me/map: checkedIn, created, saved (empty), and always-empty vaulted', async () => {
     const u = await makeUser();
     const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 2_000);
     const poi = await makePoi(u.userId, ll);
@@ -171,7 +171,29 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
     const body = res.json();
     expect(body.checkedIn.map((p: { id: string }) => p.id)).toEqual([poi]);
     expect(body.created.map((p: { id: string }) => p.id).sort()).toEqual([poi, createdOnly].sort());
+    expect(body.saved).toEqual([]);
     expect(body.vaulted).toEqual([]);
+  });
+
+  it('GET /me/map: thumbnailUrl reflects the best approved photo, populated for checkedIn/created/saved', async () => {
+    const u = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 10_000);
+    const createdPoi = await makePoi(u.userId, ll);
+    const storageKey = `photos/${createdPoi}/${uuidv7()}.jpg`;
+    await handle.pg`
+      INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation)
+      VALUES (${uuidv7()}, ${createdPoi}, ${u.userId}, ${storageKey}, 'poi_creation', 'approved')`;
+    const checkedInPoi = await makePoi(u.userId, offsetLatMeters(ll, 5_000));
+    await makeVerifiedCheckin(u.userId, checkedInPoi, offsetLatMeters(ll, 5_000));
+
+    const res = await app.inject({ method: 'GET', url: '/v1/me/map', headers: u.headers });
+    const body = res.json();
+    expect(body.created.find((p: { id: string }) => p.id === createdPoi)?.thumbnailUrl).toBe(
+      `/media/thumb/${storageKey}`,
+    );
+    expect(
+      body.checkedIn.find((p: { id: string }) => p.id === checkedInPoi)?.thumbnailUrl,
+    ).toBeNull();
   });
 
   it('GET /me/coverage: returns h3 r7 cells as lowercase hex strings', async () => {

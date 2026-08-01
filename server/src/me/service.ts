@@ -5,7 +5,7 @@ import type { Db, Pg } from '../db/client.js';
 import { refreshTokens, users } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { bigintToH3, coverageAncestor, coverageCentroid, resolutionForZoom } from '../geo/h3.js';
-import type { PoiPinView } from '../pois/service.js';
+import { type PoiPinView, urlThumb } from '../pois/service.js';
 
 interface PinRow {
   id: string;
@@ -14,6 +14,7 @@ interface PinRow {
   checkin_count: number;
   lat: number | string;
   lng: number | string;
+  storage_key: string | null;
 }
 
 function serializePin(row: PinRow): PoiPinView {
@@ -23,6 +24,7 @@ function serializePin(row: PinRow): PoiPinView {
     category: row.category,
     location: { lat: Number(row.lat), lng: Number(row.lng) },
     checkinCount: Number(row.checkin_count),
+    thumbnailUrl: row.storage_key ? urlThumb(row.storage_key) : null,
   };
 }
 
@@ -59,22 +61,61 @@ export async function getMeStats(pg: Pg, userId: string): Promise<MeStats> {
 export interface MeMap {
   checkedIn: PoiPinView[];
   created: PoiPinView[];
+  saved: PoiPinView[];
   vaulted: PoiPinView[];
 }
 
 export async function getMeMap(pg: Pg, userId: string): Promise<MeMap> {
+  // thumbnailUrl (SPEC §19, M2): best approved photo per POI, same tie-break `GET
+  // /pois/:id`'s gallery and `listNearby` use (vote_score DESC, created_at ASC).
+  //
+  // checkedIn: SELECT DISTINCT defensively — `checkins_user_poi_active` (migration 0001)
+  // already guarantees at most one non-rejected checkin per (user_id, poi_id), so this
+  // can't currently produce a duplicate pin; DISTINCT costs nothing and stays correct if
+  // that constraint's rule ever loosens.
   const checkedInRows = await pg`
-    SELECT p.id, p.title, p.category, p.checkin_count,
-           ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng
-    FROM checkins c JOIN pois p ON p.id = c.poi_id
+    SELECT DISTINCT p.id, p.title, p.category, p.checkin_count,
+           ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng,
+           bp.storage_key
+    FROM checkins c
+    JOIN pois p ON p.id = c.poi_id
+    LEFT JOIN LATERAL (
+      SELECT storage_key FROM photos
+      WHERE poi_id = p.id AND moderation = 'approved'
+      ORDER BY vote_score DESC, created_at ASC
+      LIMIT 1
+    ) bp ON true
     WHERE c.user_id = ${userId} AND c.status = 'verified'`;
   const createdRows = await pg`
-    SELECT id, title, category, checkin_count,
-           ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
-    FROM pois WHERE creator_id = ${userId} AND status <> 'removed'`;
+    SELECT p.id, p.title, p.category, p.checkin_count,
+           ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng,
+           bp.storage_key
+    FROM pois p
+    LEFT JOIN LATERAL (
+      SELECT storage_key FROM photos
+      WHERE poi_id = p.id AND moderation = 'approved'
+      ORDER BY vote_score DESC, created_at ASC
+      LIMIT 1
+    ) bp ON true
+    WHERE p.creator_id = ${userId} AND p.status <> 'removed'`;
+  const savedRows = await pg`
+    SELECT p.id, p.title, p.category, p.checkin_count,
+           ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng,
+           bp.storage_key
+    FROM saved_pois sp
+    JOIN pois p ON p.id = sp.poi_id
+    LEFT JOIN LATERAL (
+      SELECT storage_key FROM photos
+      WHERE poi_id = p.id AND moderation = 'approved'
+      ORDER BY vote_score DESC, created_at ASC
+      LIMIT 1
+    ) bp ON true
+    WHERE sp.user_id = ${userId} AND p.status = 'active'
+    ORDER BY sp.created_at DESC`;
   return {
     checkedIn: (checkedInRows as unknown as PinRow[]).map(serializePin),
     created: (createdRows as unknown as PinRow[]).map(serializePin),
+    saved: (savedRows as unknown as PinRow[]).map(serializePin),
     // Vault ships in M3 (docs/MVP.md) — the flag exists on `checkins` but nothing sets it yet.
     vaulted: [],
   };
