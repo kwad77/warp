@@ -19,11 +19,22 @@ function offsetLatMeters(ll: { lat: number; lng: number }, meters: number) {
   return { lat: ll.lat + meters / 111_320, lng: ll.lng };
 }
 
-// Distinct from checkins.integration.test's Lisbon fixture, and salted per run so this
-// suite's dedupe-proximity tests never collide with rows a previous run left behind.
+function offsetLngMeters(ll: { lat: number; lng: number }, meters: number) {
+  return { lat: ll.lat, lng: ll.lng + meters / (111_320 * Math.cos((ll.lat * Math.PI) / 180)) };
+}
+
+// Distinct from checkins.integration.test's Lisbon fixture, and salted per run — on BOTH
+// axes, not just latitude — so this suite's dedupe-proximity ("no OTHER poi nearby")
+// assertions never collide with rows a previous run left behind in this shared,
+// never-reset dev/test database. A latitude-only salt collapses the random space to a
+// single ~400km line at a fixed longitude, which saturates against its own history after
+// enough accumulated runs (reproduced: the "200m away does NOT trigger dedupe" case failed
+// against a real collision when run alongside the rest of the suite).
 const BASE_LL = { lat: 39.5, lng: -8.0 };
-const RUN_SALT_M = Math.floor(Math.random() * 400_000);
-const POI_LL = offsetLatMeters(BASE_LL, RUN_SALT_M);
+const POI_LL = offsetLngMeters(
+  offsetLatMeters(BASE_LL, Math.floor(Math.random() * 400_000)),
+  Math.floor(Math.random() * 400_000),
+);
 
 /** Configurable fake so photo tests can drive presign/head without a real R2 bucket. */
 class FakeStorage implements Storage {
