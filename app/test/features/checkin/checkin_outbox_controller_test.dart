@@ -249,6 +249,24 @@ void main() {
     expect(controller.state.replaying, isFalse);
   });
 
+  test('a rate/limited response stops the whole pass too — transient, not a verdict', () async {
+    await outbox.add(
+      poiId: 'poi1',
+      mode: 'confirm',
+      fixes: [_fix(0), _fix(9)],
+      attemptedAt: DateTime.now().subtract(const Duration(hours: 1)),
+    );
+    adapter.onJson('POST', '/v1/checkins/intent', 429, {
+      'error': {'code': 'rate/limited', 'message': 'Too many check-in attempts'},
+    });
+    await controller.load();
+
+    await controller.replay();
+
+    expect(controller.state.items, hasLength(1));
+    expect(await outbox.load(), hasLength(1));
+  });
+
   test('an item older than CHECKIN_DEFERRED_MAX_AGE_S is dropped without any network call', () async {
     await outbox.add(
       poiId: 'poi1',

@@ -16,10 +16,11 @@ import 'integrity_token_provider.dart';
 /// SPEC §17 — replays the offline check-in outbox opportunistically (app foreground/
 /// launch, or a manual retry action; no background sync). Per item, in order queued:
 /// fresh intent, (photo mode) presign/upload/complete now, then submit with the item's
-/// true `fixes`/`capture.capturedAt` and `evidence: "deferred"`. A network failure stops
-/// the whole replay pass (still offline) and leaves every remaining item queued; any other
-/// server-answered outcome (duplicate, rejected, …) just drops that one item — the server
-/// has already given its verdict, there's nothing to retry.
+/// true `fixes`/`capture.capturedAt` and `evidence: "deferred"`. A network failure OR a
+/// rate limit (transient by definition — `CHECKIN_INTENT_PER_HOUR`, SPEC §2 — not a
+/// verdict on this check-in) stops the whole replay pass and leaves every remaining item
+/// queued, this one included; any other server-answered outcome (duplicate, rejected, …)
+/// drops that one item — the server has already given its real verdict on it.
 class CheckinOutboxController extends StateNotifier<CheckinOutboxState> {
   final WanderpostApi api;
   final CheckinOutbox outbox;
@@ -85,10 +86,14 @@ class CheckinOutboxController extends StateNotifier<CheckinOutboxState> {
         );
         await outbox.remove(item.id);
       } on ApiException catch (e) {
-        if (e.code == 'network/unreachable') break;
+        if (retryLaterCodes.contains(e.code)) break;
         await outbox.remove(item.id);
       }
     }
     state = state.copyWith(items: await outbox.load(), replaying: false);
   }
 }
+
+/// Codes meaning "try the whole pass again later, don't drop anything" — as opposed to a
+/// real verdict on this specific item. Shared with `PoiCreateOutboxController`.
+const retryLaterCodes = {'network/unreachable', 'rate/limited'};
