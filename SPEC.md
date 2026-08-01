@@ -92,6 +92,7 @@ GEO
   DEDUPE_RADIUS_M            = 50
   DEDUPE_PHASH_MAX_HAMMING   = 10        // of 64-bit pHash
   PIN_ADJUST_MAX_M           = 30        // creator may nudge pin this far from GPS fix
+  COVERAGE_HEATMAP_RESOLUTIONS = [2, 3, 5, 7]   // coarse→fine drill-down tiers, §15
 
 CHECK-IN RADII (by POI category, meters)
   landmark = 75, architecture = 75, street_art = 50, nature = 150,
@@ -398,6 +399,7 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated, creatorScore}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count; `creatorScore` = sum of `checkin_count` across those same POIs (§16, M2) |
 | `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller; `created` = caller's POIs with `status <> 'removed'`; `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md) |
 | `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7, lowercase hex), count}` |
+| `GET /me/coverage/heatmap?zoom=` | ✅ | → `{cells: [{h3, count, centroid: {lat, lng}}], resolution}` — `zoom` (0..22) maps to an H3 resolution per §15's table; `count` = number of the caller's r7 cells under each returned coarser cell (§15, M2) |
 | `GET /me/badges` | ✅ | → `{badges: [{badgeKey, awardedAt}]}`, ordered by `awardedAt ASC` (§16, M2) |
 | `GET /me/checkins?cursor=&limit=50` | ✅ | → `{items, nextCursor?}` — keyset pagination per the convention below; `limit` max 100 |
 | `DELETE /me` | ✅ | → `{ok}` — soft-delete now (`deleted_at`), hard purge after 14 d (worker, M1.5); revokes every refresh-token family for the user in the same request (immediate logout everywhere) |
@@ -889,6 +891,69 @@ nullable-and-sometimes-missing field on `LeaderboardEntry`).
 **Error handling**: existing generic `ApiException` handling (§12) — a single load
 failure shows a retry affordance for the whole screen, not per-section (same one-round-
 trip reasoning as above).
+
+## 15. Personal coverage map — heatmap & drill-down (M2 step 2; exact)
+
+Scope: the "heat map effect" + "click down into city... state... country" + "arrive at an
+area, see your own postcards and nearby POIs" feature. Fills a gap flagged, not silently
+skipped, in §14: "the `cells` array is fetched but not rendered as a map overlay... a
+personal coverage heatmap is a real feature, not a one-line addition." This section is
+that feature.
+
+**Decision, made explicit (asked, not assumed):** true city/state/country drill-down
+needs *some* source of real administrative boundaries — an H3 cell is a geometric
+hexagon; it has no inherent idea it's "in France." Three paths exist (bundle a static
+boundary dataset for offline point-in-polygon lookup; call an external reverse-geocoding
+service; or approximate the hierarchy using H3's own coarse→fine resolution structure,
+no new data source, generic area labels instead of real place names). **Chosen: H3
+resolution tiers.** No new dependency, no network call, ships fastest — the tradeoff,
+accepted explicitly, is that drill-down levels read as "this area" / a cell-based
+identity rather than literally "California." Real administrative names are a follow-up
+if this proves insufficient, gated on picking one of the other two paths.
+
+**Resolution tiers** (`SPEC_CONSTANTS.geo.COVERAGE_HEATMAP_RESOLUTIONS = [2, 3, 5, 7]`,
+approximate hex edge lengths: res 2 ≈ 158 km, res 3 ≈ 59 km, res 5 ≈ 8.5 km, res 7 ≈
+1.2 km — the existing `H3_RES_COVERAGE`). `resolutionForZoom(zoom)` (pure,
+`src/geo/h3.ts`) maps a map-camera zoom to one of these, reusing the same "server decides
+granularity from zoom" convention `GET /pois`'s cluster/pin split already established
+(§7, §12):
+```
+zoom < 4   → res 2   (coarsest — "country"-scale blobs)
+zoom < 6   → res 3   ("state"-scale)
+zoom < 9   → res 5   ("city"-scale)
+zoom < 13  → res 7   ("neighborhood"-scale — same resolution GET /me/coverage uses)
+zoom ≥ 13  → no heatmap; switch to individual pins (below)
+```
+`13` matches `GET /pois`'s existing cluster-zoom threshold — one pin-mode boundary across
+both maps, not a second magic number to keep in sync.
+
+**`GET /me/coverage/heatmap?zoom=`** (§7): fetches the caller's `user_coverage` r7 cells
+(same query `GET /me/coverage` already runs), buckets each by its H3 ancestor at the
+resolution `resolutionForZoom(zoom)` selects (`cellToParent`; a no-op when the resolution
+is already 7), and returns one entry per non-empty bucket: `h3` (the bucket cell),
+`count` (how many of the caller's r7 cells fall under it — the heatmap's intensity
+signal), `centroid` (`cellToLatLng` of the bucket cell itself — its true geometric
+center, not a mean of members, unlike `Cluster.centroid` in §7's `GET /pois`, which
+*does* average member POIs since a POI cluster has no single well-defined center the way
+an H3 cell already does).
+
+**Mobile** (`app/lib/features/profile/`, extends the personal-map surface `docs/
+MILESTONES.md`'s M1 step 6 flagged as count-only): a `MapLibreMap` rendering the current
+tier's heatmap. Tapping a heatmap cell zooms the camera to its centroid at the next
+tier's zoom band — same "tap a cluster to zoom in" interaction `MapScreen` already uses
+for POI clusters (§12), reused rather than re-invented. At `zoom ≥ 13` the heatmap layer
+is replaced entirely by individual pins from two existing endpoints, not a new one:
+`GET /me/map`'s `checkedIn` (the caller's own postcards — their verified check-in POIs,
+filtered to the viewport) and `GET /pois?bbox=&zoom=` (nearby POIs generally, exactly as
+the discovery map already renders them) — rendered together so arriving at an area shows
+both what the caller has personally collected there and what else is nearby to go
+collect. Tapping either pin opens the existing `PoiDetailSheet` (§12); no new detail UI.
+
+**Deferred, flagged:** real administrative-boundary labels (needs the bundled-dataset or
+reverse-geocoding decision above); a heatmap *color legend* / intensity styling beyond
+whatever `maplibre_gl`'s heatmap layer type supports out of the box; combining this with
+the community/global coverage map (this is the caller's own coverage only, not
+aggregate — a global heatmap is a distinct, larger feature).
 
 ## 16. Badges & creator score (M2 step 1; exact)
 

@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 import { AppError, ERROR_STATUS } from '../src/errors.js';
 import { haversineM } from '../src/geo/distance.js';
-import { bigintToH3, coverageCell, dedupeCell, h3ToBigint } from '../src/geo/h3.js';
+import {
+  bigintToH3,
+  coverageAncestor,
+  coverageCell,
+  coverageCentroid,
+  dedupeCell,
+  h3ToBigint,
+  resolutionForZoom,
+} from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
 
 const BASE_ENV = { JWT_SECRET: 'test-secret-that-is-at-least-32-chars!!' };
@@ -46,6 +54,42 @@ describe('h3 helpers (SPEC §2 GEO)', () => {
   it('bigint round-trip preserves the cell', () => {
     const cell = coverageCell(lisbon);
     expect(bigintToH3(h3ToBigint(cell))).toBe(cell);
+  });
+});
+
+describe('resolutionForZoom (SPEC §15)', () => {
+  it('maps each zoom band to the documented resolution', () => {
+    expect(resolutionForZoom(0)).toBe(2);
+    expect(resolutionForZoom(3)).toBe(2);
+    expect(resolutionForZoom(4)).toBe(3);
+    expect(resolutionForZoom(5)).toBe(3);
+    expect(resolutionForZoom(6)).toBe(5);
+    expect(resolutionForZoom(8)).toBe(5);
+    expect(resolutionForZoom(9)).toBe(7);
+    expect(resolutionForZoom(12)).toBe(7);
+  });
+  it('returns null at/above the pin-mode threshold (13, matching GET /pois)', () => {
+    expect(resolutionForZoom(13)).toBeNull();
+    expect(resolutionForZoom(22)).toBeNull();
+  });
+});
+
+describe('coverageAncestor / coverageCentroid (SPEC §15)', () => {
+  const lisbon = { lat: 38.7139, lng: -9.13 };
+  it('at resolution 7 (H3_RES_COVERAGE) is a no-op', () => {
+    const cell = coverageCell(lisbon);
+    expect(coverageAncestor(cell, 7)).toBe(cell);
+  });
+  it('a coarser resolution collapses nearby cells to the same ancestor', () => {
+    const a = coverageCell(lisbon);
+    const b = coverageCell({ lat: lisbon.lat + 0.01, lng: lisbon.lng + 0.01 });
+    expect(coverageAncestor(a, 2)).toBe(coverageAncestor(b, 2));
+  });
+  it('centroid is close to the original point at the fine resolution', () => {
+    const cell = coverageCell(lisbon);
+    const centroid = coverageCentroid(cell);
+    expect(Math.abs(centroid.lat - lisbon.lat)).toBeLessThan(0.02);
+    expect(Math.abs(centroid.lng - lisbon.lng)).toBeLessThan(0.02);
   });
 });
 

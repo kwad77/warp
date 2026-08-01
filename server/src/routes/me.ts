@@ -4,11 +4,22 @@ import { z } from 'zod';
 import { parseBody, requireAuth, requireDb } from '../app.js';
 import { listBadges } from '../badges/service.js';
 import { notImplemented } from '../errors.js';
-import { deleteMe, getMeCoverage, getMeMap, getMeStats, listMeCheckins } from '../me/service.js';
+import {
+  deleteMe,
+  getMeCoverage,
+  getMeCoverageHeatmap,
+  getMeMap,
+  getMeStats,
+  listMeCheckins,
+} from '../me/service.js';
 
 const checkinsQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+const heatmapQuerySchema = z.object({
+  zoom: z.coerce.number().int().min(0).max(22),
 });
 
 export function registerMeRoutes(app: FastifyInstance): void {
@@ -35,6 +46,13 @@ export function registerMeRoutes(app: FastifyInstance): void {
     const userId = await requireAuth(req);
     const { pg } = requireDb(app);
     return getMeCoverage(pg, userId);
+  });
+
+  app.get('/me/coverage/heatmap', async (req) => {
+    const userId = await requireAuth(req);
+    const query = parseBody(heatmapQuerySchema, req.query);
+    const { pg } = requireDb(app);
+    return getMeCoverageHeatmap(pg, userId, query.zoom);
   });
 
   app.get('/me/checkins', async (req) => {

@@ -1,4 +1,4 @@
-import { latLngToCell } from 'h3-js';
+import { cellToLatLng, cellToParent, latLngToCell } from 'h3-js';
 import { SPEC_CONSTANTS } from '../constants.js';
 import type { LatLng } from './distance.js';
 
@@ -19,4 +19,27 @@ export function h3ToBigint(cell: string): bigint {
 
 export function bigintToH3(value: bigint): string {
   return value.toString(16);
+}
+
+/**
+ * SPEC §15 — maps a map-camera zoom to one of `COVERAGE_HEATMAP_RESOLUTIONS`, coarsest
+ * to finest; `null` at/above the pin-mode threshold (13, matching `GET /pois`'s existing
+ * cluster/pin split — one boundary shared across both maps, not a second magic number).
+ */
+export function resolutionForZoom(zoom: number): number | null {
+  if (zoom < 4) return 2;
+  if (zoom < 6) return 3;
+  if (zoom < 9) return 5;
+  if (zoom < 13) return SPEC_CONSTANTS.geo.H3_RES_COVERAGE;
+  return null;
+}
+
+/** H3 ancestor of [cell] at [resolution] — a no-op when already at that resolution. */
+export function coverageAncestor(cell: string, resolution: number): string {
+  return resolution === SPEC_CONSTANTS.geo.H3_RES_COVERAGE ? cell : cellToParent(cell, resolution);
+}
+
+export function coverageCentroid(cell: string): LatLng {
+  const [lat, lng] = cellToLatLng(cell);
+  return { lat, lng };
 }

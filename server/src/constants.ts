@@ -6,6 +6,7 @@ export const SPEC_CONSTANTS = {
     DEDUPE_RADIUS_M: 50,
     DEDUPE_PHASH_MAX_HAMMING: 10,
     PIN_ADJUST_MAX_M: 30,
+    COVERAGE_HEATMAP_RESOLUTIONS: [2, 3, 5, 7],
   },
   checkinRadiusM: {
     landmark: 75,

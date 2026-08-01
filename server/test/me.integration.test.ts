@@ -168,6 +168,65 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
     expect(res.json().cells[0]).toMatch(/^[0-9a-f]+$/);
   });
 
+  it('GET /me/coverage/heatmap: zoom < 4 buckets distinct r7 cells into one res-2 ancestor', async () => {
+    const u = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 3_500);
+    const poiA = await makePoi(u.userId, ll);
+    const poiB = await makePoi(u.userId, offsetLatMeters(ll, 5_000)); // distinct r7, same res-2
+    await makeVerifiedCheckin(u.userId, poiA, ll);
+    await makeVerifiedCheckin(u.userId, poiB, offsetLatMeters(ll, 5_000));
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/me/coverage/heatmap?zoom=2',
+      headers: u.headers,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.resolution).toBe(2);
+    expect(body.cells).toHaveLength(1);
+    expect(body.cells[0]).toMatchObject({ count: 2 });
+    expect(body.cells[0].centroid.lat).toBeTypeOf('number');
+  });
+
+  it('GET /me/coverage/heatmap: zoom in [9,13) is resolution 7 — one cell per r7 (no bucketing)', async () => {
+    const u = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 3_600);
+    const poiA = await makePoi(u.userId, ll);
+    const poiB = await makePoi(u.userId, offsetLatMeters(ll, 5_000));
+    await makeVerifiedCheckin(u.userId, poiA, ll);
+    await makeVerifiedCheckin(u.userId, poiB, offsetLatMeters(ll, 5_000));
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/me/coverage/heatmap?zoom=10',
+      headers: u.headers,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.resolution).toBe(7);
+    expect(body.cells).toHaveLength(2);
+    expect(body.cells.every((c: { count: number }) => c.count === 1)).toBe(true);
+  });
+
+  it('GET /me/coverage/heatmap: zoom >= 13 (pin-mode threshold) returns an empty heatmap', async () => {
+    const u = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 3_700);
+    const poi = await makePoi(u.userId, ll);
+    await makeVerifiedCheckin(u.userId, poi, ll);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/me/coverage/heatmap?zoom=13',
+      headers: u.headers,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ cells: [], resolution: null });
+  });
+
   it('GET /me/checkins: keyset pagination walks the full history with no duplicates/gaps', async () => {
     const u = await makeUser();
     const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 4_000);

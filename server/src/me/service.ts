@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import type { Db, Pg } from '../db/client.js';
 import { refreshTokens, users } from '../db/schema.js';
 import { AppError } from '../errors.js';
-import { bigintToH3 } from '../geo/h3.js';
+import { bigintToH3, coverageAncestor, coverageCentroid, resolutionForZoom } from '../geo/h3.js';
 import type { PoiPinView } from '../pois/service.js';
 
 interface PinRow {
@@ -87,6 +87,40 @@ export async function getMeCoverage(
   const rows = await pg`SELECT h3_r7 FROM user_coverage WHERE user_id = ${userId}`;
   const cells = (rows as unknown as { h3_r7: string }[]).map((r) => bigintToH3(BigInt(r.h3_r7)));
   return { cells, count: cells.length };
+}
+
+export interface CoverageHeatmapCell {
+  h3: string;
+  count: number;
+  centroid: { lat: number; lng: number };
+}
+
+/**
+ * SPEC §15 — buckets the caller's r7 coverage cells by their H3 ancestor at the
+ * resolution `zoom` selects. `resolution: null` (zoom ≥ 13, pin-mode threshold) means the
+ * caller should be using `GET /me/map` + `GET /pois` instead — an empty heatmap, not an
+ * error, since a client transitioning across that boundary mid-request isn't a mistake.
+ */
+export async function getMeCoverageHeatmap(
+  pg: Pg,
+  userId: string,
+  zoom: number,
+): Promise<{ cells: CoverageHeatmapCell[]; resolution: number | null }> {
+  const resolution = resolutionForZoom(zoom);
+  if (resolution === null) return { cells: [], resolution: null };
+
+  const { cells: r7Cells } = await getMeCoverage(pg, userId);
+  const counts = new Map<string, number>();
+  for (const cell of r7Cells) {
+    const ancestor = coverageAncestor(cell, resolution);
+    counts.set(ancestor, (counts.get(ancestor) ?? 0) + 1);
+  }
+  const cells = [...counts.entries()].map(([h3, count]) => ({
+    h3,
+    count,
+    centroid: coverageCentroid(h3),
+  }));
+  return { cells, resolution };
 }
 
 export interface CheckinListItem {
