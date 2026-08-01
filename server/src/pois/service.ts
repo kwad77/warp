@@ -403,7 +403,7 @@ export async function completePhoto(
   // SPEC §6 M1 note: run synchronously (Dev provider is instant), but the response above
   // deliberately still reflects the freshly-inserted row — callers re-fetch to see the
   // resolved verdict, keeping the response contract stable once a real provider lands.
-  await runModerationForPhoto(moderation, pg, photoId, storageKey);
+  await runModerationForPhoto(moderation, storage, pg, photoId, storageKey);
 
   return view;
 }

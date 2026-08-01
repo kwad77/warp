@@ -320,12 +320,22 @@ integrity degraded) · `rejected`. Status transitions allowed: `pending → veri
   `photos/<poiId>/<photoId>.<jpg|webp>`; no photos row exists until complete. At complete
   the server verifies via HEAD only — object exists, size ≤ `UPLOAD_MAX_BYTES`, mime in
   `ALLOWED_MIME` — and creates the row (`moderation=pending`). Failed HEAD checks ⇒
-  `photo/rejected (details.reason='quality')` and no row. Pixel-dimension and quality
-  checks require the bytes and run in the moderation worker (M1.5), which rejects
-  undersized images there.
+  `photo/rejected (details.reason='quality')` and no row. Pixel-dimension checks (below)
+  require the actual bytes, fetched separately during moderation, not at this HEAD-only
+  step (kept HEAD-only deliberately, to keep upload latency low).
 - Moderation (before ANY public visibility): provider face/person detection + safety
   labels behind interface `ModerationProvider`. Any person ⇒ `rejected(people)`.
-  Borderline ⇒ `escalated` (human queue). pHash (64-bit) computed here.
+  Borderline ⇒ `escalated` (human queue). pHash (64-bit) computed here, alongside a
+  pixel-dimension check: `storage.get` fetches the real bytes (§13.1's `Storage`
+  interface gained a `get` alongside `presignPut`/`head`); a long edge below
+  `UPLOAD_MIN_LONG_EDGE_PX` ⇒ `rejected(quality)` before the moderation provider even
+  runs. Implemented as a difference hash (dHash: 9×8 grayscale, 64 one-bit horizontal
+  adjacent-pixel comparisons) via `sharp` — a DCT-free 64-bit perceptual hash, not the
+  DCT-based algorithm "pHash" more narrowly refers to elsewhere; called out so a future
+  implementer doesn't assume DCT. `storage.get` failing or returning nothing (e.g. object
+  storage unconfigured) degrades to skipping these checks rather than failing the
+  request — they're enrichment on top of validation the presign/complete step already
+  did, not a substitute for it.
 - A photo rejection NEVER changes its check-in's status (§5.7 owns that).
 - States: `pending → approved | rejected(reason) | escalated → approved|rejected`.
 
@@ -350,12 +360,16 @@ explicitly:**
      (selected via `MODERATION_PROVIDER` env, default `dev`) that throws
      `service/unavailable` if ever selected, so the integration point is ready without the
      dependency being added silently.
-  2. **pHash.** Computing it needs the actual image bytes (a GET, not just the HEAD used
-     for validation) plus pixel processing (`sharp`, already allowlisted). Deferred
-     alongside the real detector; `photos.phash` stays `NULL` until then.
-  3. **Human-review admin surface** (docs/MILESTONES.md M1 step 5) needs its own auth
+  2. **Human-review admin surface** (docs/MILESTONES.md M1 step 5) needs its own auth
      realm — undesigned. Not stubbed as a fake-authed endpoint; simply not built yet.
      `escalated` is a reachable enum state with no consumer until this exists.
+
+  **pHash and the pixel-dimension check are no longer on this list — implemented.**
+  They were bundled here alongside the real detector originally, but on closer look the
+  stated blocker (needing the actual bytes + `sharp`) doesn't actually require a new
+  dependency or credential decision: `sharp` was already in the §1 allowlist, just never
+  installed. Corrected rather than left to silently rot as a stale "needs your call" that
+  no longer described a real blocker.
 
 ## 7. API surface (M1; exact)
 

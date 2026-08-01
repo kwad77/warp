@@ -66,9 +66,15 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      Apple/Google buttons is still deferred — SPEC §12 built only the email-code screen.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
    completion (`DevModerationProvider` auto-approves); reports and photo voting shipped.
-   Deferred pending explicit decisions (SPEC §6 M1 note): the real detector (needs an AWS
-   SDK dependency not yet approved), pHash (needs image-byte fetch + `sharp`), and the
-   human-review admin surface (needs an undesigned admin auth realm).
+   pHash (64-bit dHash) and the pixel-dimension check (SPEC §6) are now implemented:
+   `storage.get` fetches the real bytes during moderation, `sharp` (newly installed —
+   was already SPEC §1-allowlisted, just unused) computes width/height + the hash, and a
+   long edge below `UPLOAD_MIN_LONG_EDGE_PX` rejects before the provider runs. This was
+   previously bundled with the still-deferred items below under one "needs your call"
+   note; corrected once it became clear the stated blocker (bytes + `sharp`) didn't
+   actually require a new dependency or credential decision. Still genuinely deferred:
+   the real detector (needs an AWS SDK dependency not yet approved) and the human-review
+   admin surface (needs an undesigned admin auth realm).
 6. **Personal map + coverage + weekly leaderboard** (SPEC §14; done). Replaces the
    Account tab's "Signed in as {handle}" placeholder with a real profile screen: stats
    (`GET /me`), My Places — created/checked-in `PoiPin` lists tappable into the existing

@@ -51,6 +51,8 @@ src/auth/          tokens (JWT) + email-code service, refresh rotation, Apple/Go
                    ID-token verification (oidc.ts, config-gated — SPEC §4)
 src/db/            drizzle schema (mirror of migrations), client, migration runner
 src/routes/        thin handlers: parse → service → serialize
-src/storage/       R2 presigned uploads (aws4fetch)
+src/storage/       R2 presigned uploads (aws4fetch) + object GET (storage.get, sharp/§6)
+src/moderation/    ModerationProvider seam, verdict application, phash.ts (dHash + the
+                   pixel-dimension check — SPEC §6)
 test/              unit + inject route tests + DB integration suite
 ```

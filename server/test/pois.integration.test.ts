@@ -31,6 +31,9 @@ class FakeStorage implements Storage {
     bytes: 500_000,
     contentType: 'image/jpeg',
   };
+  // null (default): computeAndStorePhotoMetrics degrades to skipping metrics, same as
+  // this suite's pre-pHash behavior — these tests aren't about metrics/dimension checks.
+  getResult: Uint8Array | null = null;
 
   async presignPut(storageKey: string, _contentType: string) {
     return {
@@ -43,6 +46,10 @@ class FakeStorage implements Storage {
 
   async head(_storageKey: string) {
     return this.headResult;
+  }
+
+  async get(_storageKey: string) {
+    return this.getResult;
   }
 }
 
