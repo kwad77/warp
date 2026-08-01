@@ -92,6 +92,7 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
       dbHandle: handle,
       storage: createR2Storage(config),
       moderation: devModerationProvider(() => {}),
+      oidcVerifiers: { apple: null, google: null },
     });
   });
   afterAll(async () => {

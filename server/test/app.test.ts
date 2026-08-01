@@ -14,6 +14,7 @@ const app = buildApp({
   dbHandle: null,
   storage: createR2Storage(config),
   moderation: devModerationProvider(() => {}),
+  oidcVerifiers: { apple: null, google: null },
 });
 afterAll(() => app.close());
 
@@ -60,7 +61,7 @@ describe('error envelope behavior', () => {
 });
 
 describe('auth surface', () => {
-  it('apple/google are 501 until M1 step 4', async () => {
+  it('apple/google are 501 when APPLE_CLIENT_ID/GOOGLE_CLIENT_ID are unset', async () => {
     for (const url of ['/v1/auth/apple', '/v1/auth/google']) {
       const res = await app.inject({ method: 'POST', url, payload: { idToken: 'x' } });
       expect(res.statusCode).toBe(501);

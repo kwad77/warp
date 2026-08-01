@@ -30,6 +30,7 @@ describe.runIf(!!url)('auth flow (real database)', () => {
       dbHandle: handle,
       storage: createR2Storage(config),
       moderation: devModerationProvider(() => {}),
+      oidcVerifiers: { apple: null, google: null },
     });
   });
   afterAll(async () => {

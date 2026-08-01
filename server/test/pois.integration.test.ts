@@ -141,6 +141,7 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       dbHandle: handle,
       storage,
       moderation,
+      oidcVerifiers: { apple: null, google: null },
     });
     auth = await makeUser();
     await makeDevice(auth.headers);

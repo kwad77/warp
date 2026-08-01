@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { z } from 'zod';
+import type { OidcVerifier } from './auth/oidc.js';
 import { verifyAccessToken } from './auth/tokens.js';
 import type { Config } from './config.js';
 import type { DbHandle } from './db/client.js';
@@ -21,6 +22,8 @@ export interface AppDeps {
   dbHandle: DbHandle | null;
   moderation: ModerationProvider;
   storage: Storage;
+  /** null when the corresponding *_CLIENT_ID env var isn't set (SPEC §4). */
+  oidcVerifiers: { apple: OidcVerifier | null; google: OidcVerifier | null };
 }
 
 declare module 'fastify' {

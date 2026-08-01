@@ -122,6 +122,7 @@ describe.runIf(!!url)('check-in pipeline (SPEC §5)', () => {
       dbHandle: handle,
       storage: createR2Storage(config),
       moderation: devModerationProvider(() => {}),
+      oidcVerifiers: { apple: null, google: null },
     });
     auth = await makeUser();
     deviceId = await makeDevice(auth.headers);

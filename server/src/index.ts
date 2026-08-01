@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { createAppleVerifier, createGoogleVerifier } from './auth/oidc.js';
 import { loadConfig } from './config.js';
 import { createDb } from './db/client.js';
 import { createModerationProvider } from './moderation/provider.js';
@@ -10,7 +11,11 @@ const storage = createR2Storage(config);
 const moderation = createModerationProvider(config.MODERATION_PROVIDER, (msg) =>
   process.stdout.write(`${msg}\n`),
 );
-const app = buildApp({ config, dbHandle, storage, moderation });
+const oidcVerifiers = {
+  apple: config.APPLE_CLIENT_ID ? createAppleVerifier(config.APPLE_CLIENT_ID) : null,
+  google: config.GOOGLE_CLIENT_ID ? createGoogleVerifier(config.GOOGLE_CLIENT_ID) : null,
+};
+const app = buildApp({ config, dbHandle, storage, moderation, oidcVerifiers });
 
 const shutdown = async () => {
   await app.close();

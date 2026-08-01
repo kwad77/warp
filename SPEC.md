@@ -187,7 +187,18 @@ Every non-2xx response body is exactly:
   `{accessToken, refreshToken, user}`.
 - Apple/Google: `POST /v1/auth/apple` / `/google` verify the platform ID token
   (issuer + audience + signature via provider JWKS), link by stable provider subject.
-  **[M1 step 1: return 501 `service/unavailable`; implement in M1 step 4.]**
+  Implemented via `createOidcVerifier` (`src/auth/oidc.ts`, `jose`'s `createRemoteJWKSet`
+  against `appleid.apple.com`/`googleapis.com`'s public JWKS — no new dependency).
+  **Config-gated, same pattern as R2 storage (§6) and moderation (§6):** each provider
+  needs its own `APPLE_CLIENT_ID` / `GOOGLE_CLIENT_ID` env var (the app's bundle id /
+  OAuth client id) — real values only a human with Apple Developer / Google Cloud console
+  access can create, not something this repo can provision. Unset ⇒ `501
+  service/unavailable`, identical to the placeholder behavior before this was built. The
+  verification logic itself is fully tested (`test/oidc.test.ts`, no network — a locally
+  generated keypair + `createLocalJWKSet` stands in for the real JWKS) and exercised
+  end-to-end against real PostGIS with a locally-keyed verifier
+  (`test/auth.provider.integration.test.ts`) — only the two client ids are missing to go
+  live, not any of the code.
 - Anonymous browsing: all 🌐 endpoints in §7 MUST work with no `Authorization` header.
 
 ## 5. Check-in verification pipeline (the heart — implement exactly)

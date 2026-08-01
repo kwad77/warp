@@ -47,6 +47,12 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      implementation, with a named, unbuilt seam for the real thing (same treatment as
      `RekognitionModerationProvider`). New dependency: `crypto` (dart-lang official,
      already a transitive dep, promoted for the SHA-256 capture token).
+   - **Server-side follow-up** (SPEC §4): `POST /auth/apple`/`/google` now really verify
+     the platform ID token (`jose`'s remote-JWKS support, no new dependency) instead of
+     the 501 placeholder from step 1 — config-gated on `APPLE_CLIENT_ID`/
+     `GOOGLE_CLIENT_ID` (unset ⇒ still 501, unchanged from before), since only a human
+     with Apple Developer/Google Cloud console access can create those. Mobile UI for
+     Apple/Google buttons is still deferred — SPEC §12 built only the email-code screen.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
    completion (`DevModerationProvider` auto-approves); reports and photo voting shipped.
    Deferred pending explicit decisions (SPEC §6 M1 note): the real detector (needs an AWS

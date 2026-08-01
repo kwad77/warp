@@ -79,6 +79,28 @@ async function issueTokens(db: Db, secret: string, userId: string, now: Date): P
   };
 }
 
+interface UserRow {
+  id: string;
+  handle: string;
+  createdAt: Date;
+  deletedAt: Date | null;
+}
+
+async function finishLogin(
+  db: Db,
+  secret: string,
+  user: UserRow,
+  now: Date,
+): Promise<{ tokens: TokenPair; user: PublicUser }> {
+  if (user.deletedAt !== null) {
+    throw new AppError('account/suspended', 'Account is deactivated');
+  }
+  return {
+    tokens: await issueTokens(db, secret, user.id, now),
+    user: { id: user.id, handle: user.handle, createdAt: user.createdAt.toISOString() },
+  };
+}
+
 export async function verifyEmailCode(
   db: Db,
   secret: string,
@@ -118,13 +140,34 @@ export async function verifyEmailCode(
     }
     if (!user) throw new AppError('internal/error', 'Could not create account');
   }
-  if (user.deletedAt !== null) {
-    throw new AppError('account/suspended', 'Account is deactivated');
+  return finishLogin(db, secret, user, now);
+}
+
+/** SPEC §4 — Apple/Google: link by stable provider subject, upserting on first login. */
+export async function loginWithProvider(
+  db: Db,
+  secret: string,
+  provider: 'apple' | 'google',
+  sub: string,
+  now: Date,
+): Promise<{ tokens: TokenPair; user: PublicUser }> {
+  const column = provider === 'apple' ? users.appleSub : users.googleSub;
+  let user = (await db.select().from(users).where(eq(column, sub)))[0];
+  if (!user) {
+    for (let attempt = 0; attempt < 3 && !user; attempt++) {
+      try {
+        const values =
+          provider === 'apple'
+            ? { id: uuidv7(now.getTime()), handle: newHandle(), appleSub: sub }
+            : { id: uuidv7(now.getTime()), handle: newHandle(), googleSub: sub };
+        user = (await db.insert(users).values(values).returning())[0];
+      } catch {
+        // handle collision — retry with a new one; anything else recurs and surfaces below.
+      }
+    }
+    if (!user) throw new AppError('internal/error', 'Could not create account');
   }
-  return {
-    tokens: await issueTokens(db, secret, user.id, now),
-    user: { id: user.id, handle: user.handle, createdAt: user.createdAt.toISOString() },
-  };
+  return finishLogin(db, secret, user, now);
 }
 
 export async function rotateRefreshToken(

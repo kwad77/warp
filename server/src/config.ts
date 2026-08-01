@@ -13,6 +13,12 @@ const configSchema = z.object({
   // SPEC §6: 'rekognition' is a named seam only, not a working integration — selecting it
   // returns 501 rather than silently pulling in an undecided AWS SDK dependency.
   MODERATION_PROVIDER: z.enum(['dev', 'rekognition']).default('dev'),
+  // SPEC §4: Sign in with Apple/Google. The verification code is real (jose + the
+  // provider's public JWKS); these are the app registration's client id / bundle id,
+  // which only a human with Apple Developer / Google Cloud console access can create.
+  // Unset (the default) ⇒ 501 service/unavailable, same as before this was implemented.
+  APPLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

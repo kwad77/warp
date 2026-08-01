@@ -84,6 +84,7 @@ describe.runIf(!!url)('community: votes + reports (SPEC §7)', () => {
       dbHandle: handle,
       storage: createR2Storage(config),
       moderation: devModerationProvider(() => {}),
+      oidcVerifiers: { apple: null, google: null },
     });
   });
   afterAll(async () => {
