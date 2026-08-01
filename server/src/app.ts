@@ -6,7 +6,10 @@ import type { DbHandle } from './db/client.js';
 import { AppError } from './errors.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCheckinRoutes } from './routes/checkins.js';
+import { registerCommunityRoutes } from './routes/community.js';
 import { registerDeviceRoutes } from './routes/devices.js';
+import { registerLeaderboardRoutes } from './routes/leaderboards.js';
+import { registerMeRoutes } from './routes/me.js';
 import { registerPoiRoutes } from './routes/pois.js';
 import type { Storage } from './storage/r2.js';
 
@@ -47,6 +50,20 @@ export async function requireAuth(req: FastifyRequest): Promise<string> {
   const claims = await verifyAccessToken(req.server.deps.config.JWT_SECRET, header.slice(7));
   req.userId = claims.sub;
   return claims.sub;
+}
+
+/** Optional-auth for 🌐 endpoints that personalize when a valid token is present.
+ *  A missing or invalid token is not an error here — it just means no `me`. SPEC §7. */
+export async function optionalAuth(req: FastifyRequest): Promise<string | null> {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  try {
+    const claims = await verifyAccessToken(req.server.deps.config.JWT_SECRET, header.slice(7));
+    req.userId = claims.sub;
+    return claims.sub;
+  } catch {
+    return null;
+  }
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -107,6 +124,9 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerDeviceRoutes(v1);
       registerCheckinRoutes(v1);
       registerPoiRoutes(v1);
+      registerMeRoutes(v1);
+      registerLeaderboardRoutes(v1);
+      registerCommunityRoutes(v1);
     },
     { prefix: '/v1' },
   );

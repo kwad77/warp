@@ -37,6 +37,16 @@ SPEC wins.
 - Commits: imperative subject ≤ 72 chars; body says which SPEC sections are involved.
 - Keep PRs to one SPEC-scoped concern. Milestone order lives in `docs/MILESTONES.md`.
 
+## Known footgun
+
+Once `drizzle(pg, {schema})` has wrapped a connection (see `src/db/client.ts`), raw
+tagged-template queries on that *same* connection (`pg\`SELECT ...\``) return
+`timestamptz` columns as strings, not `Date` instances — even though Drizzle's own query
+builder (`db.select()...`) still converts them correctly. Any raw-SQL code path that reads
+a timestamp column must `new Date(row.created_at)` before calling Date methods on it, or
+it throws at runtime, not at compile time (the column is typed `Date` in ad-hoc row
+interfaces because nothing catches the mismatch). See `src/me/service.ts` for the pattern.
+
 ## Style
 
 - Match surrounding code. Comments only for non-obvious constraints, referencing the spec

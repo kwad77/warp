@@ -118,6 +118,9 @@ RATE LIMITS (per user unless noted)
   POI_CREATE                 = 20 / day
   REPORT_CREATE              = 20 / day
 
+LEADERBOARD
+  LEADERBOARD_ENTRIES_MAX    = 100
+
 ENTITLEMENT [M3]
   FREE_UNLOCKED_CHECKINS     = 50        // beyond: vaulted=true, never blocked
 ```
@@ -304,15 +307,20 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /checkins/intent` | ✅ | `{poiId, deviceId}` → `{nonce, expiresInS}` |
 | `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, verifiedAt?}}`; rejected ⇒ `422` per §5.7; `Fix = {lat, lng, accuracyM, capturedAt}` |
 | `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
-| `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated}}` |
-| `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` |
-| `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7), count}` |
-| `GET /me/checkins?cursor=&limit=50` | ✅ | → `{items, nextCursor?}` |
-| `DELETE /me` | ✅ | → `{ok}` — soft-delete now, hard purge after 14 d (worker) |
-| `GET /me/export` | ✅ | → `202 {jobId}`; result surfaced via `GET /me/export/:jobId` → `{status, url?}` |
-| `POST /photos/:id/vote` | ✅ | `{value: 1\|0}` (0 = retract) → `{voteScore}` |
-| `POST /reports` | ✅ | `{targetType: "poi"\|"photo", targetId, reason: "people"\|"unsafe"\|"wrong_location"\|"duplicate"\|"other", note?(..280)}` → `201 {ok}` |
-| `GET /leaderboards/coverage?window=weekly\|all&scope=global` | 🌐 | → `{entries: [{rank, handle, cells}], me?: {rank, cells}}` — weekly = distinct r7 cells first covered in the ISO week, UTC |
+| `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count |
+| `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller; `created` = caller's POIs with `status <> 'removed'`; `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md) |
+| `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7, lowercase hex), count}` |
+| `GET /me/checkins?cursor=&limit=50` | ✅ | → `{items, nextCursor?}` — keyset pagination per the convention below; `limit` max 100 |
+| `DELETE /me` | ✅ | → `{ok}` — soft-delete now (`deleted_at`), hard purge after 14 d (worker, M1.5); revokes every refresh-token family for the user in the same request (immediate logout everywhere) |
+| `GET /me/export` | ✅ | *(M1.5 — requires the job queue, which does not exist yet; until then, 501 `service/unavailable`)* |
+| `POST /photos/:id/vote` | ✅ | `{value: 1\|0}` (0 = retract) → `{voteScore}` — upsert on `(user_id, photo_id)`; `voteScore` on `photos` is the denormalized sum, updated in the same transaction; voting on a non-`approved` photo ⇒ `resource/not_found` (no visibility leak into pending/rejected review state) |
+| `POST /reports` | ✅ | `{targetType: "poi"\|"photo", targetId, reason: "people"\|"unsafe"\|"wrong_location"\|"duplicate"\|"other", note?(..280)}` → `201 {ok}` — target must exist (else `resource/not_found`); rate limit §2; no dedupe on repeat reports from the same user in M1 (moderation queue is M1.5+, so nothing consumes this yet beyond the row existing) |
+| `GET /leaderboards/coverage?window=weekly\|all&scope=global` | 🌐 (optional auth) | → `{entries: [{rank, handle, cells}], me?: {rank, cells}}`, entries capped at `LEADERBOARD_ENTRIES_MAX` (§2). `scope` accepts only `global` in M1 (other scopes ⇒ `request/invalid`); `window=weekly` counts distinct `user_coverage.h3_r7` rows whose `created_at` falls in the current ISO week (Monday 00:00 UTC start, UTC throughout); `window=all` counts all rows. `me` is present only when the request carries a valid bearer token (optional auth — a missing/invalid token omits `me` rather than erroring). **M1 implementation note:** computed live (`GROUP BY user_id ORDER BY count DESC LIMIT`); precomputed snapshots (`leaderboard_snapshots`, ARCHITECTURE.md) are deferred until live cost requires them — no such table exists yet. |
+
+**Pagination convention** (`GET /me/checkins` and any future cursor-paginated list): cursor
+is base64 of `"<createdAt ISO>|<id>"` for the last row of the previous page; results order
+by `(created_at DESC, id DESC)`; an absent/malformed cursor starts from the top; no
+`nextCursor` in the response means no further pages.
 
 `User = {id, handle, createdAt}` · `PoiPin = {id, title, category, location, checkinCount}`
 · Full `Poi` adds `{description, creator: {id, handle}, checkinRadiusM, gallery: Photo[]}`

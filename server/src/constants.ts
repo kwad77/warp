@@ -71,6 +71,9 @@ export const SPEC_CONSTANTS = {
   entitlement: {
     FREE_UNLOCKED_CHECKINS: 50,
   },
+  leaderboard: {
+    LEADERBOARD_ENTRIES_MAX: 100,
+  },
 } as const;
 
 export type PoiCategory = keyof typeof SPEC_CONSTANTS.checkinRadiusM;
