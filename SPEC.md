@@ -1113,10 +1113,16 @@ time and must replay the whole intent→submit sequence later).
 
 **Mobile (`app/lib/features/checkin/`):**
 - Trigger: a network-class failure (no connectivity, timeout, `service/unavailable`)
-  interrupting `POST /checkins/intent` or `POST /checkins` during a check-in the user
-  explicitly started. A rejected/invalid attempt the server actually answered (nonce
-  expired, `checkin/rejected`, `checkin/duplicate`, …) is never queued — only genuine
-  connectivity failure is.
+  interrupting the very first `POST /checkins/intent` of a check-in the user explicitly
+  started — the realistic "no signal at all" case, and the only network call in the whole
+  flow that doesn't already have fixes/a photo gathered by the time it could fail. A
+  rejected/invalid attempt the server actually answered (nonce expired,
+  `checkin/rejected`, `checkin/duplicate`, …) is never queued — only genuine connectivity
+  failure is. **Narrower than the general case, flagged:** a network failure striking
+  *later* in the flow (fixes already gathered, intent already succeeded, `POST /checkins`
+  itself fails) is out of scope for this slice and still surfaces as today's plain error —
+  building that path too means deciding what to do with an already-uploaded photo
+  mid-flow, deferred until it's a real problem rather than guessed at now.
 - `CheckinOutbox`: a durable (survives app restart) local queue — a JSON manifest plus any
   already-captured photo file, in the app's documents directory (`path_provider`, §1).
   Each queued item keeps the real `fixes` (with their true `capturedAt`), `mode`, `poiId`,
@@ -1134,16 +1140,22 @@ time and must replay the whole intent→submit sequence later).
   `CHECKIN_DEFERRED_MAX_AGE_S` by the time it's replayed is discarded without a server
   round trip — the server would `stale_evidence`-reject it anyway (§5.3); this just avoids
   a doomed request. `app/lib/core/constants.dart` mirrors the 24 h bound for this check.
-- UI: `evidence: 'deferred'` on a returned or listed check-in (§7) renders a "synced
-  later" indicator — never silently shown as identical to a live check-in.
+- UI: while a check-in is queued (offline), the check-in screen shows a "no connection —
+  saved, will sync automatically" state rather than an error. Separately, a non-empty
+  outbox shows a small "N check-ins waiting to sync" banner on the profile screen with the
+  manual retry action; it disappears once the outbox is empty (the common case). `Checkin`
+  carries `evidence` (SPEC §7) so a future check-in history/detail screen can render a
+  "synced later" badge on the resulting record — no such screen exists in the mobile app
+  yet (profile only shows `GET /me/map`'s created/checked-in POIs, not raw check-in
+  history), so this is API-ready but has no consumer today.
 
 **Deferred, flagged, not built here:** exponential backoff/jitter on repeated replay
 failure (fine at current scale — no thundering-herd risk yet); any background-triggered
 replay (push-woken sync would violate §9's no-background-location spirit even though this
 outbox itself gathers no new location data, so it's out of scope on principle, not just
-unbuilt); surfacing outbox depth/age anywhere in the UI beyond the per-check-in "synced
-later" tag (e.g. a dedicated "pending sync" list) — `GET /me/checkins` already shows every
-check-in once it lands, deferred or not, so this is a nice-to-have, not a gap.
+unbuilt); queuing a network failure that strikes after intent already succeeded (see the
+trigger note above); a per-check-in "synced later" badge, which needs a check-ins list/
+detail screen that doesn't exist in the mobile app yet.
 
 ## 18. Definition of done (every PR)
 

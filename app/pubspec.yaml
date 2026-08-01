@@ -16,6 +16,9 @@ environment:
 # the SHA-256 capture token — already a transitive dep, promoted since we call it directly.
 # image (pure Dart, no platform channel) is the client-side photo resize SPEC §13.1
 # originally deferred — decode/resize/re-encode only, no new native permission surface.
+# path_provider (Flutter-team-maintained) is the offline check-in outbox SPEC §17
+# addition — locates the app's own documents directory for a durable local queue. No
+# credentials/cost, no new native permission prompt (app-sandboxed storage).
 dependencies:
   flutter:
     sdk: flutter
@@ -30,6 +33,7 @@ dependencies:
   geolocator: ^13.0.2
   crypto: ^3.0.6
   image: ^4.3.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -126,7 +126,22 @@ mock-location apps and emulators are caught.
 - Steps/distance from HealthKit / Health Connect (read-only, opt-in): daily aggregates,
   weekly friends/city distance boards, explorer streaks. Never app-gathered
   (ARCHITECTURE.md §9).
-- Offline check-in outbox (deferred-evidence flow).
+- **Offline check-in outbox — deferred evidence (SPEC §17; done, server + mobile).** A
+  `checkinIntent` that fails with no connectivity falls back to gathering fixes/photo
+  locally (neither needs the network) and queuing in a durable local outbox
+  (`path_provider`, new mobile dependency, flagged in SPEC §1) rather than surfacing an
+  error. `POST /checkins` gains `evidence: "live"|"deferred"` (default `"live"`); a new
+  pure `src/verification/freshness.ts` bounds how old fixes/capture may be per mode
+  (`CHECKIN_LIVE_MAX_AGE_S` = 150s, `CHECKIN_DEFERRED_MAX_AGE_S` = 24h) — closing a latent
+  gap where confirm-mode check-ins had no server-side fix-recency check at all. A cell
+  first proven via deferred evidence doesn't count toward the competitive coverage
+  leaderboard until re-covered live; `GET /me/coverage`, the heatmap, creatorScore, and
+  badges are unaffected. Replay is opportunistic (app launch, or a manual "Retry now" on
+  the profile screen's "N check-ins waiting to sync" banner) — no background sync.
+  **Narrower than the general case, flagged:** only a network failure at the very first
+  intent call queues; one striking later in an already-in-progress live flow still
+  surfaces as today's plain error (deciding what to do with an already-uploaded photo
+  mid-flow is deferred until it's a real problem).
 - Ops: rejection-rate-by-cause dashboard, trust-event monitoring, moderation SLA.
 
 Testable: retention (D7 second check-in ≥ 30%), verification false-reject < 5% outdoors,

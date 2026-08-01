@@ -151,13 +151,16 @@ class WanderpostApi {
     return (nonce: body['nonce'] as String, expiresInS: body['expiresInS'] as int);
   }
 
-  /// SPEC §5/§7 `POST /checkins`. `capture` is required for `mode: 'photo'` (§13.2).
+  /// SPEC §5/§7/§17 `POST /checkins`. `capture` is required for `mode: 'photo'` (§13.2).
+  /// `evidence: 'deferred'` is the offline check-in outbox's replay path (§17) — the
+  /// caller supplies the check-in's true, possibly hours-old `fixes`/`capture.capturedAt`.
   Future<Checkin> submitCheckin({
     required String nonce,
     required String poiId,
     required String mode,
     required List<GpsFix> fixes,
     required String integrityToken,
+    String evidence = 'live',
     ({String token, String capturedAt, String storageKey})? capture,
   }) async {
     final body = await client.postJson(
@@ -168,6 +171,7 @@ class WanderpostApi {
         'mode': mode,
         'fixes': fixes.map((f) => f.toMap()).toList(),
         'integrityToken': integrityToken,
+        'evidence': evidence,
         if (capture != null)
           'capture': {
             'token': capture.token,

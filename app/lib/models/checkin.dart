@@ -10,6 +10,7 @@ class Checkin with _$Checkin {
     required String poiId,
     required String status,
     required String mode,
+    required String evidence,
     required String createdAt,
     String? verifiedAt,
   }) = _Checkin;
@@ -19,6 +20,7 @@ class Checkin with _$Checkin {
         poiId: json['poiId'] as String,
         status: json['status'] as String,
         mode: json['mode'] as String,
+        evidence: json['evidence'] as String,
         createdAt: json['createdAt'] as String,
         verifiedAt: json['verifiedAt'] as String?,
       );

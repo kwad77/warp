@@ -48,4 +48,9 @@ class AppConfig {
   /// SPEC §2 `UPLOAD_MAX_BYTES` — `resizeForUpload` steps quality down to try to fit this
   /// before the server's own HEAD check (§6) would reject an oversized upload.
   static const int uploadMaxBytes = 1048576;
+
+  /// SPEC §2/§17 `CHECKIN_DEFERRED_MAX_AGE_S` — an outbox item older than this by the time
+  /// it's replayed is dropped without a server round trip (the server would
+  /// `stale_evidence`-reject it anyway).
+  static const int checkinDeferredMaxAgeS = 86400;
 }

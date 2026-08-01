@@ -46,7 +46,8 @@ TEST_DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm
 migrations/        numbered SQL, forward-only (SPEC §8 is the authority)
 src/constants.ts   SPEC §2 constants — never change without a SPEC edit
 src/errors.ts      SPEC §3 envelope + closed code set
-src/verification/  presence & velocity math — pure functions, table-driven tests
+src/verification/  presence, velocity, evidence-freshness (SPEC §17, M2) math — pure
+                   functions, table-driven tests
 src/auth/          tokens (JWT) + email-code service, refresh rotation, Apple/Google
                    ID-token verification (oidc.ts, config-gated — SPEC §4)
 src/db/            drizzle schema (mirror of migrations), client, migration runner

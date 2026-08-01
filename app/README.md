@@ -10,7 +10,8 @@ handling). M1 step 6 (SPEC §14): profile screen — stats, My Places, coverage 
 weekly leaderboard, sign-out. M1 step 5 (moderation loop) is server-only and already
 shipped (`server/README.md`). M2 (SPEC §15): personal coverage map — a heatmap below the
 pin-mode zoom threshold, own postcards + nearby POIs above it, reachable from Profile's
-"View my map".
+"View my map". M2 (SPEC §17): offline check-in outbox — a check-in attempted with no
+connectivity is captured locally and replayed once the app is back online.
 
 ## Setup
 
@@ -74,7 +75,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (89 tests as of the personal coverage map slice). No live device is
+All three must be clean/green (110 tests as of the offline check-in outbox slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -89,23 +90,30 @@ lib/core/       API client (auth interceptor, refresh-on-401), token storage
                 pre-upload photo resize (image_resize.dart — pure function, no platform
                 channel, so it's tested directly rather than behind a fake interface),
                 app-wide constants, Riverpod provider wiring
-lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed. gps_fix.dart
-                and poi_create_result.dart are client→server-only (toMap, no fromMap).
+lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed.
+                poi_create_result.dart is client→server-only (toMap, no fromMap);
+                gps_fix.dart gained fromMap for the offline outbox's local persistence
+                (SPEC §17) — still never parsed from a server response.
 lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clustering,
                 "create POI" FAB); poi/ (detail sheet + "Check in" action, POI creation:
                 form, shared in-app camera capture screen, face-detection gate, R2 photo
                 uploader, GPS location source); checkin/ (mode choice, lazy device
                 registration, `FixCollector` — pure multi-fix gathering over each fix's
                 own timestamp, integrity-token seam, controller driving intent → fixes →
-                photo → submit); profile/ (stats, My Places, coverage count, weekly
-                leaderboard, sign-out — loads GET /me + /me/map + /me/coverage +
-                /leaderboards/coverage concurrently); coverage/ (SPEC §15 personal map —
-                heatmap below the pin-mode zoom threshold via MapLibre's
-                addHeatmapLayer, CircleManager pins above it, GET /me/map cached and
-                re-filtered client-side per viewport since that endpoint isn't bbox-aware).
-                Every platform-channel-backed piece (camera/ML Kit, geolocator, R2 PUT,
-                device attestation) sits behind a small interface so controllers are
-                unit-testable, same pattern as SecureStore.
+                photo → submit; `CheckinOutbox`/`CheckinOutboxController` — SPEC §17's
+                durable local queue + opportunistic replay for a check-in attempted with
+                no connectivity); profile/ (stats, My Places, coverage count, weekly
+                leaderboard, sign-out, "N check-ins waiting to sync" banner — loads
+                GET /me + /me/map + /me/coverage + /leaderboards/coverage concurrently);
+                coverage/ (SPEC §15 personal map — heatmap below the pin-mode zoom
+                threshold via MapLibre's addHeatmapLayer, CircleManager pins above it,
+                GET /me/map cached and re-filtered client-side per viewport since that
+                endpoint isn't bbox-aware). Every platform-channel-backed piece (camera/ML
+                Kit, geolocator, R2 PUT, device attestation) sits behind a small interface
+                so controllers are unit-testable, same pattern as SecureStore —
+                `CheckinOutbox` takes the same approach for its one platform-channel call
+                (`path_provider`'s directory lookup), injectable so tests exercise its
+                real file-I/O logic against a temp directory instead of faking it away.
 test/           Mirrors lib/; test/helpers/fake_adapter.dart is a small in-repo Dio
                 HttpClientAdapter fake (no mock-http package needed) used across every
                 controller test (auth, map, POI creation, check-in, profile), and

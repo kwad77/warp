@@ -28,4 +28,9 @@ class CheckinState with _$CheckinState {
   /// Fewer than `MIN_FIXES` fixes collected before `FIX_WINDOW_MAX_S` elapsed.
   const factory CheckinState.fixTimeout() = _FixTimeout;
   const factory CheckinState.error(String message) = _Error;
+
+  /// SPEC §17 — `POST /checkins/intent` failed with no connectivity; captured locally and
+  /// queued in the offline outbox instead of erroring outright. Terminal, like `verified`/
+  /// `pending` — the caller finds out the real verdict once the outbox replays.
+  const factory CheckinState.queued() = _Queued;
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wanderpost/models/checkin.dart';
 import 'package:wanderpost/models/cluster.dart';
 import 'package:wanderpost/models/coverage_heatmap_cell.dart';
 import 'package:wanderpost/models/coverage_heatmap_result.dart';
@@ -11,6 +12,7 @@ import 'package:wanderpost/models/poi.dart';
 import 'package:wanderpost/models/poi_create_result.dart';
 import 'package:wanderpost/models/poi_pin.dart';
 import 'package:wanderpost/models/pois_result.dart';
+import 'package:wanderpost/models/queued_checkin.dart';
 
 void main() {
   test('PoiPin.fromMap parses the SPEC §7 shape', () {
@@ -108,6 +110,60 @@ void main() {
       'accuracyM': 12.5,
       'capturedAt': '2026-03-04T05:06:07.000Z',
     });
+  });
+
+  test('GpsFix.fromMap round-trips through toMap (SPEC §17 outbox persistence)', () {
+    final fix = GpsFix(
+      lat: 38.7,
+      lng: -9.1,
+      accuracyM: 12.5,
+      capturedAt: DateTime.utc(2026, 3, 4, 5, 6, 7),
+    );
+    final roundTripped = GpsFix.fromMap(fix.toMap());
+    expect(roundTripped, fix);
+  });
+
+  test('Checkin.fromMap parses evidence (SPEC §17)', () {
+    final checkin = Checkin.fromMap({
+      'id': 'c1',
+      'poiId': 'poi1',
+      'status': 'verified',
+      'mode': 'confirm',
+      'evidence': 'deferred',
+      'createdAt': '2026-01-01T00:00:00.000Z',
+      'verifiedAt': '2026-01-01T00:00:00.000Z',
+    });
+    expect(checkin.evidence, 'deferred');
+  });
+
+  test('QueuedCheckin round-trips through toMap/fromMap, including a null photo', () {
+    final queued = QueuedCheckin(
+      id: 'q1',
+      poiId: 'poi1',
+      mode: 'confirm',
+      fixes: [
+        GpsFix(lat: 38.7, lng: -9.1, accuracyM: 10, capturedAt: DateTime.utc(2026, 1, 1)),
+      ],
+      attemptedAt: DateTime.utc(2026, 1, 1, 0, 0, 30),
+    );
+    final roundTripped = QueuedCheckin.fromMap(queued.toMap());
+    expect(roundTripped, queued);
+  });
+
+  test('QueuedCheckin round-trips a photo path and capturedAt', () {
+    final queued = QueuedCheckin(
+      id: 'q1',
+      poiId: 'poi1',
+      mode: 'photo',
+      fixes: [
+        GpsFix(lat: 38.7, lng: -9.1, accuracyM: 10, capturedAt: DateTime.utc(2026, 1, 1)),
+      ],
+      attemptedAt: DateTime.utc(2026, 1, 1, 0, 0, 30),
+      photoPath: '/tmp/q1.jpg',
+      photoCapturedAt: DateTime.utc(2026, 1, 1, 0, 0, 9),
+    );
+    final roundTripped = QueuedCheckin.fromMap(queued.toMap());
+    expect(roundTripped, queued);
   });
 
   test('PoiCreateResult distinguishes created vs dedupe', () {

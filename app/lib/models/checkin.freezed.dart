@@ -21,6 +21,7 @@ mixin _$Checkin {
   String get poiId => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
   String get mode => throw _privateConstructorUsedError;
+  String get evidence => throw _privateConstructorUsedError;
   String get createdAt => throw _privateConstructorUsedError;
   String? get verifiedAt => throw _privateConstructorUsedError;
 
@@ -40,6 +41,7 @@ abstract class $CheckinCopyWith<$Res> {
     String poiId,
     String status,
     String mode,
+    String evidence,
     String createdAt,
     String? verifiedAt,
   });
@@ -64,6 +66,7 @@ class _$CheckinCopyWithImpl<$Res, $Val extends Checkin>
     Object? poiId = null,
     Object? status = null,
     Object? mode = null,
+    Object? evidence = null,
     Object? createdAt = null,
     Object? verifiedAt = freezed,
   }) {
@@ -84,6 +87,10 @@ class _$CheckinCopyWithImpl<$Res, $Val extends Checkin>
             mode: null == mode
                 ? _value.mode
                 : mode // ignore: cast_nullable_to_non_nullable
+                      as String,
+            evidence: null == evidence
+                ? _value.evidence
+                : evidence // ignore: cast_nullable_to_non_nullable
                       as String,
             createdAt: null == createdAt
                 ? _value.createdAt
@@ -112,6 +119,7 @@ abstract class _$$CheckinImplCopyWith<$Res> implements $CheckinCopyWith<$Res> {
     String poiId,
     String status,
     String mode,
+    String evidence,
     String createdAt,
     String? verifiedAt,
   });
@@ -135,6 +143,7 @@ class __$$CheckinImplCopyWithImpl<$Res>
     Object? poiId = null,
     Object? status = null,
     Object? mode = null,
+    Object? evidence = null,
     Object? createdAt = null,
     Object? verifiedAt = freezed,
   }) {
@@ -155,6 +164,10 @@ class __$$CheckinImplCopyWithImpl<$Res>
         mode: null == mode
             ? _value.mode
             : mode // ignore: cast_nullable_to_non_nullable
+                  as String,
+        evidence: null == evidence
+            ? _value.evidence
+            : evidence // ignore: cast_nullable_to_non_nullable
                   as String,
         createdAt: null == createdAt
             ? _value.createdAt
@@ -177,6 +190,7 @@ class _$CheckinImpl implements _Checkin {
     required this.poiId,
     required this.status,
     required this.mode,
+    required this.evidence,
     required this.createdAt,
     this.verifiedAt,
   });
@@ -190,13 +204,15 @@ class _$CheckinImpl implements _Checkin {
   @override
   final String mode;
   @override
+  final String evidence;
+  @override
   final String createdAt;
   @override
   final String? verifiedAt;
 
   @override
   String toString() {
-    return 'Checkin(id: $id, poiId: $poiId, status: $status, mode: $mode, createdAt: $createdAt, verifiedAt: $verifiedAt)';
+    return 'Checkin(id: $id, poiId: $poiId, status: $status, mode: $mode, evidence: $evidence, createdAt: $createdAt, verifiedAt: $verifiedAt)';
   }
 
   @override
@@ -208,6 +224,8 @@ class _$CheckinImpl implements _Checkin {
             (identical(other.poiId, poiId) || other.poiId == poiId) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.mode, mode) || other.mode == mode) &&
+            (identical(other.evidence, evidence) ||
+                other.evidence == evidence) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.verifiedAt, verifiedAt) ||
@@ -215,8 +233,16 @@ class _$CheckinImpl implements _Checkin {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, poiId, status, mode, createdAt, verifiedAt);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    poiId,
+    status,
+    mode,
+    evidence,
+    createdAt,
+    verifiedAt,
+  );
 
   /// Create a copy of Checkin
   /// with the given fields replaced by the non-null parameter values.
@@ -233,6 +259,7 @@ abstract class _Checkin implements Checkin {
     required final String poiId,
     required final String status,
     required final String mode,
+    required final String evidence,
     required final String createdAt,
     final String? verifiedAt,
   }) = _$CheckinImpl;
@@ -245,6 +272,8 @@ abstract class _Checkin implements Checkin {
   String get status;
   @override
   String get mode;
+  @override
+  String get evidence;
   @override
   String get createdAt;
   @override

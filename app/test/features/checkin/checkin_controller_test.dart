@@ -10,6 +10,7 @@ import 'package:wanderpost/core/secure_store.dart';
 import 'package:wanderpost/core/token_store.dart';
 import 'package:wanderpost/core/wanderpost_api.dart';
 import 'package:wanderpost/features/checkin/checkin_controller.dart';
+import 'package:wanderpost/features/checkin/checkin_outbox.dart';
 import 'package:wanderpost/features/checkin/checkin_state.dart';
 import 'package:wanderpost/features/checkin/integrity_token_provider.dart';
 import 'package:wanderpost/features/checkin/pending_checkin_photo.dart';
@@ -83,12 +84,24 @@ GpsFix _fixAt(int seconds) => GpsFix(
 
 final _twoFixes = [_fixAt(0), _fixAt(9)];
 
+/// Real `CheckinOutbox`, pointed at a fresh temp directory per test — no fake needed,
+/// its file-I/O logic just runs for real (see `checkin_outbox_test.dart` for its own
+/// dedicated coverage).
+CheckinOutbox _tempOutbox() {
+  Directory? dir;
+  return CheckinOutbox(
+    directoryProvider: () async =>
+        dir ??= await Directory.systemTemp.createTemp('checkin_outbox_test_'),
+  );
+}
+
 ({
   WanderpostApi api,
   FakeAdapter adapter,
   _FakeLocationSource location,
   _FakeFaceGate faceGate,
   _FakePhotoUploader uploader,
+  CheckinOutbox outbox,
 }) _build({List<GpsFix>? fixes}) {
   final adapter = FakeAdapter();
   final api = WanderpostApi(
@@ -104,6 +117,7 @@ final _twoFixes = [_fixAt(0), _fixAt(9)];
     location: _FakeLocationSource(fixes ?? _twoFixes),
     faceGate: _FakeFaceGate(),
     uploader: _FakePhotoUploader(),
+    outbox: _tempOutbox(),
   );
 }
 
@@ -114,6 +128,7 @@ CheckinController _controller(
     _FakeLocationSource location,
     _FakeFaceGate faceGate,
     _FakePhotoUploader uploader,
+    CheckinOutbox outbox,
   }) built,
 ) =>
     CheckinController(
@@ -122,6 +137,7 @@ CheckinController _controller(
       integrityTokenProvider: _FakeIntegrityTokenProvider(),
       faceGate: built.faceGate,
       uploader: built.uploader,
+      outbox: built.outbox,
     );
 
 void _stubIntent(FakeAdapter adapter, {String nonce = 'nonce123'}) {
@@ -135,6 +151,7 @@ void _stubCheckin(FakeAdapter adapter, {required String status}) {
       'poiId': 'poi1',
       'status': status,
       'mode': 'confirm',
+      'evidence': 'live',
       'createdAt': '2026-01-01T00:00:09.000Z',
       if (status == 'verified') 'verifiedAt': '2026-01-01T00:00:09.000Z',
     },
@@ -162,6 +179,7 @@ void main() {
       photoProcessingFailed: () => fail('expected verified'),
       fixTimeout: () => fail('expected verified'),
       error: (_) => fail('expected verified'),
+      queued: () => fail('expected verified'),
     );
     expect(built.uploader.uploadedUrls, isEmpty);
     final submitBody = built.adapter.requests.last.data as Map<String, dynamic>;
@@ -237,6 +255,7 @@ void main() {
           'poiId': 'poi1',
           'status': 'verified',
           'mode': 'confirm',
+          'evidence': 'live',
           'createdAt': '2026-01-01T00:00:09.000Z',
           'verifiedAt': '2026-01-01T00:00:09.000Z',
         },
@@ -363,6 +382,110 @@ void main() {
 
     expect(controller.state, const CheckinState.idle());
     expect(built.uploader.uploadedUrls, isEmpty);
+  });
+
+  group('SPEC §17 — offline check-in outbox', () {
+    void stubIntentNetworkFailure(FakeAdapter adapter) {
+      adapter.on(
+        'POST',
+        '/v1/checkins/intent',
+        (options) => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        ),
+      );
+    }
+
+    test('confirm mode: no connectivity at intent time queues fixes, no /checkins call', () async {
+      final built = _build();
+      stubIntentNetworkFailure(built.adapter);
+      final controller = _controller(built);
+
+      await controller.submit(poiId: 'poi1', deviceId: 'dev1', mode: 'confirm');
+
+      expect(controller.state, const CheckinState.queued());
+      expect(built.adapter.requests.where((r) => r.path == '/v1/checkins'), isEmpty);
+      final queued = await built.outbox.load();
+      expect(queued, hasLength(1));
+      expect(queued.single.poiId, 'poi1');
+      expect(queued.single.mode, 'confirm');
+      expect(queued.single.fixes, hasLength(2));
+      expect(queued.single.photoPath, isNull);
+    });
+
+    test('photo mode: no connectivity at intent time still face-gates and resizes before queuing', () async {
+      final built = _build();
+      stubIntentNetworkFailure(built.adapter);
+      final controller = _controller(built);
+      final tempFile = File.fromUri(Directory.systemTemp.uri.resolve('checkin_outbox_photo.jpg'))
+        ..writeAsBytesSync(img.encodeJpg(img.Image(width: 10, height: 10)));
+      final capturedAt = DateTime.utc(2026, 1, 1, 0, 0, 9);
+
+      await controller.submit(
+        poiId: 'poi1',
+        deviceId: 'dev1',
+        mode: 'photo',
+        capturePhoto: (nonce) async =>
+            PendingCheckinPhoto(path: tempFile.path, capturedAt: capturedAt),
+      );
+
+      expect(controller.state, const CheckinState.queued());
+      expect(built.faceGate.checkedPaths, [tempFile.path]);
+      expect(built.uploader.uploadedUrls, isEmpty);
+      final queued = await built.outbox.load();
+      expect(queued, hasLength(1));
+      expect(queued.single.mode, 'photo');
+      expect(queued.single.photoPath, isNotNull);
+      expect(File(queued.single.photoPath!).existsSync(), isTrue);
+      expect(queued.single.photoCapturedAt, capturedAt);
+    });
+
+    test('photo mode: a face detected still blocks before queuing', () async {
+      final built = _build();
+      built.faceGate.result = true;
+      stubIntentNetworkFailure(built.adapter);
+      final controller = _controller(built);
+      final tempFile =
+          File.fromUri(Directory.systemTemp.uri.resolve('checkin_outbox_blocked.jpg'))
+            ..writeAsBytesSync([1, 2, 3]);
+
+      await controller.submit(
+        poiId: 'poi1',
+        deviceId: 'dev1',
+        mode: 'photo',
+        capturePhoto: (nonce) async => PendingCheckinPhoto(
+          path: tempFile.path,
+          capturedAt: DateTime.utc(2026, 1, 1, 0, 0, 9),
+        ),
+      );
+
+      expect(controller.state, const CheckinState.photoBlocked());
+      expect(await built.outbox.load(), isEmpty);
+    });
+
+    test('fewer than minFixes at intent-network-failure time still hits fixTimeout, nothing queued', () async {
+      final built = _build(fixes: [_fixAt(0)]);
+      stubIntentNetworkFailure(built.adapter);
+      final controller = _controller(built);
+
+      await controller.submit(poiId: 'poi1', deviceId: 'dev1', mode: 'confirm');
+
+      expect(controller.state, const CheckinState.fixTimeout());
+      expect(await built.outbox.load(), isEmpty);
+    });
+
+    test('checkin/duplicate at intent time maps to duplicate, not queued', () async {
+      final built = _build();
+      built.adapter.onJson('POST', '/v1/checkins/intent', 409, {
+        'error': {'code': 'checkin/duplicate', 'message': 'Already checked in at this POI'},
+      });
+      final controller = _controller(built);
+
+      await controller.submit(poiId: 'poi1', deviceId: 'dev1', mode: 'confirm');
+
+      expect(controller.state, const CheckinState.duplicate());
+      expect(await built.outbox.load(), isEmpty);
+    });
   });
 }
 

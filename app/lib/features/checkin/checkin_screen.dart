@@ -89,6 +89,12 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
               color: Colors.grey,
               message: "You've already checked in here.",
             ),
+            queued: () => const _Result(
+              icon: Icons.cloud_off,
+              color: Colors.blueGrey,
+              message: "No connection — saved and will sync automatically once you're back "
+                  'online.',
+            ),
             photoBlocked: () => _Result(
               icon: Icons.error_outline,
               color: Colors.red,

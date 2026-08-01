@@ -29,6 +29,7 @@ mixin _$CheckinState {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
@@ -42,6 +43,7 @@ mixin _$CheckinState {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
@@ -55,6 +57,7 @@ mixin _$CheckinState {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -70,6 +73,7 @@ mixin _$CheckinState {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
@@ -83,6 +87,7 @@ mixin _$CheckinState {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
@@ -96,6 +101,7 @@ mixin _$CheckinState {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
 }
@@ -173,6 +179,7 @@ class _$IdleImpl implements _Idle {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return idle();
   }
@@ -190,6 +197,7 @@ class _$IdleImpl implements _Idle {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return idle?.call();
   }
@@ -207,6 +215,7 @@ class _$IdleImpl implements _Idle {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (idle != null) {
@@ -229,6 +238,7 @@ class _$IdleImpl implements _Idle {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return idle(this);
   }
@@ -246,6 +256,7 @@ class _$IdleImpl implements _Idle {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return idle?.call(this);
   }
@@ -263,6 +274,7 @@ class _$IdleImpl implements _Idle {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (idle != null) {
@@ -329,6 +341,7 @@ class _$InProgressImpl implements _InProgress {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return inProgress();
   }
@@ -346,6 +359,7 @@ class _$InProgressImpl implements _InProgress {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return inProgress?.call();
   }
@@ -363,6 +377,7 @@ class _$InProgressImpl implements _InProgress {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (inProgress != null) {
@@ -385,6 +400,7 @@ class _$InProgressImpl implements _InProgress {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return inProgress(this);
   }
@@ -402,6 +418,7 @@ class _$InProgressImpl implements _InProgress {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return inProgress?.call(this);
   }
@@ -419,6 +436,7 @@ class _$InProgressImpl implements _InProgress {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (inProgress != null) {
@@ -524,6 +542,7 @@ class _$VerifiedImpl implements _Verified {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return verified(checkin);
   }
@@ -541,6 +560,7 @@ class _$VerifiedImpl implements _Verified {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return verified?.call(checkin);
   }
@@ -558,6 +578,7 @@ class _$VerifiedImpl implements _Verified {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (verified != null) {
@@ -580,6 +601,7 @@ class _$VerifiedImpl implements _Verified {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return verified(this);
   }
@@ -597,6 +619,7 @@ class _$VerifiedImpl implements _Verified {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return verified?.call(this);
   }
@@ -614,6 +637,7 @@ class _$VerifiedImpl implements _Verified {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (verified != null) {
@@ -727,6 +751,7 @@ class _$PendingImpl implements _Pending {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return pending(checkin);
   }
@@ -744,6 +769,7 @@ class _$PendingImpl implements _Pending {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return pending?.call(checkin);
   }
@@ -761,6 +787,7 @@ class _$PendingImpl implements _Pending {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (pending != null) {
@@ -783,6 +810,7 @@ class _$PendingImpl implements _Pending {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return pending(this);
   }
@@ -800,6 +828,7 @@ class _$PendingImpl implements _Pending {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return pending?.call(this);
   }
@@ -817,6 +846,7 @@ class _$PendingImpl implements _Pending {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (pending != null) {
@@ -924,6 +954,7 @@ class _$RejectedImpl implements _Rejected {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return rejected(reasons);
   }
@@ -941,6 +972,7 @@ class _$RejectedImpl implements _Rejected {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return rejected?.call(reasons);
   }
@@ -958,6 +990,7 @@ class _$RejectedImpl implements _Rejected {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (rejected != null) {
@@ -980,6 +1013,7 @@ class _$RejectedImpl implements _Rejected {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return rejected(this);
   }
@@ -997,6 +1031,7 @@ class _$RejectedImpl implements _Rejected {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return rejected?.call(this);
   }
@@ -1014,6 +1049,7 @@ class _$RejectedImpl implements _Rejected {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (rejected != null) {
@@ -1088,6 +1124,7 @@ class _$DuplicateImpl implements _Duplicate {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return duplicate();
   }
@@ -1105,6 +1142,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return duplicate?.call();
   }
@@ -1122,6 +1160,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (duplicate != null) {
@@ -1144,6 +1183,7 @@ class _$DuplicateImpl implements _Duplicate {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return duplicate(this);
   }
@@ -1161,6 +1201,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return duplicate?.call(this);
   }
@@ -1178,6 +1219,7 @@ class _$DuplicateImpl implements _Duplicate {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (duplicate != null) {
@@ -1244,6 +1286,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return photoBlocked();
   }
@@ -1261,6 +1304,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return photoBlocked?.call();
   }
@@ -1278,6 +1322,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (photoBlocked != null) {
@@ -1300,6 +1345,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return photoBlocked(this);
   }
@@ -1317,6 +1363,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return photoBlocked?.call(this);
   }
@@ -1334,6 +1381,7 @@ class _$PhotoBlockedImpl implements _PhotoBlocked {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (photoBlocked != null) {
@@ -1401,6 +1449,7 @@ class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return photoProcessingFailed();
   }
@@ -1418,6 +1467,7 @@ class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return photoProcessingFailed?.call();
   }
@@ -1435,6 +1485,7 @@ class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (photoProcessingFailed != null) {
@@ -1457,6 +1508,7 @@ class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return photoProcessingFailed(this);
   }
@@ -1474,6 +1526,7 @@ class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return photoProcessingFailed?.call(this);
   }
@@ -1491,6 +1544,7 @@ class _$PhotoProcessingFailedImpl implements _PhotoProcessingFailed {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (photoProcessingFailed != null) {
@@ -1557,6 +1611,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return fixTimeout();
   }
@@ -1574,6 +1629,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return fixTimeout?.call();
   }
@@ -1591,6 +1647,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (fixTimeout != null) {
@@ -1613,6 +1670,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return fixTimeout(this);
   }
@@ -1630,6 +1688,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return fixTimeout?.call(this);
   }
@@ -1647,6 +1706,7 @@ class _$FixTimeoutImpl implements _FixTimeout {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (fixTimeout != null) {
@@ -1740,6 +1800,7 @@ class _$ErrorImpl implements _Error {
     required TResult Function() photoProcessingFailed,
     required TResult Function() fixTimeout,
     required TResult Function(String message) error,
+    required TResult Function() queued,
   }) {
     return error(message);
   }
@@ -1757,6 +1818,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function()? photoProcessingFailed,
     TResult? Function()? fixTimeout,
     TResult? Function(String message)? error,
+    TResult? Function()? queued,
   }) {
     return error?.call(message);
   }
@@ -1774,6 +1836,7 @@ class _$ErrorImpl implements _Error {
     TResult Function()? photoProcessingFailed,
     TResult Function()? fixTimeout,
     TResult Function(String message)? error,
+    TResult Function()? queued,
     required TResult orElse(),
   }) {
     if (error != null) {
@@ -1796,6 +1859,7 @@ class _$ErrorImpl implements _Error {
     photoProcessingFailed,
     required TResult Function(_FixTimeout value) fixTimeout,
     required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
   }) {
     return error(this);
   }
@@ -1813,6 +1877,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult? Function(_FixTimeout value)? fixTimeout,
     TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
   }) {
     return error?.call(this);
   }
@@ -1830,6 +1895,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
     TResult Function(_FixTimeout value)? fixTimeout,
     TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
     required TResult orElse(),
   }) {
     if (error != null) {
@@ -1849,4 +1915,166 @@ abstract class _Error implements CheckinState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ErrorImplCopyWith<_$ErrorImpl> get copyWith =>
       throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$QueuedImplCopyWith<$Res> {
+  factory _$$QueuedImplCopyWith(
+    _$QueuedImpl value,
+    $Res Function(_$QueuedImpl) then,
+  ) = __$$QueuedImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$QueuedImplCopyWithImpl<$Res>
+    extends _$CheckinStateCopyWithImpl<$Res, _$QueuedImpl>
+    implements _$$QueuedImplCopyWith<$Res> {
+  __$$QueuedImplCopyWithImpl(
+    _$QueuedImpl _value,
+    $Res Function(_$QueuedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CheckinState
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$QueuedImpl implements _Queued {
+  const _$QueuedImpl();
+
+  @override
+  String toString() {
+    return 'CheckinState.queued()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is _$QueuedImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() idle,
+    required TResult Function() inProgress,
+    required TResult Function(Checkin checkin) verified,
+    required TResult Function(Checkin checkin) pending,
+    required TResult Function(List<String> reasons) rejected,
+    required TResult Function() duplicate,
+    required TResult Function() photoBlocked,
+    required TResult Function() photoProcessingFailed,
+    required TResult Function() fixTimeout,
+    required TResult Function(String message) error,
+    required TResult Function() queued,
+  }) {
+    return queued();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? idle,
+    TResult? Function()? inProgress,
+    TResult? Function(Checkin checkin)? verified,
+    TResult? Function(Checkin checkin)? pending,
+    TResult? Function(List<String> reasons)? rejected,
+    TResult? Function()? duplicate,
+    TResult? Function()? photoBlocked,
+    TResult? Function()? photoProcessingFailed,
+    TResult? Function()? fixTimeout,
+    TResult? Function(String message)? error,
+    TResult? Function()? queued,
+  }) {
+    return queued?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? idle,
+    TResult Function()? inProgress,
+    TResult Function(Checkin checkin)? verified,
+    TResult Function(Checkin checkin)? pending,
+    TResult Function(List<String> reasons)? rejected,
+    TResult Function()? duplicate,
+    TResult Function()? photoBlocked,
+    TResult Function()? photoProcessingFailed,
+    TResult Function()? fixTimeout,
+    TResult Function(String message)? error,
+    TResult Function()? queued,
+    required TResult orElse(),
+  }) {
+    if (queued != null) {
+      return queued();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_Idle value) idle,
+    required TResult Function(_InProgress value) inProgress,
+    required TResult Function(_Verified value) verified,
+    required TResult Function(_Pending value) pending,
+    required TResult Function(_Rejected value) rejected,
+    required TResult Function(_Duplicate value) duplicate,
+    required TResult Function(_PhotoBlocked value) photoBlocked,
+    required TResult Function(_PhotoProcessingFailed value)
+    photoProcessingFailed,
+    required TResult Function(_FixTimeout value) fixTimeout,
+    required TResult Function(_Error value) error,
+    required TResult Function(_Queued value) queued,
+  }) {
+    return queued(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_Idle value)? idle,
+    TResult? Function(_InProgress value)? inProgress,
+    TResult? Function(_Verified value)? verified,
+    TResult? Function(_Pending value)? pending,
+    TResult? Function(_Rejected value)? rejected,
+    TResult? Function(_Duplicate value)? duplicate,
+    TResult? Function(_PhotoBlocked value)? photoBlocked,
+    TResult? Function(_PhotoProcessingFailed value)? photoProcessingFailed,
+    TResult? Function(_FixTimeout value)? fixTimeout,
+    TResult? Function(_Error value)? error,
+    TResult? Function(_Queued value)? queued,
+  }) {
+    return queued?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_Idle value)? idle,
+    TResult Function(_InProgress value)? inProgress,
+    TResult Function(_Verified value)? verified,
+    TResult Function(_Pending value)? pending,
+    TResult Function(_Rejected value)? rejected,
+    TResult Function(_Duplicate value)? duplicate,
+    TResult Function(_PhotoBlocked value)? photoBlocked,
+    TResult Function(_PhotoProcessingFailed value)? photoProcessingFailed,
+    TResult Function(_FixTimeout value)? fixTimeout,
+    TResult Function(_Error value)? error,
+    TResult Function(_Queued value)? queued,
+    required TResult orElse(),
+  }) {
+    if (queued != null) {
+      return queued(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _Queued implements CheckinState {
+  const factory _Queued() = _$QueuedImpl;
 }

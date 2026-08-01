@@ -6,6 +6,7 @@ import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
 import '../../models/user.dart';
+import '../checkin/checkin_outbox_state.dart';
 import '../coverage/personal_map_screen.dart';
 import '../map/map_screen.dart';
 
@@ -28,23 +29,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
-    return state.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (message) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(message),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => ref.read(profileControllerProvider.notifier).load(),
-              child: const Text('Retry'),
+    final outbox = ref.watch(checkinOutboxControllerProvider);
+    return Column(
+      children: [
+        if (outbox.items.isNotEmpty) _OutboxBanner(outbox: outbox),
+        Expanded(
+          child: state.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (message) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(message),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () => ref.read(profileControllerProvider.notifier).load(),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
-          ],
+            loaded: (user, stats, map, coverageCount, leaderboard) =>
+                _buildLoaded(context, user, stats, map, coverageCount, leaderboard),
+          ),
         ),
-      ),
-      loaded: (user, stats, map, coverageCount, leaderboard) =>
-          _buildLoaded(context, user, stats, map, coverageCount, leaderboard),
+      ],
     );
   }
 
@@ -121,6 +130,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: const Text('Sign out'),
         ),
       ],
+    );
+  }
+}
+
+/// SPEC §17 — the manual retry action, alongside the app-launch trigger in `main.dart`.
+/// Not shown at all once the outbox is empty (the common case).
+class _OutboxBanner extends ConsumerWidget {
+  final CheckinOutboxState outbox;
+
+  const _OutboxBanner({required this.outbox});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = outbox.items.length;
+    return Material(
+      color: Colors.blueGrey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                count == 1 ? '1 check-in waiting to sync' : '$count check-ins waiting to sync',
+              ),
+            ),
+            if (outbox.replaying)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              TextButton(
+                onPressed: () => ref.read(checkinOutboxControllerProvider.notifier).replay(),
+                child: const Text('Retry now'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

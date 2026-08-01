@@ -4,6 +4,9 @@ import '../features/auth/auth_controller.dart';
 import '../features/auth/auth_state.dart';
 import '../features/checkin/checkin_controller.dart';
 import '../features/checkin/checkin_state.dart';
+import '../features/checkin/checkin_outbox.dart';
+import '../features/checkin/checkin_outbox_controller.dart';
+import '../features/checkin/checkin_outbox_state.dart';
 import '../features/checkin/integrity_token_provider.dart';
 import '../features/coverage/personal_map_controller.dart';
 import '../features/coverage/personal_map_state.dart';
@@ -80,6 +83,22 @@ final Provider<DeviceStore> deviceStoreProvider = Provider<DeviceStore>((ref) =>
 final Provider<IntegrityTokenProvider> checkinIntegrityTokenProvider =
     Provider<IntegrityTokenProvider>((ref) => DevIntegrityTokenProvider());
 
+// SPEC §17 — offline check-in outbox. Not autoDispose: RootScreen loads/replays it once
+// at app start and its "pending sync" state should survive navigating away and back.
+final Provider<CheckinOutbox> checkinOutboxProvider = Provider<CheckinOutbox>((ref) => CheckinOutbox());
+
+final StateNotifierProvider<CheckinOutboxController, CheckinOutboxState>
+    checkinOutboxControllerProvider =
+    StateNotifierProvider<CheckinOutboxController, CheckinOutboxState>((ref) {
+  return CheckinOutboxController(
+    api: ref.watch(wanderpostApiProvider),
+    outbox: ref.watch(checkinOutboxProvider),
+    integrityTokenProvider: ref.watch(checkinIntegrityTokenProvider),
+    uploader: ref.watch(photoUploaderProvider),
+    deviceStore: ref.watch(deviceStoreProvider),
+  );
+});
+
 final AutoDisposeStateNotifierProvider<CheckinController, CheckinState> checkinControllerProvider =
     StateNotifierProvider.autoDispose<CheckinController, CheckinState>((ref) {
   return CheckinController(
@@ -88,6 +107,7 @@ final AutoDisposeStateNotifierProvider<CheckinController, CheckinState> checkinC
     integrityTokenProvider: ref.watch(checkinIntegrityTokenProvider),
     faceGate: ref.watch(faceGateProvider),
     uploader: ref.watch(photoUploaderProvider),
+    outbox: ref.watch(checkinOutboxProvider),
   );
 });
 
