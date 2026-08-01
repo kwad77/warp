@@ -395,9 +395,10 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /checkins/intent` | ✅ | `{poiId, deviceId}` → `{nonce, expiresInS}` |
 | `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, verifiedAt?}}`; rejected ⇒ `422` per §5.7; `Fix = {lat, lng, accuracyM, capturedAt}` |
 | `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
-| `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count |
+| `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated, creatorScore}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count; `creatorScore` = sum of `checkin_count` across those same POIs (§16, M2) |
 | `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller; `created` = caller's POIs with `status <> 'removed'`; `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md) |
 | `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7, lowercase hex), count}` |
+| `GET /me/badges` | ✅ | → `{badges: [{badgeKey, awardedAt}]}`, ordered by `awardedAt ASC` (§16, M2) |
 | `GET /me/checkins?cursor=&limit=50` | ✅ | → `{items, nextCursor?}` — keyset pagination per the convention below; `limit` max 100 |
 | `DELETE /me` | ✅ | → `{ok}` — soft-delete now (`deleted_at`), hard purge after 14 d (worker, M1.5); revokes every refresh-token family for the user in the same request (immediate logout everywhere) |
 | `GET /me/export` | ✅ | *(M1.5 — requires the job queue, which does not exist yet; until then, 501 `service/unavailable`)* |
@@ -422,7 +423,7 @@ postgis`). Drizzle schema mirrors the *cumulative* state after all migrations; d
 defect. UUIDv7 generated in app code. Applied deltas: **0001** drops
 `checkins_user_poi_unique` and creates
 `UNIQUE INDEX checkins_user_poi_active ON checkins (user_id, poi_id) WHERE status <>
-'rejected'` (§5.7 retry semantics).
+'rejected'` (§5.7 retry semantics). **0002** adds `badge_key` + `badges` (§16, M2).
 
 ```sql
 CREATE TYPE poi_category AS ENUM ('landmark','viewpoint','nature','architecture','street_art','other');
@@ -522,7 +523,13 @@ CREATE TABLE reports (
   status TEXT NOT NULL DEFAULT 'open', resolved_by UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 
--- [M2] badges, health_daily · [M3] entitlements — declared in docs, created when built.
+-- Migration 0002 (§16, M2):
+CREATE TYPE badge_key AS ENUM ('first_in_region', 'poi_milestone_10', 'poi_milestone_50', 'poi_milestone_100');
+CREATE TABLE badges (
+  user_id UUID NOT NULL REFERENCES users(id), badge_key badge_key NOT NULL,
+  awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, badge_key));
+
+-- [M2] health_daily · [M3] entitlements — declared in docs, created when built.
 ```
 
 ## 9. Privacy & safety invariants (MUST NOT ever)
@@ -883,7 +890,80 @@ nullable-and-sometimes-missing field on `LeaderboardEntry`).
 failure shows a retry affordance for the whole screen, not per-section (same one-round-
 trip reasoning as above).
 
-## 15. Definition of done (every PR)
+## 16. Badges & creator score (M2 step 1; exact)
+
+Scope: `docs/MILESTONES.md`'s M2 "Badges v1 (first-in-region, POI milestones) and creator
+score accrual (visible, not yet a leaderboard)". Nothing here previously had a SPEC
+section — M2 items are declared only in `docs/`, not `SPEC.md`, until built. **The badge
+taxonomy and thresholds below are this PR's proposal**, not a pre-existing product
+decision — narrower docs (`ARCHITECTURE.md`'s schema sketch) named the `badges` table and
+the two badge categories but not concrete keys or thresholds; both are picked here and
+flagged, same as `dHashFromGrayscale`'s algorithm choice (§6) was.
+
+**Constants** (new `SPEC_CONSTANTS.badges`):
+```
+POI_CHECKIN_MILESTONES = [10, 50, 100]   // verified check-ins on a POI you created
+```
+
+**Badge taxonomy** (closed set, Postgres enum `badge_key`, mirrors §3's closed-code-set
+discipline):
+- `first_in_region` — awarded once, ever, to whichever user's verified check-in is the
+  first to insert a brand-new row into `user_coverage` for a given `h3_r7` cell (i.e. the
+  first person anyone has recorded a verified check-in "covering" that cell). One-time
+  per user, not per cell — the `badges` table's `(user_id, badge_key)` primary key
+  (`docs/ARCHITECTURE.md`) has no per-instance column, so this cannot be re-earned for a
+  *different* cell; it marks "you were first somewhere," not "you were first everywhere
+  you've been." A user who already holds it is simply never re-checked.
+- `poi_milestone_10` / `poi_milestone_50` / `poi_milestone_100` — awarded to a POI's
+  `creator_id` (not the person checking in, unless they're the same) the moment one of
+  their created POIs' `checkin_count` reaches that exact threshold (§2
+  `POI_CHECKIN_MILESTONES`). Independent thresholds — reaching 50 also awards
+  `poi_milestone_10` if not already held (checked in ascending order).
+
+**Awarding mechanics** (`src/badges/service.ts`, `awardBadgesForVerifiedCheckin`): called
+inside the same transaction as §5.7's `verified` side effects (`user_coverage`
+insert + `checkin_count` increment) — same transaction, not a follow-up step, so a badge
+is never awarded for a check-in that ends up rolled back. `INSERT ... ON CONFLICT
+(user_id, badge_key) DO NOTHING` is the only idempotency guard needed (no separate
+"already has it" check) since re-running the awarding logic against an unrelated
+check-in in an already-covered cell, or a POI whose count already passed a threshold, is
+harmless — the conflict just no-ops. `pending → verified` transitions (worker/admin,
+§5.7) perform the same awarding at transition time, exactly like the existing coverage
+insert / checkin_count increment they already mirror.
+
+**Creator score** (`GET /me`'s `stats`, §7 — no new endpoint): `creatorScore` = sum of
+`checkin_count` across the caller's POIs with `status <> 'removed'` — i.e. total verified
+check-ins received across everything they've created. Deliberately the simplest faithful
+definition (a straight sum, not a weighted/decayed score) since M2 only calls for it being
+*visible*, not ranked — a leaderboard (M3, per `docs/MVP.md`) is where a more considered
+formula would matter, and inventing one now without that pressure risks getting it wrong
+twice.
+
+**New API** (SPEC §7):
+| Endpoint | Auth | Request → Response (2xx) |
+| --- | --- | --- |
+| `GET /me/badges` | ✅ | → `{badges: [{badgeKey, awardedAt}]}`, ordered by `awardedAt ASC` (earned-order, not alphabetical) |
+
+`GET /me`'s `stats` gains `creatorScore: number` alongside the existing
+`checkins`/`cellsCovered`/`poisCreated`.
+
+**Database** (migration `0002_badges_creator_score.sql`, §8 delta): adds
+```sql
+CREATE TYPE badge_key AS ENUM ('first_in_region', 'poi_milestone_10', 'poi_milestone_50', 'poi_milestone_100');
+CREATE TABLE badges (
+  user_id UUID NOT NULL REFERENCES users(id), badge_key badge_key NOT NULL,
+  awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, badge_key));
+```
+No column changes elsewhere — `creatorScore` is computed from the existing
+`pois.checkin_count`, not stored.
+
+**Deferred, flagged, not built here:** the badges/creator-score *leaderboard* (M3, full
+matrix per `docs/MVP.md`); pushing a notification on a new badge (M2's separate "push
+notifications" item, needs APNs/FCM credentials — a real blocker, unlike pHash's); any
+mobile UI surfacing badges (this PR is server-only, matching how M1's moderation loop
+step landed server-first before the profile screen consumed its data).
+
+## 17. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

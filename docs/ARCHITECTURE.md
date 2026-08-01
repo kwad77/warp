@@ -135,7 +135,10 @@ entitlements          -- post-MVP
 
 votes                 (user_id, photo_id, value)          -- best-postcard surfacing
 reports               (id, reporter_id, target_type, target_id, reason, status, resolved_by)
-badges                (user_id, badge_key, awarded_at)
+badges                (user_id, badge_key, awarded_at)  -- implemented, SPEC §16: badge_key
+                                                          -- is a closed 4-value enum
+                                                          -- (first_in_region,
+                                                          -- poi_milestone_{10,50,100})
 health_daily          (user_id, date, steps, distance_m, source)  -- M2, see §9
 leaderboard_snapshots (window, scope, scope_key, computed_at, entries jsonb)
 ```

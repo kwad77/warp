@@ -30,6 +30,7 @@ export interface MeStats {
   checkins: number;
   cellsCovered: number;
   poisCreated: number;
+  creatorScore: number;
 }
 
 export async function getMeStats(pg: Pg, userId: string): Promise<MeStats> {
@@ -37,12 +38,21 @@ export async function getMeStats(pg: Pg, userId: string): Promise<MeStats> {
     SELECT
       (SELECT count(*)::int FROM checkins WHERE user_id = ${userId} AND status = 'verified') AS checkins,
       (SELECT count(*)::int FROM user_coverage WHERE user_id = ${userId}) AS cells_covered,
-      (SELECT count(*)::int FROM pois WHERE creator_id = ${userId} AND status <> 'removed') AS pois_created`;
-  const row = rows[0] as { checkins: number; cells_covered: number; pois_created: number };
+      (SELECT count(*)::int FROM pois WHERE creator_id = ${userId} AND status <> 'removed') AS pois_created,
+      -- SPEC §16 (M2): sum of checkin_count across the caller's non-removed POIs.
+      (SELECT coalesce(sum(checkin_count), 0)::int FROM pois
+        WHERE creator_id = ${userId} AND status <> 'removed') AS creator_score`;
+  const row = rows[0] as {
+    checkins: number;
+    cells_covered: number;
+    pois_created: number;
+    creator_score: number;
+  };
   return {
     checkins: row.checkins,
     cellsCovered: row.cells_covered,
     poisCreated: row.pois_created,
+    creatorScore: row.creator_score,
   };
 }
 

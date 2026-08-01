@@ -2,6 +2,7 @@
 // in src/verification/; this module owns I/O, ordering, and evidence persistence.
 import { createHash, randomBytes } from 'node:crypto';
 import { and, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
+import { awardBadgesForVerifiedCheckin } from '../badges/service.js';
 import { SPEC_CONSTANTS } from '../constants.js';
 import type { Db, Pg } from '../db/client.js';
 import {
@@ -45,12 +46,13 @@ interface PoiRow {
   lng: number;
   radiusM: number;
   status: string;
+  creatorId: string;
 }
 
 async function loadPoi(pg: Pg, poiId: string): Promise<PoiRow | null> {
   const rows = await pg`
     SELECT id, ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng,
-           checkin_radius_m AS radius, status
+           checkin_radius_m AS radius, status, creator_id
     FROM pois WHERE id = ${poiId}`;
   const r = rows[0];
   if (!r) return null;
@@ -60,6 +62,7 @@ async function loadPoi(pg: Pg, poiId: string): Promise<PoiRow | null> {
     lng: Number(r.lng),
     radiusM: Number(r.radius),
     status: r.status as string,
+    creatorId: r.creator_id as string,
   };
 }
 
@@ -312,14 +315,24 @@ export async function submitCheckin(
       verdicts: { final: status, reasons, coverageCell: cell },
     });
     if (status === 'verified') {
+      const cellId = h3ToBigint(coverageCell(poi));
       await tx
         .insert(userCoverage)
-        .values({ userId, h3R7: h3ToBigint(coverageCell(poi)), firstCheckinId: checkinId })
+        .values({ userId, h3R7: cellId, firstCheckinId: checkinId })
         .onConflictDoNothing();
-      await tx
+      const updated = await tx
         .update(pois)
         .set({ checkinCount: sql`${pois.checkinCount} + 1` })
-        .where(eq(pois.id, input.poiId));
+        .where(eq(pois.id, input.poiId))
+        .returning({ checkinCount: pois.checkinCount });
+      // SPEC §16 (M2) — same transaction as the coverage insert/count increment above, so
+      // a rolled-back check-in never awards a badge.
+      await awardBadgesForVerifiedCheckin(tx, {
+        userId,
+        h3R7: cellId,
+        poiCreatorId: poi.creatorId,
+        newPoiCheckinCount: updated[0]?.checkinCount ?? 0,
+      });
     }
   });
 

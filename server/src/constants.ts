@@ -74,6 +74,9 @@ export const SPEC_CONSTANTS = {
   leaderboard: {
     LEADERBOARD_ENTRIES_MAX: 100,
   },
+  badges: {
+    POI_CHECKIN_MILESTONES: [10, 50, 100],
+  },
 } as const;
 
 export type PoiCategory = keyof typeof SPEC_CONSTANTS.checkinRadiusM;

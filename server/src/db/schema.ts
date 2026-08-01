@@ -50,6 +50,12 @@ export const integrityState = pgEnum('integrity_state', [
   'degraded',
   'failed',
 ]);
+export const badgeKey = pgEnum('badge_key', [
+  'first_in_region',
+  'poi_milestone_10',
+  'poi_milestone_50',
+  'poi_milestone_100',
+]);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -239,6 +245,18 @@ export const votes = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.photoId] })],
+);
+
+export const badges = pgTable(
+  'badges',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    badgeKey: badgeKey('badge_key').notNull(),
+    awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.badgeKey] })],
 );
 
 export const reports = pgTable('reports', {

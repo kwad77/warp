@@ -114,7 +114,31 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.user.handle).toMatch(/^explorer_/);
-    expect(body.stats).toMatchObject({ checkins: 1, cellsCovered: 1, poisCreated: 1 });
+    // makeVerifiedCheckin inserts checkins/user_coverage directly and doesn't touch
+    // pois.checkin_count (that increment only happens inside submitCheckin's own
+    // transaction — covered by checkins.integration.test.ts), so creatorScore is 0 here.
+    expect(body.stats).toMatchObject({
+      checkins: 1,
+      cellsCovered: 1,
+      poisCreated: 1,
+      creatorScore: 0,
+    });
+  });
+
+  it('GET /me: creatorScore sums checkin_count across non-removed created POIs only (SPEC §16)', async () => {
+    const u = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 8_000);
+    const poiA = await makePoi(u.userId, ll);
+    const poiB = await makePoi(u.userId, offsetLatMeters(ll, 3_000));
+    const removedPoi = await makePoi(u.userId, offsetLatMeters(ll, 6_000));
+    await handle.pg`UPDATE pois SET checkin_count = 7 WHERE id = ${poiA}`;
+    await handle.pg`UPDATE pois SET checkin_count = 5 WHERE id = ${poiB}`;
+    await handle.pg`UPDATE pois SET checkin_count = 100, status = 'removed' WHERE id = ${removedPoi}`;
+
+    const res = await app.inject({ method: 'GET', url: '/v1/me', headers: u.headers });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().stats.creatorScore).toBe(12);
   });
 
   it('GET /me/map: checkedIn, created, and always-empty vaulted', async () => {

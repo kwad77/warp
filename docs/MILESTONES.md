@@ -92,8 +92,19 @@ mock-location apps and emulators are caught.
 
 - Seed 50–100 founder POIs per city; onboard founding creators.
 - Push notifications (opt-in) + weekly "featured near you".
-- Badges v1 (first-in-region, POI milestones) and creator score accrual (visible, not yet
-  a leaderboard).
+- **Badges v1 and creator score accrual (SPEC §16; done, server-side).** Closed 4-key
+  badge taxonomy proposed and implemented in the same PR (`ARCHITECTURE.md`'s schema
+  sketch named the table and category but not concrete keys/thresholds): `first_in_region`
+  (one-time — first ever verified check-in to cover a brand-new H3 r7 cell) and
+  `poi_milestone_{10,50,100}` (awarded to a POI's creator when its `checkin_count`
+  crosses each threshold, checked ascending so jumping past several in one check-in
+  awards them all). Both awarded inside the same transaction as the verified check-in's
+  existing coverage-insert/count-increment side effects, so a rolled-back check-in never
+  awards one; `INSERT ... ON CONFLICT DO NOTHING` is the only idempotency guard needed.
+  `creatorScore` (sum of `checkin_count` across a user's non-removed created POIs) added
+  to `GET /me`'s `stats`, deliberately the simplest faithful definition since M2 only
+  calls for it being visible, not ranked (that's M3). New `GET /me/badges`. No mobile UI
+  yet — server-first, same order M1's moderation loop landed in.
 - Shareable map image with precision controls.
 - **Postcard sending v1** (ARCHITECTURE.md §10): share-image + unlisted web-postcard link
   from any verified check-in, message moderation, photographer credit. First job of the

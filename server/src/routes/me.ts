@@ -2,6 +2,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { parseBody, requireAuth, requireDb } from '../app.js';
+import { listBadges } from '../badges/service.js';
 import { notImplemented } from '../errors.js';
 import { deleteMe, getMeCoverage, getMeMap, getMeStats, listMeCheckins } from '../me/service.js';
 
@@ -41,6 +42,12 @@ export function registerMeRoutes(app: FastifyInstance): void {
     const query = parseBody(checkinsQuerySchema, req.query);
     const { pg } = requireDb(app);
     return listMeCheckins(pg, userId, query.limit, query.cursor);
+  });
+
+  app.get('/me/badges', async (req) => {
+    const userId = await requireAuth(req);
+    const { db } = requireDb(app);
+    return { badges: await listBadges(db, userId) };
   });
 
   app.get('/me/export', async () => {

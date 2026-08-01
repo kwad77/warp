@@ -54,5 +54,7 @@ src/routes/        thin handlers: parse → service → serialize
 src/storage/       R2 presigned uploads (aws4fetch) + object GET (storage.get, sharp/§6)
 src/moderation/    ModerationProvider seam, verdict application, phash.ts (dHash + the
                    pixel-dimension check — SPEC §6)
+src/badges/        badge taxonomy + awarding, run in the verified check-in's own
+                   transaction (SPEC §16, M2)
 test/              unit + inject route tests + DB integration suite
 ```
