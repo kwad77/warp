@@ -20,7 +20,12 @@ recommendation and open to challenge.
   implementation of our chosen Flutter map package) fails to compile against Flutter 3.44.8
   stable — it calls `ui.platformViewRegistry`, an API current Flutter's web engine no longer
   exposes. Flutter Web was never the plan for the map viewer, and this is a confirmed reason
-  it couldn't have been, at least not with this package pairing today.
+  it couldn't have been, at least not with this package pairing today. Separately, when a
+  browser client was tested against the API directly (a Flutter-Web diagnostic build hitting
+  the real dev server cross-port), the request was blocked by CORS — expected browser
+  behavior the mobile app never encounters. The real web viewer, whenever it's built, will
+  need `Access-Control-Allow-Origin` configured for its origin; noted here so it isn't a
+  surprise then.
 
 ### Backend: TypeScript API in a container ✅
 

@@ -12,17 +12,17 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
    the repo**: table-driven tests per layer, replay-attack tests, fixture devices.
 3. **Flutter app: map + POI browse** — MapLibre map with server-driven clustering, POI
    detail sheet, email-code auth flow (SPEC §12). `flutter analyze` + 35 unit tests are
-   the gate so far. Live rendering was genuinely attempted, not just skipped, and every
-   path is blocked for a distinct, confirmed reason in this environment: Android emulator
-   needs `/dev/kvm` (absent — this is a Docker container, no nested virtualization, no
-   privilege to attach the device); iOS simulator needs macOS (a Linux container can't run
-   one, ever); Flutter Linux desktop builds fine but `maplibre_gl` declares no Linux
-   platform support at all; Flutter Web builds but needs CanvasKit from
-   `gstatic.com`, and this sandbox's outbound HTTPS proxy fails Chromium's TLS handshake
-   for that external fetch (independently confirmed `maplibre_gl_web` 0.21.0 is *also*
-   broken against current Flutter stable — ARCHITECTURE.md). None of these are code
-   defects in this PR. A real device/emulator run is still owed — first opportunity
-   outside this specific sandbox, not a formality to wave through.
+   the gate, **plus one real rendering pass**: a diagnostic Flutter-Web build (map widget
+   stubbed — `maplibre_gl` has no Linux desktop support and `maplibre_gl_web` 0.21.0
+   doesn't compile against current Flutter stable, see ARCHITECTURE.md) was screenshotted
+   with headless Chromium against the real running server. Confirmed live and pixel-real:
+   theming, tab navigation, the auth screen's text field/focus/floating-label behavior,
+   typing an email, tapping "Send code," the request actually reaching the real Fastify
+   backend (visible in its logs), and Riverpod correctly re-rendering the code-entry
+   screen with the email interpolated in. Real device/emulator paths remain blocked for
+   confirmed environment reasons (no `/dev/kvm` in this Docker container; no macOS for
+   iOS). The map itself — the MapLibre widget rendering actual tiles/markers — is still
+   unverified and is the one piece a real device run still owes.
 4. **Flutter app: create + check in** — in-app camera with on-device face check, POI
    creation with dedupe prompt, both check-in modes, success animation, retry/pending UX.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
