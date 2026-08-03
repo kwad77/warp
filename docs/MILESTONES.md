@@ -76,6 +76,23 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
    dependency or credential decision. Still genuinely deferred: the real detector (needs an
    AWS SDK dependency not yet approved) and the human-review admin surface (needs an
    undesigned admin auth realm).
+   - **Flagged, not built: `pending → verified|rejected` (SPEC §5.7) has no
+     implementation anywhere.** Found by the same audit as the voting/reporting gap
+     above, but deliberately NOT fixed in that PR — unlike that one, this touches the
+     same undesigned-admin-auth blocker already called out just above, so building even a
+     minimal version is a real security/product decision, not a mechanical UI-wiring fix.
+     Concretely: a check-in lands `pending` (not just theoretically — `presence`
+     returning `pending` from borderline real-world GPS accuracy at a POI's edge is the
+     realistic path, alongside `integrity_degraded`, a `velocity` cap, or the trust gate)
+     and then has **no path to ever resolve** — no coverage cell, no `checkin_count`, no
+     badge, ever — despite §5.7 assuming a `worker or admin` transition exists.
+     `graphile-worker` is allowlisted (§1) but not actually installed; there is no admin
+     surface at all. A
+     minimal fix (a single internal endpoint gated by a static shared-secret env var —
+     the same seam-not-real-thing-yet pattern as `DevIntegrityVerifier`/
+     `DevModerationProvider` — applying the identical transaction §5.7 already specifies
+     for `pending → verified`) is sketched but intentionally not built without a decision
+     from a human first.
    - **Mobile UI for photo voting + reporting (done, server + mobile).** Found via an
      audit prompted by the discovery-map render bug below: `POST /photos/:id/vote` and
      `POST /reports` were fully built and tested server-side, but nothing in the mobile
