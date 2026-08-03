@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/share_image.dart';
+import '../../models/leaderboard_entry.dart';
 import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
@@ -31,8 +32,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     Future.microtask(() => ref.read(profileControllerProvider.notifier).load());
   }
 
-  /// SPEC §19 — shares the leaderboard section as it's currently rendered (same
-  /// "whatever's on screen" approach as the map share in `PersonalMapScreen`).
+  /// SPEC §19 — shares a small dedicated "standing" card (handle/rank/cells), not a
+  /// screenshot of the visible leaderboard list — that list can include other users'
+  /// handles, which have no business ending up in someone else's shared image.
   Future<void> _shareLeaderboard() async {
     if (_sharingLeaderboard) return;
     setState(() => _sharingLeaderboard = true);
@@ -117,46 +119,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SizedBox(height: 8),
         _PoiGrid(items: _myPlaces(map)),
         const SizedBox(height: 24),
-        Align(
-          alignment: Alignment.centerRight,
-          child: IconButton(
-            icon: _sharingLeaderboard
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.share),
-            onPressed: _sharingLeaderboard ? null : _shareLeaderboard,
-            tooltip: 'Share leaderboard',
+        Text('Weekly leaderboard', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (leaderboard.me != null) ...[
+          Row(
+            children: [
+              Expanded(
+                child: RepaintBoundary(
+                  key: _leaderboardShareKey,
+                  child: _LeaderboardShareCard(handle: user.handle, me: leaderboard.me!),
+                ),
+              ),
+              IconButton(
+                icon: _sharingLeaderboard
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.share),
+                onPressed: _sharingLeaderboard ? null : _shareLeaderboard,
+                tooltip: 'Share your standing',
+              ),
+            ],
           ),
-        ),
-        RepaintBoundary(
-          key: _leaderboardShareKey,
-          child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Weekly leaderboard', style: Theme.of(context).textTheme.titleMedium),
-                if (leaderboard.entries.isEmpty) const Text('No coverage yet this week.'),
-                for (final entry in leaderboard.entries)
-                  ListTile(
-                    leading: Text('#${entry.rank}'),
-                    title: Text(entry.handle),
-                    trailing: Text('${entry.cells} cells'),
-                  ),
-                if (leaderboard.me != null &&
-                    !leaderboard.entries.any((e) => e.rank == leaderboard.me!.rank))
-                  ListTile(
-                    leading: Text('#${leaderboard.me!.rank}'),
-                    title: const Text('You'),
-                    trailing: Text('${leaderboard.me!.cells} cells'),
-                  ),
-              ],
-            ),
+          const SizedBox(height: 8),
+        ],
+        if (leaderboard.entries.isEmpty) const Text('No coverage yet this week.'),
+        for (final entry in leaderboard.entries)
+          ListTile(
+            leading: Text('#${entry.rank}'),
+            title: Text(entry.handle),
+            trailing: Text('${entry.cells} cells'),
           ),
-        ),
+        if (leaderboard.me != null && !leaderboard.entries.any((e) => e.rank == leaderboard.me!.rank))
+          ListTile(
+            leading: Text('#${leaderboard.me!.rank}'),
+            title: const Text('You'),
+            trailing: Text('${leaderboard.me!.cells} cells'),
+          ),
         const SizedBox(height: 24),
         OutlinedButton(
           onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
@@ -213,6 +214,34 @@ class _OutboxBanner extends ConsumerWidget {
                 },
                 child: const Text('Retry now'),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// SPEC §19 — the small rendered "share card" the leaderboard share action captures:
+/// just the caller's own handle/rank/cells, deliberately not the visible leaderboard
+/// list (which can include other users' handles).
+class _LeaderboardShareCard extends StatelessWidget {
+  final String handle;
+  final MeStanding me;
+
+  const _LeaderboardShareCard({required this.handle, required this.me});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(handle, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text('Rank #${me.rank} this week · ${me.cells} cells covered'),
           ],
         ),
       ),

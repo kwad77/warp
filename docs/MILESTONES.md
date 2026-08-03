@@ -170,8 +170,10 @@ mock-location apps and emulators are caught.
   the rest of the feed) — into "places around me" / "places I want to visit" sections.
   Sharing (`share_plus`, new mobile dependency, flagged in SPEC §1): a share action on the
   grid viewer (the current photo), the personal map screen (`RepaintBoundary` capture of
-  the map + heatmap as currently zoomed), and the profile's leaderboard section (ditto).
-  This is deliberately how M2's "shareable map image with precision controls" item below
+  the map + heatmap as currently zoomed), and the profile's leaderboard — the last one
+  captures a small dedicated standing card (handle/rank/cells), not a screenshot of the
+  visible entries list, since that list can include other users' handles. This is
+  deliberately how M2's "shareable map image with precision controls" item below
   gets satisfied — the already-built H3 zoom-tier heatmap (SPEC §15) *is* the precision
   control, not a new slider. Postcard sending v1 (below) is explicitly out of scope for
   this slice. Not yet verified on a real device: `RepaintBoundary.toImage()` capturing a

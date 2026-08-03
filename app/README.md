@@ -121,9 +121,10 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 call sites isn't yet enough to justify the abstraction); profile/ (stats,
                 My Places — a 3-column Instagram-style grid (`_PoiGrid`) opening
                 `PoiGridViewerScreen`'s full-screen swipeable viewer with a share action
-                (SPEC §19) — coverage count, weekly leaderboard with its own share action
-                (a `RepaintBoundary`-captured card, kept out of the shared image itself),
-                sign-out, a combined "N items waiting to sync" banner across both
+                (SPEC §19) — coverage count, weekly leaderboard (its own share action
+                captures a small dedicated `_LeaderboardShareCard` of handle/rank/cells,
+                not the visible entries list, since that list can include other users'
+                handles), sign-out, a combined "N items waiting to sync" banner across both
                 outboxes — loads GET /me + /me/map + /me/coverage +
                 /leaderboards/coverage concurrently); poi/ also has poi_thumbnail.dart
                 (SPEC §19 — renders `PoiPin.thumbnailUrl` or a category-icon placeholder
