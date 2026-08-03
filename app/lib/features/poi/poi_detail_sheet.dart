@@ -6,6 +6,7 @@ import '../../core/constants.dart';
 import '../../core/providers.dart';
 import '../../models/poi.dart';
 import '../checkin/checkin_screen.dart';
+import 'report_dialog.dart';
 
 /// SPEC §12 — fetches `GET /pois/:id` on open; postcard gallery, check-in count,
 /// creator credit. Check-in itself is M1 step 4, not built here.
@@ -46,6 +47,29 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
     }
   }
 
+  /// SPEC §7 — toggles the caller's own vote on gallery photo [index]. Optimistic:
+  /// `voteScore` comes back from the server, `myVote` flips to whatever was just sent.
+  Future<void> _vote(int index) async {
+    final poi = _poi;
+    if (poi == null) return;
+    final photo = poi.gallery[index];
+    final newMyVote = !photo.myVote;
+    try {
+      final voteScore = await ref
+          .read(wanderpostApiProvider)
+          .voteOnPhoto(photo.id, upvote: newMyVote);
+      if (!mounted) return;
+      setState(() {
+        final gallery = [...poi.gallery];
+        gallery[index] = photo.copyWith(myVote: newMyVote, voteScore: voteScore);
+        _poi = poi.copyWith(gallery: gallery);
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -62,7 +86,19 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
         controller: scrollController,
         padding: const EdgeInsets.all(16),
         children: [
-          Text(poi.title, style: Theme.of(context).textTheme.headlineSmall),
+          Row(
+            children: [
+              Expanded(
+                child: Text(poi.title, style: Theme.of(context).textTheme.headlineSmall),
+              ),
+              IconButton(
+                icon: const Icon(Icons.flag_outlined),
+                tooltip: 'Report this place',
+                onPressed: () =>
+                    showReportDialog(context, ref, targetType: 'poi', targetId: poi.id),
+              ),
+            ],
+          ),
           if (poi.description != null) ...[
             const SizedBox(height: 8),
             Text(poi.description!),
@@ -81,19 +117,68 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
             const Text('No postcards yet — be the first.')
           else
             SizedBox(
-              height: 120,
+              height: 160,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: poi.gallery.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    AppConfig.resolveMediaUrl(poi.gallery[i].urlThumb),
+                itemBuilder: (context, i) {
+                  final photo = poi.gallery[i];
+                  return SizedBox(
                     width: 120,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            AppConfig.resolveMediaUrl(photo.urlThumb),
+                            width: 120,
+                            height: 100,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            InkWell(
+                              onTap: () => _vote(i),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      photo.myVote ? Icons.thumb_up : Icons.thumb_up_outlined,
+                                      size: 16,
+                                      color: photo.myVote
+                                          ? Theme.of(context).colorScheme.primary
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text('${photo.voteScore}'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.flag_outlined, size: 18),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Report this photo',
+                              onPressed: () => showReportDialog(
+                                context,
+                                ref,
+                                targetType: 'photo',
+                                targetId: photo.id,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
         ],

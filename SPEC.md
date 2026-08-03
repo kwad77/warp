@@ -420,7 +420,7 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /devices` | ✅ | `{platform: "ios"\|"android", model}` → `{deviceId}` |
 | `GET /pois?bbox=w,s,e,n&zoom=` | 🌐 | → zoom ≥ 13: `{pois: PoiPin[]}` (active only, cap 200, `clusters: []`); zoom < 13: `{pois: [], clusters: Cluster[]}` grouped by r7 cell, `Cluster = {h3, count, centroid: {lat, lng}}` (centroid = mean of member POIs). Bbox wider/taller than 2° with zoom ≥ 13 ⇒ `request/invalid`. Antimeridian-crossing bboxes (w > e) unsupported in M1 ⇒ `request/invalid`. |
 | `GET /pois/nearby?lat=&lng=&radiusM=` | 🌐 | `radiusM` optional, default 2000, max 10000 → `{pois: PoiPin[]}` active only, ordered by distance, max 50; `thumbnailUrl` populated (§19, M2 — bounded result count, cheap enough to compute per request) |
-| `GET /pois/:id` | 🌐 | → `{poi: Poi}` (gallery: approved photos, vote-ranked, max 20). Only `removed` ⇒ 404; `pending_review`/`flagged` POIs serve normally until moderation resolves them. |
+| `GET /pois/:id` | 🌐 (optional auth) | → `{poi: Poi}` (gallery: approved photos, vote-ranked, max 20). Only `removed` ⇒ 404; `pending_review`/`flagged` POIs serve normally until moderation resolves them. Each gallery photo's `myVote` (M2) reflects the caller's own vote on it — `false` for an anonymous caller or one who hasn't voted, same optional-auth pattern `GET /leaderboards/coverage`'s `me` already uses. |
 | `POST /pois` | ✅ | `{title(3..80 code points), description?(..280), category, location, gpsFix: Fix, force?: bool}` → `201 {poi}` or `200 {dedupeCandidates: PoiPin[]}`. Rules: haversine(location, gpsFix) ≤ `PIN_ADJUST_MAX_M` else `poi/outside_pin_adjust`; creation dedupe is **proximity-only** (active POIs within `DEDUPE_RADIUS_M`, found via r9 neighbor cells) — pHash similarity runs later in photo moderation (M1.5); `force: true` skips the dedupe prompt; rate limit §2. New POI: `status='active'`, radius from category (§2). |
 | `POST /pois/:id/photos/presign` | ✅ | `{contentType ∈ ALLOWED_MIME, source: "poi_creation"\|"checkin"}` → `{uploadUrl, storageKey, maxBytes}` (key format §6; no row created yet) |
 | `POST /pois/:id/photos/complete` | ✅ | `{storageKey, source}` → `201 {photo: Photo(moderation=pending)}` — key embeds photoId; server checks HEAD + mints row with uploader = caller (§6). **Idempotent**: the same caller re-completing the same key gets the existing photo back (retry-safe); a different caller ⇒ `request/invalid`. |
@@ -454,8 +454,10 @@ by `(created_at DESC, id DESC)`; an absent/malformed cursor starts from the top;
 thumbnailUrl}` (`thumbnailUrl: string | null` — §19, M2; the POI's best approved photo,
 computed only where noted below, `null` elsewhere including endpoints that don't compute
 it at all) · Full `Poi` adds `{description, creator: {id, handle}, checkinRadiusM, gallery:
-Photo[]}` · `Photo = {id, urlCard, urlThumb, voteScore, uploader: {handle}, status}`
-(non-approved photos visible only to their uploader).
+Photo[]}` · `Photo = {id, urlCard, urlThumb, voteScore, myVote, uploader: {handle},
+status}` (non-approved photos visible only to their uploader; `myVote: boolean` — M2,
+§7's `GET /pois/:id` note — is the one caller-specific field on an otherwise-shared
+shape, `false` whenever there's no authenticated caller or they haven't voted).
 
 ## 8. Database schema (authoritative DDL)
 

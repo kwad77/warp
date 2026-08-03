@@ -8,6 +8,7 @@ import 'package:wanderpost/models/lat_lng.dart';
 import 'package:wanderpost/models/leaderboard_result.dart';
 import 'package:wanderpost/models/me_map.dart';
 import 'package:wanderpost/models/me_stats.dart';
+import 'package:wanderpost/models/photo.dart';
 import 'package:wanderpost/models/poi.dart';
 import 'package:wanderpost/models/poi_create_result.dart';
 import 'package:wanderpost/models/poi_pin.dart';
@@ -86,6 +87,7 @@ void main() {
           'urlCard': '/media/card/x',
           'urlThumb': '/media/thumb/x',
           'voteScore': 3,
+          'myVote': true,
           'uploader': {'handle': 'explorer_y'},
           'status': 'approved',
         },
@@ -93,7 +95,23 @@ void main() {
     });
     expect(poi.creatorHandle, 'explorer_x');
     expect(poi.gallery.single.uploaderHandle, 'explorer_y');
+    expect(poi.gallery.single.myVote, isTrue);
     expect(poi.description, 'A tower.');
+  });
+
+  test('Photo.fromMap parses the SPEC §7 shape, including myVote (SPEC §7)', () {
+    final photo = Photo.fromMap({
+      'id': 'ph1',
+      'urlCard': '/media/card/x',
+      'urlThumb': '/media/thumb/x',
+      'voteScore': 5,
+      'myVote': false,
+      'uploader': {'handle': 'explorer_y'},
+      'status': 'approved',
+    });
+    expect(photo.voteScore, 5);
+    expect(photo.myVote, isFalse);
+    expect(photo.uploaderHandle, 'explorer_y');
   });
 
   test('Poi.fromMap handles a null description', () {

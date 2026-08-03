@@ -421,6 +421,47 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       expect(res.statusCode).toBe(404);
       expect(res.json().error.code).toBe('resource/not_found');
     });
+
+    it("myVote reflects the caller's own vote, false for an anonymous caller (SPEC §7)", async () => {
+      const owner = await makeUser();
+      const poiId = await makePoi(owner.userId, offsetLatMeters(POI_LL, 41_000));
+      const photoId = uuidv7();
+      await handle.pg`
+        INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation)
+        VALUES (${photoId}, ${poiId}, ${owner.userId}, ${`photos/${poiId}/${photoId}.jpg`}, 'poi_creation', 'approved')`;
+
+      const anonymous = await app.inject({ method: 'GET', url: `/v1/pois/${poiId}` });
+      expect(anonymous.json().poi.gallery[0].myVote).toBe(false);
+
+      const voter = await makeUser();
+      const beforeVoting = await app.inject({
+        method: 'GET',
+        url: `/v1/pois/${poiId}`,
+        headers: voter.headers,
+      });
+      expect(beforeVoting.json().poi.gallery[0].myVote).toBe(false);
+
+      await app.inject({
+        method: 'POST',
+        url: `/v1/photos/${photoId}/vote`,
+        headers: voter.headers,
+        payload: { value: 1 },
+      });
+
+      const afterVoting = await app.inject({
+        method: 'GET',
+        url: `/v1/pois/${poiId}`,
+        headers: voter.headers,
+      });
+      expect(afterVoting.json().poi.gallery[0].myVote).toBe(true);
+      // A different caller's own vote state is unaffected by voter's vote.
+      const otherCaller = await app.inject({
+        method: 'GET',
+        url: `/v1/pois/${poiId}`,
+        headers: owner.headers,
+      });
+      expect(otherCaller.json().poi.gallery[0].myVote).toBe(false);
+    });
   });
 
   describe('POST /pois/:id/save (SPEC §19)', () => {

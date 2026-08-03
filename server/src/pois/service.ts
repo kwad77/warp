@@ -38,6 +38,7 @@ export interface PhotoView {
   urlCard: string;
   urlThumb: string;
   voteScore: number;
+  myVote: boolean;
   uploader: { handle: string };
   status: string;
 }
@@ -178,7 +179,7 @@ export async function listNearby(
   return { pois: (rows as unknown as PoiPinRow[]).map(serializePin) };
 }
 
-export async function getPoiById(pg: Pg, id: string): Promise<PoiView> {
+export async function getPoiById(pg: Pg, id: string, requesterId: string | null): Promise<PoiView> {
   const rows = await pg`
     SELECT p.id, p.title, p.description, p.category, p.checkin_radius_m, p.checkin_count,
            p.status, ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng,
@@ -204,8 +205,10 @@ export async function getPoiById(pg: Pg, id: string): Promise<PoiView> {
     throw new AppError('resource/not_found', 'No such POI');
   }
   const photoRows = await pg`
-    SELECT ph.id, ph.storage_key, ph.vote_score, ph.moderation, u2.handle AS uploader_handle
+    SELECT ph.id, ph.storage_key, ph.vote_score, ph.moderation, u2.handle AS uploader_handle,
+           (v.user_id IS NOT NULL) AS my_vote
     FROM photos ph JOIN users u2 ON u2.id = ph.uploader_id
+    LEFT JOIN votes v ON v.photo_id = ph.id AND v.user_id = ${requesterId}
     WHERE ph.poi_id = ${id} AND ph.moderation = 'approved'
     ORDER BY ph.vote_score DESC, ph.created_at ASC
     LIMIT 20`;
@@ -216,12 +219,14 @@ export async function getPoiById(pg: Pg, id: string): Promise<PoiView> {
       vote_score: number;
       moderation: string;
       uploader_handle: string;
+      my_vote: boolean;
     }[]
   ).map((p) => ({
     id: p.id,
     urlCard: urlCard(p.storage_key),
     urlThumb: urlThumb(p.storage_key),
     voteScore: Number(p.vote_score),
+    myVote: p.my_vote,
     uploader: { handle: p.uploader_handle },
     status: p.moderation,
   }));
@@ -302,7 +307,7 @@ export async function createPoi(
     VALUES (${id}, ${userId}, ${input.title}, ${input.description ?? null}, ${input.category},
             ST_GeogFromText(${ewkt(input.location)}), ${h3ToBigint(cell).toString()}, ${radiusM}, 'active')`;
 
-  return { poi: await getPoiById(pg, id) };
+  return { poi: await getPoiById(pg, id, userId) };
 }
 
 async function poiExists(pg: Pg, poiId: string): Promise<boolean> {
@@ -381,6 +386,9 @@ export async function completePhoto(
       urlCard: urlCard(prior.storage_key),
       urlThumb: urlThumb(prior.storage_key),
       voteScore: Number(prior.vote_score),
+      // Voting requires an approved photo (community/service.ts); a freshly-completed
+      // upload is always 'pending', so the uploader can't have voted on it yet.
+      myVote: false,
       uploader: { handle: prior.uploader_handle },
       status: prior.moderation,
     };
@@ -414,6 +422,9 @@ export async function completePhoto(
     urlCard: urlCard(row.storage_key),
     urlThumb: urlThumb(row.storage_key),
     voteScore: Number(row.vote_score),
+    // Same reasoning as the idempotent-retry branch above: a 'pending' photo can't have
+    // any votes yet.
+    myVote: false,
     uploader: { handle: row.uploader_handle },
     status: row.moderation,
   };

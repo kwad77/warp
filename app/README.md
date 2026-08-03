@@ -17,7 +17,13 @@ full-screen swipeable viewer, a Discover feed ("places around me" / "places I wa
 visit"), and a share action (native share sheet via `share_plus`) on a grid photo, the
 personal map, and the leaderboard. M2 (SPEC §16): mobile UI for badges/creator score —
 the server-side badge taxonomy and `creatorScore` (already shipped) now surface on the
-profile screen.
+profile screen. Bugfix: the discovery `MapScreen` fetched `GET /pois` but never rendered
+any of it — the "Map" tab showed a blank basemap; now renders POIs/clusters as circles,
+same idiom as the personal coverage map. Mobile UI for photo voting + reporting (SPEC
+§7): `POST /photos/:id/vote`/`POST /reports` were server-complete with no mobile caller
+anywhere — `PoiDetailSheet`'s gallery gained a vote toggle and report action, alongside a
+new `myVote: boolean` on `Photo` (small SPEC addition) so the toggle can render its own
+state.
 
 ## Setup
 
@@ -81,8 +87,8 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (143 tests as of the discovery-map render fix). No live
-device is
+All three must be clean/green (144 tests as of the photo-voting/reporting mobile UI
+slice). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -113,8 +119,12 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 as `PersonalMapScreen`; `clusterRadius` in map_query.dart is the one pure,
                 unit-tested piece, log-scaled and clamped so a huge cluster doesn't dwarf
                 the map — everything else needs a live MapLibre engine to verify visually,
-                which this sandbox doesn't have), "create POI" FAB); poi/ (detail sheet +
-                "Check in" action, POI creation:
+                which this sandbox doesn't have), "create POI" FAB); poi/ (detail sheet — a
+                per-photo vote toggle (optimistic; `voteScore` from the server response,
+                `myVote` flipped locally) and report icon, plus a "report this place"
+                action in the sheet's header; report_dialog.dart is the shared reason-
+                dropdown-plus-optional-note dialog both call — "Check in" action, POI
+                creation:
                 form, shared in-app camera capture screen, face-detection gate, R2 photo
                 uploader, GPS location source; `PoiCreateOutbox`/`PoiCreateOutboxController`
                 — SPEC §18's durable local queue + opportunistic replay for a POI creation

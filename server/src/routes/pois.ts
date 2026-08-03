@@ -1,7 +1,7 @@
 // SPEC §7 — POI discovery/creation and photo presign/complete. Thin: parse → service → serialize.
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { parseBody, requireAuth, requireDb } from '../app.js';
+import { optionalAuth, parseBody, requireAuth, requireDb } from '../app.js';
 import { POI_CATEGORIES, type PoiCategory, SPEC_CONSTANTS } from '../constants.js';
 import {
   completePhoto,
@@ -95,8 +95,9 @@ export function registerPoiRoutes(app: FastifyInstance): void {
 
   app.get('/pois/:id', async (req) => {
     const params = parseBody(idParamsSchema, req.params);
+    const requesterId = await optionalAuth(req);
     const { pg } = requireDb(app);
-    return { poi: await getPoiById(pg, params.id) };
+    return { poi: await getPoiById(pg, params.id, requesterId) };
   });
 
   app.post('/pois', async (req, reply) => {

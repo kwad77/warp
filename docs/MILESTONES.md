@@ -65,16 +65,30 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      with Apple Developer/Google Cloud console access can create those. Mobile UI for
      Apple/Google buttons is still deferred — SPEC §12 built only the email-code screen.
 5. **Moderation loop** — `ModerationProvider` seam wired synchronously into photo
-   completion (`DevModerationProvider` auto-approves); reports and photo voting shipped.
-   pHash (64-bit dHash) and the pixel-dimension check (SPEC §6) are now implemented:
-   `storage.get` fetches the real bytes during moderation, `sharp` (newly installed —
-   was already SPEC §1-allowlisted, just unused) computes width/height + the hash, and a
-   long edge below `UPLOAD_MIN_LONG_EDGE_PX` rejects before the provider runs. This was
-   previously bundled with the still-deferred items below under one "needs your call"
-   note; corrected once it became clear the stated blocker (bytes + `sharp`) didn't
-   actually require a new dependency or credential decision. Still genuinely deferred:
-   the real detector (needs an AWS SDK dependency not yet approved) and the human-review
-   admin surface (needs an undesigned admin auth realm).
+   completion (`DevModerationProvider` auto-approves); reports and photo voting shipped
+   server-side (mobile UI landed later — see below). pHash (64-bit dHash) and the
+   pixel-dimension check (SPEC §6) are now implemented: `storage.get` fetches the real
+   bytes during moderation, `sharp` (newly installed — was already SPEC §1-allowlisted,
+   just unused) computes width/height + the hash, and a long edge below
+   `UPLOAD_MIN_LONG_EDGE_PX` rejects before the provider runs. This was previously bundled
+   with the still-deferred items below under one "needs your call" note; corrected once it
+   became clear the stated blocker (bytes + `sharp`) didn't actually require a new
+   dependency or credential decision. Still genuinely deferred: the real detector (needs an
+   AWS SDK dependency not yet approved) and the human-review admin surface (needs an
+   undesigned admin auth realm).
+   - **Mobile UI for photo voting + reporting (done, server + mobile).** Found via an
+     audit prompted by the discovery-map render bug below: `POST /photos/:id/vote` and
+     `POST /reports` were fully built and tested server-side, but nothing in the mobile
+     app called either one — `MILESTONES.md` listed them as "shipped" with no
+     mobile-scoping caveat, unlike every other slice that landed server-first. Small SPEC
+     addition alongside it: `Photo` gains `myVote: boolean` (§7) — without it, a vote
+     button has no way to render its own toggled state after the detail sheet reloads.
+     Computed via the same `optionalAuth` + `LEFT JOIN votes` pattern
+     `GET /leaderboards/coverage`'s `me` field already uses, so an anonymous caller (or one
+     who hasn't voted) always sees `false`. `PoiDetailSheet`'s gallery gained a per-photo
+     vote toggle (optimistic: `voteScore` from the server response, `myVote` flipped
+     locally) and a report icon; the sheet's header gained a "report this place" action. A
+     new shared `report_dialog.dart` (reason dropdown + optional note) is used by both.
 6. **Personal map + coverage + weekly leaderboard** (SPEC §14; done). Replaces the
    Account tab's "Signed in as {handle}" placeholder with a real profile screen: stats
    (`GET /me`), My Places — created/checked-in `PoiPin` lists tappable into the existing

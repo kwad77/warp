@@ -74,6 +74,33 @@ class WanderpostApi {
     return Poi.fromMap(body['poi'] as Map<String, dynamic>);
   }
 
+  /// SPEC §7 `POST /photos/:id/vote`. `upvote: false` retracts (`value: 0`).
+  Future<int> voteOnPhoto(String photoId, {required bool upvote}) async {
+    final body = await client.postJson(
+      '/v1/photos/$photoId/vote',
+      body: {'value': upvote ? 1 : 0},
+    );
+    return body['voteScore'] as int;
+  }
+
+  /// SPEC §7 `POST /reports`. `note` is optional, capped at 280 code points server-side.
+  Future<void> report({
+    required String targetType,
+    required String targetId,
+    required String reason,
+    String? note,
+  }) async {
+    await client.postJson(
+      '/v1/reports',
+      body: {
+        'targetType': targetType,
+        'targetId': targetId,
+        'reason': reason,
+        'note': ?note,
+      },
+    );
+  }
+
   /// SPEC §7/§19 `POST /pois/:id/save`. `save: false` retracts (`value: 0`).
   Future<bool> setSavedPoi(String poiId, {required bool save}) async {
     final body = await client.postJson(

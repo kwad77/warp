@@ -340,6 +340,7 @@ void main() {
         'urlCard': '/media/card/ph1',
         'urlThumb': '/media/thumb/ph1',
         'voteScore': 0,
+        'myVote': false,
         'uploader': {'handle': 'explorer_x'},
         'status': 'pending',
       },
