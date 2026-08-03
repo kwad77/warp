@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { devModerationProvider } from '../src/moderation/provider.js';
+import { devTextModerationProvider } from '../src/moderation/text_provider.js';
 import { createR2Storage } from '../src/storage/r2.js';
 
 const config = loadConfig({
@@ -14,6 +15,7 @@ const app = buildApp({
   dbHandle: null,
   storage: createR2Storage(config),
   moderation: devModerationProvider(() => {}),
+  textModeration: devTextModerationProvider(),
   oidcVerifiers: { apple: null, google: null },
 });
 afterAll(() => app.close());

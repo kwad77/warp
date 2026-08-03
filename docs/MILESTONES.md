@@ -166,9 +166,28 @@ mock-location apps and emulators are caught.
   finer (mirrors `PersonalMapScreen._drillInto`). No server or SPEC change — §12/§7 already
   fully specified this; the mobile side just wasn't consuming its own state.
 - ~~Shareable map image with precision controls.~~ Done — see SPEC §19 above.
-- **Postcard sending v1** (ARCHITECTURE.md §10): share-image + unlisted web-postcard link
-  from any verified check-in, message moderation, photographer credit. First job of the
-  thin web renderer; the send→open→install funnel is instrumented from day one.
+- **Postcard sending v1 (SPEC §20; done, server + mobile).** After any verified check-in:
+  a new `postcards` table (migration 0005) + `POST /checkins/:id/postcards` mints an
+  unlisted token (18 random bytes, separate from the row's own id so the public link never
+  doubles as an internal identifier); `GET /postcards/:token` is the thin web renderer's
+  first real job — a self-contained HTML page (photo-front / message-back, a verified
+  mark, sender handle, photographer credit, an optional "Get the app" prompt shown only
+  when a real store URL is configured) served directly by the existing Fastify server, no
+  separate hosting decision needed. Deliberate carve-out from SPEC §3: this one route
+  returns HTML on both success and not-found, never the JSON error envelope, since a plain
+  browser (not the mobile app) is its actual client. Message moderation: a new, minimal
+  `TextModerationProvider` seam (mirrors the photo one, §6) — `devTextModerationProvider()`
+  always approves; a rejected message doesn't fail the send, it's just not rendered.
+  Photo resolution happens at VIEW time, not send time: the check-in's own approved photo
+  if it has one, else the POI's best-approved gallery photo (photographer credited only
+  when different from the sender) — a photo-less card still renders rather than blocking
+  the send. `DELETE /postcards/:id` revokes (one-directional; server-side only, no mobile
+  "manage my postcards" screen yet — flagged as a fast-follow). Mobile: the check-in
+  result screen's `verified` state gains an optional message field + "Send postcard"
+  button, handing the returned link to the OS share sheet (`share_plus`'s `Share.share`,
+  already a dependency from the §19 sharing slice — no new one needed). M3+ in-app inbox
+  and physical print-and-mail (ARCHITECTURE.md §10) remain out of scope, as originally
+  planned.
 - Steps/distance from HealthKit / Health Connect (read-only, opt-in): daily aggregates,
   weekly friends/city distance boards, explorer streaks. Never app-gathered
   (ARCHITECTURE.md §9).
@@ -221,8 +240,9 @@ mock-location apps and emulators are caught.
   visible entries list, since that list can include other users' handles. This is
   deliberately how M2's "shareable map image with precision controls" item below
   gets satisfied — the already-built H3 zoom-tier heatmap (SPEC §15) *is* the precision
-  control, not a new slider. Postcard sending v1 (below) is explicitly out of scope for
-  this slice. Not yet verified on a real device: `RepaintBoundary.toImage()` capturing a
+  control, not a new slider. Postcard sending v1 (built later — see below) was explicitly
+  out of scope for this slice. Not yet verified on a real device: `RepaintBoundary.toImage()`
+  capturing a
   MapLibre `PlatformView` is expected to work for texture-backed platform views on modern
   Flutter, but this sandbox has no device/emulator to confirm it visually (same caveat as
   the map widget itself, see M1 step 3).

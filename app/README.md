@@ -23,7 +23,9 @@ same idiom as the personal coverage map. Mobile UI for photo voting + reporting 
 §7): `POST /photos/:id/vote`/`POST /reports` were server-complete with no mobile caller
 anywhere — `PoiDetailSheet`'s gallery gained a vote toggle and report action, alongside a
 new `myVote: boolean` on `Photo` (small SPEC addition) so the toggle can render its own
-state.
+state. M2 (SPEC §20): postcard sending v1 — the check-in result screen's `verified` state
+gains an optional message field and a "Send postcard" button, handing the server-minted
+unlisted link to the OS share sheet (`Share.share`, no new dependency).
 
 ## Setup
 
@@ -87,8 +89,10 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (144 tests as of the photo-voting/reporting mobile UI
-slice). No live device is
+All three must be clean/green (144 tests as of the postcard-sending slice — no new tests
+were added on the mobile side, consistent with how other thin API-client wrapper methods
+like `setSavedPoi`/`voteOnPhoto` aren't unit-tested either; see the checkin/ layout note
+below). No live device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -136,7 +140,10 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 `CheckinOutbox`/`CheckinOutboxController` — SPEC §17's durable local queue
                 + opportunistic replay for a check-in attempted with no connectivity, same
                 shape as `PoiCreateOutbox`, kept separate rather than unified since two
-                call sites isn't yet enough to justify the abstraction); profile/ (stats
+                call sites isn't yet enough to justify the abstraction; `_SendPostcard`
+                (checkin_screen.dart, SPEC §20) — an optional message + "Send postcard"
+                button on the verified result, handing the returned link straight to the
+                OS share sheet, no in-app recipient picker); profile/ (stats
                 including `creatorScore`, a `Wrap` of badge `Chip`s (SPEC §16 —
                 badge_display.dart maps the closed 4-key taxonomy to an icon/label via a
                 switch, same pattern as poi_category_icon.dart), My Places — a 3-column

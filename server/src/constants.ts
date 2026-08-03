@@ -73,6 +73,10 @@ export const SPEC_CONSTANTS = {
     CHECKIN_INTENT_PER_HOUR: 12,
     POI_CREATE_PER_DAY: 20,
     REPORT_CREATE_PER_DAY: 20,
+    POSTCARD_SEND_PER_DAY: 20,
+  },
+  postcards: {
+    MESSAGE_MAX_CODEPOINTS: 280,
   },
   entitlement: {
     FREE_UNLOCKED_CHECKINS: 50,

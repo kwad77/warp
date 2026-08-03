@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_exception.dart';
 import '../../core/providers.dart';
+import '../../core/share_image.dart';
 import '../poi/camera_capture_screen.dart';
 import 'device_registrar.dart';
 import 'pending_checkin_photo.dart';
@@ -66,10 +68,17 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
               ],
             ),
             inProgress: () => const CircularProgressIndicator(),
-            verified: (checkin) => _Result(
-              icon: Icons.check_circle,
-              color: Colors.green,
-              message: "You're checked in!",
+            verified: (checkin) => Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const _Result(
+                  icon: Icons.check_circle,
+                  color: Colors.green,
+                  message: "You're checked in!",
+                ),
+                const SizedBox(height: 24),
+                _SendPostcard(checkinId: checkin.id),
+              ],
             ),
             pending: (checkin) => const _Result(
               icon: Icons.hourglass_top,
@@ -121,6 +130,82 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// SPEC §20 — "send this postcard" after any verified check-in: an optional message,
+/// then hands the returned unlisted link to the OS share sheet (no in-app recipient
+/// picker — the sender picks where via whatever they share to).
+class _SendPostcard extends ConsumerStatefulWidget {
+  final String checkinId;
+
+  const _SendPostcard({required this.checkinId});
+
+  @override
+  ConsumerState<_SendPostcard> createState() => _SendPostcardState();
+}
+
+class _SendPostcardState extends ConsumerState<_SendPostcard> {
+  final _messageController = TextEditingController();
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      final message = _messageController.text.trim();
+      final url = await ref.read(wanderpostApiProvider).sendPostcard(
+            widget.checkinId,
+            message: message.isEmpty ? null : message,
+          );
+      await shareText(url);
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          TextField(
+            controller: _messageController,
+            maxLength: 280,
+            maxLines: 2,
+            decoration: const InputDecoration(hintText: 'Add a message (optional)'),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 4),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _sending ? null : _send,
+            icon: _sending
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send),
+            label: const Text('Send postcard'),
+          ),
+        ],
       ),
     );
   }

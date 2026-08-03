@@ -19,6 +19,16 @@ const configSchema = z.object({
   // Unset (the default) ⇒ 501 service/unavailable, same as before this was implemented.
   APPLE_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  // SPEC §20: the postcard web renderer needs its own absolute URL to embed in the
+  // shared link and the photo <img> src (unlike PoiPin/Photo's paths, which the MOBILE
+  // app resolves against its own API_BASE_URL — a plain browser has no such client to
+  // do that). Defaults to local dev; a real deployment sets this to its public origin.
+  PUBLIC_BASE_URL: z.string().url().default('http://localhost:8080'),
+  // Store links for the postcard page's "Get the app" prompt — both optional; the
+  // prompt is omitted entirely rather than shown with a placeholder/broken link when
+  // unset (no real store listing exists yet to link to).
+  APP_STORE_URL: z.string().url().optional(),
+  PLAY_STORE_URL: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

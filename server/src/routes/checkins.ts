@@ -5,9 +5,15 @@ import { parseBody, requireAuth, requireDb } from '../app.js';
 import { createIntent, getCheckin, submitCheckin } from '../checkins/service.js';
 import { SPEC_CONSTANTS } from '../constants.js';
 import { AppError } from '../errors.js';
+import { sendPostcard } from '../postcards/service.js';
 import { createIntegrityVerifier } from '../verification/integrity.js';
 
 const P = SPEC_CONSTANTS.presence;
+const POSTCARDS = SPEC_CONSTANTS.postcards;
+
+const sendPostcardSchema = z.object({
+  message: z.string().max(POSTCARDS.MESSAGE_MAX_CODEPOINTS).optional(),
+});
 
 const intentSchema = z.object({
   poiId: z.string().uuid(),
@@ -74,5 +80,22 @@ export function registerCheckinRoutes(app: FastifyInstance): void {
     const params = parseBody(z.object({ id: z.string().uuid() }), req.params);
     const { db } = requireDb(app);
     return { checkin: await getCheckin(db, userId, params.id) };
+  });
+
+  app.post('/checkins/:id/postcards', async (req, reply) => {
+    const userId = await requireAuth(req);
+    const params = parseBody(z.object({ id: z.string().uuid() }), req.params);
+    const body = parseBody(sendPostcardSchema, req.body);
+    const { pg } = requireDb(app);
+    const postcard = await sendPostcard(
+      pg,
+      app.deps.textModeration,
+      app.deps.config.PUBLIC_BASE_URL,
+      userId,
+      params.id,
+      body.message,
+      new Date(),
+    );
+    return reply.status(201).send({ postcard });
   });
 }

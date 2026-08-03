@@ -21,6 +21,11 @@ Future<void> shareImageBytes(
   await Share.shareXFiles([XFile(file.path)], text: text);
 }
 
+/// SPEC §20 — hands plain text (the postcard link) to the native share sheet.
+Future<void> shareText(String text) async {
+  await Share.share(text);
+}
+
 /// SPEC §19 — captures whatever [key]'s `RepaintBoundary` currently renders as a PNG.
 /// Used for all three share targets (map, photo, leaderboard) so each just needs to wrap
 /// its shareable content in a `RepaintBoundary` and hold its `GlobalKey`.

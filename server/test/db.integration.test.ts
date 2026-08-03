@@ -8,6 +8,7 @@ import { loadConfig } from '../src/config.js';
 import { type DbHandle, createDb } from '../src/db/client.js';
 import { migrate } from '../src/db/migrate.js';
 import { devModerationProvider } from '../src/moderation/provider.js';
+import { devTextModerationProvider } from '../src/moderation/text_provider.js';
 import { createR2Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -30,6 +31,7 @@ describe.runIf(!!url)('auth flow (real database)', () => {
       dbHandle: handle,
       storage: createR2Storage(config),
       moderation: devModerationProvider(() => {}),
+      textModeration: devTextModerationProvider(),
       oidcVerifiers: { apple: null, google: null },
     });
   });

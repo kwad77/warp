@@ -444,6 +444,9 @@ proven via offline/deferred evidence doesn't count competitively until re-covere
 live check-in, though it always counts fully toward `GET /me/coverage`, the heatmap (§15),
 `creatorScore`, and badges (§16), none of which are competitive-ranking surfaces. **M1
 implementation note:** computed live (`GROUP BY user_id ORDER BY count DESC LIMIT`); precomputed snapshots (`leaderboard_snapshots`, ARCHITECTURE.md) are deferred until live cost requires them — no such table exists yet. |
+| `POST /checkins/:id/postcards` | ✅ owner | `{message?: string(..280)}` → `201 {postcard: {id, token, url}}` (§20, M2) — check-in must be the caller's own AND `verified`, else `resource/not_found`; rate limit §2 |
+| `GET /postcards/:token` | 🌐 | → HTML, not the §3 JSON envelope (§20, M2 — the one deliberate carve-out from §3's rule) |
+| `DELETE /postcards/:id` | ✅ owner | → `{ok: true}` (§20, M2) — one-directional; not owned/unknown/already-revoked ⇒ `resource/not_found` |
 
 **Pagination convention** (`GET /me/checkins` and any future cursor-paginated list): cursor
 is base64 of `"<createdAt ISO>|<id>"` for the last row of the previous page; results order
@@ -468,7 +471,7 @@ defect. UUIDv7 generated in app code. Applied deltas: **0001** drops
 `UNIQUE INDEX checkins_user_poi_active ON checkins (user_id, poi_id) WHERE status <>
 'rejected'` (§5.7 retry semantics). **0002** adds `badge_key` + `badges` (§16, M2). **0003**
 adds `checkin_evidence_mode` + `checkins.evidence` (§17, M2). **0004** adds `saved_pois`
-(§19, M2).
+(§19, M2). **0005** adds `postcards` (§20, M2).
 
 ```sql
 CREATE TYPE poi_category AS ENUM ('landmark','viewpoint','nature','architecture','street_art','other');
@@ -1302,12 +1305,93 @@ it to the OS share sheet:
 3. **The leaderboard** (`ProfileScreen`, §14): a small rendered "share card" widget
    (handle, rank, cell count) captured the same way and shared.
 
-**Deferred, flagged, not built here:** postcard sending v1 (own future SPEC section, needs
-the web-renderer/hosting decision called out above); `thumbnailUrl` on the bbox discovery
-endpoint; any notion of following/followers or seeing another user's saved/checked-in
-list (would need its own privacy model, not assumed here).
+**Deferred, flagged, not built here:** postcard sending v1 (now built — see §20);
+`thumbnailUrl` on the bbox discovery endpoint; any notion of following/followers or
+seeing another user's saved/checked-in list (would need its own privacy model, not
+assumed here).
 
-## 20. Definition of done (every PR)
+## 20. Postcard sending v1 (M2; exact)
+
+Scope: `docs/MILESTONES.md`'s M2 "postcard sending v1" (ARCHITECTURE.md §10) — after any
+verified check-in, send a shareable web postcard (photo-front / message-back, a verified
+mark, sender handle, photographer credit) to anyone via any messenger. No friend graph,
+no recipient targeting server-side — a "send" mints an unlisted link the sender shares
+however they like. **M3+ in-app postcard inbox and physical print-and-mail (ARCHITECTURE
+§10) are explicitly not built here.**
+
+**Data model** (migration `0005`, §8 delta):
+```sql
+CREATE TABLE postcards (
+  id UUID PRIMARY KEY,
+  checkin_id UUID NOT NULL REFERENCES checkins(id),
+  sender_id UUID NOT NULL REFERENCES users(id),
+  token TEXT NOT NULL,
+  message TEXT,
+  message_approved BOOLEAN NOT NULL DEFAULT true,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX postcards_token_idx ON postcards (token);
+CREATE INDEX postcards_checkin_idx ON postcards (checkin_id);
+```
+`token` (18 random bytes, base64url via `crypto.randomBytes`) is deliberately a separate
+value from `id` — the public/unlisted share URL never doubles as the row's own
+(sequential-ish, uuidv7) internal identifier.
+
+**New API** (§7):
+| Endpoint | Auth | Request → Response |
+| --- | --- | --- |
+| `POST /checkins/:id/postcards` | ✅ owner | `{message?: string(..280)}` → `201 {postcard: {id, token, url}}`. The check-in must be the caller's own AND `status='verified'` — anything else (not owned, `pending`, `rejected`, unknown) ⇒ `resource/not_found` (no visibility leak, same pattern as photo voting/POI saving). Each call mints a fresh token; sending twice from the same check-in is allowed, not deduplicated. Rate limit: `POSTCARD_SEND_PER_DAY` (§2) ⇒ `rate/limited`. |
+| `GET /postcards/:token` | 🌐 | Renders the postcard as an HTML page (see below) — **not** the §3 JSON envelope; see the carve-out note below. Unknown/revoked token ⇒ `404` HTML. |
+| `DELETE /postcards/:id` | ✅ owner | → `{ok: true}`. One-directional (no un-revoke). Not owned / already revoked / unknown ⇒ `resource/not_found` (same no-leak pattern). |
+
+**Deliberate carve-out from §3:** `GET /postcards/:token` is opened directly by a plain
+browser from a shared link — it always returns an HTML document (200 with the card, or
+404 with a plain "not found" page), never the `{error: {...}}` JSON envelope every other
+endpoint uses. This is the ONLY endpoint in the API with this exception, and it exists
+because this is the one route a human, not the mobile app, is the actual client of.
+
+**Text moderation** (`src/moderation/text_provider.ts`, mirrors `ModerationProvider`'s
+shape from §6): `TextModerationProvider.moderate(text) → {approved: boolean}` — smaller
+than the photo verdict shape since nothing consumes a rejection *reason* (a rejected
+message just isn't rendered, not surfaced as an error to the sender — the send itself
+still succeeds with `201`). `devTextModerationProvider()` always approves; no real
+detector wired in yet (same M1-style "seam, not real thing yet" as
+`RekognitionModerationProvider`) — no config knob to select an alternative provider
+exists yet either, since unlike photo moderation there's no named stub for a real one to
+select.
+
+**Photo resolution** — computed at VIEW time (`GET /postcards/:token`), not snapshotted at
+send time: the check-in's own photo (photo-mode) if `moderation='approved'`, else the
+POI's best-approved gallery photo (same tie-break as `GET /pois/:id`'s gallery /
+`thumbnailUrl`: `vote_score DESC, created_at ASC`), else no photo at all — a photo-less
+card still renders (place, date, sender, message) rather than blocking the send, since
+requiring a photo would block sending from any POI without one yet. Photographer credit
+follows whichever photo was actually used; omitted when the photographer is the sender
+themselves (their own handle is already shown as "sent by").
+
+**Config** (§1): `PUBLIC_BASE_URL` (new, defaults to `http://localhost:8080`) — the
+postcard page needs its own absolute origin to embed in the shared link and the photo
+`<img>` src, unlike `PoiPin`/`Photo`'s server-relative paths (which the MOBILE app
+resolves against its own `API_BASE_URL` — a plain browser has no such client to do that
+resolution). `APP_STORE_URL` / `PLAY_STORE_URL` (new, both optional) — the page's "Get
+the app" prompt is omitted entirely, not shown with a placeholder/broken link, when
+unset (no real store listing exists yet).
+
+**Mobile** (`app/lib/features/checkin/`): the check-in result screen's `verified` state
+gains an optional message field + "Send postcard" button, calling the new endpoint, then
+handing the returned `url` to the OS share sheet (`share_plus`'s `Share.share(url)` — no
+new mobile dependency; already added for §19's image sharing). No "manage my sent
+postcards" screen in this slice (revocation is built server-side per the design guard in
+ARCHITECTURE §10, but nothing in the mobile UI surfaces it yet) — flagged as a fast-follow,
+not an oversight.
+
+**Deferred, flagged, not built here:** a "manage/revoke my sent postcards" mobile screen
+(server-side revoke exists, unreachable from the UI yet); a real text-moderation
+detector; rendering the postcard's `<title>`/OpenGraph tags for richer message-preview
+cards in chat apps (plain `<title>` only, no `og:*` meta tags yet).
+
+## 21. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

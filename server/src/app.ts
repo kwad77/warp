@@ -6,6 +6,7 @@ import type { Config } from './config.js';
 import type { DbHandle } from './db/client.js';
 import { AppError } from './errors.js';
 import type { ModerationProvider } from './moderation/provider.js';
+import type { TextModerationProvider } from './moderation/text_provider.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCheckinRoutes } from './routes/checkins.js';
 import { registerCommunityRoutes } from './routes/community.js';
@@ -13,6 +14,7 @@ import { registerDeviceRoutes } from './routes/devices.js';
 import { registerLeaderboardRoutes } from './routes/leaderboards.js';
 import { registerMeRoutes } from './routes/me.js';
 import { registerPoiRoutes } from './routes/pois.js';
+import { registerPostcardRoutes } from './routes/postcards.js';
 import type { Storage } from './storage/r2.js';
 
 export const APP_VERSION = '0.1.0';
@@ -21,6 +23,7 @@ export interface AppDeps {
   config: Config;
   dbHandle: DbHandle | null;
   moderation: ModerationProvider;
+  textModeration: TextModerationProvider;
   storage: Storage;
   /** null when the corresponding *_CLIENT_ID env var isn't set (SPEC §4). */
   oidcVerifiers: { apple: OidcVerifier | null; google: OidcVerifier | null };
@@ -132,6 +135,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       registerMeRoutes(v1);
       registerLeaderboardRoutes(v1);
       registerCommunityRoutes(v1);
+      registerPostcardRoutes(v1);
     },
     { prefix: '/v1' },
   );

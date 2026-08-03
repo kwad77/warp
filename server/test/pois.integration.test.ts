@@ -10,6 +10,7 @@ import { migrate } from '../src/db/migrate.js';
 import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
 import type { ModerationProvider, ModerationVerdict } from '../src/moderation/provider.js';
+import { devTextModerationProvider } from '../src/moderation/text_provider.js';
 import type { Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -159,6 +160,7 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       dbHandle: handle,
       storage,
       moderation,
+      textModeration: devTextModerationProvider(),
       oidcVerifiers: { apple: null, google: null },
     });
     auth = await makeUser();

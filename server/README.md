@@ -54,8 +54,13 @@ src/db/            drizzle schema (mirror of migrations), client, migration runn
 src/routes/        thin handlers: parse → service → serialize
 src/storage/       R2 presigned uploads (aws4fetch) + object GET (storage.get, sharp/§6)
 src/moderation/    ModerationProvider seam, verdict application, phash.ts (dHash + the
-                   pixel-dimension check — SPEC §6)
+                   pixel-dimension check — SPEC §6); text_provider.ts is the same seam
+                   shape for postcard messages (SPEC §20, M2) — smaller verdict (just
+                   approved: boolean), since nothing consumes a rejection reason
 src/badges/        badge taxonomy + awarding, run in the verified check-in's own
                    transaction (SPEC §16, M2)
+src/postcards/     postcard sending v1 (SPEC §20, M2) — service.ts (send/revoke/view
+                   data), render.ts (the pure HTML template GET /postcards/:token
+                   serves — no templating-engine dependency, just a string builder)
 test/              unit + inject route tests + DB integration suite
 ```

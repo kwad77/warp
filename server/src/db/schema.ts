@@ -275,6 +275,30 @@ export const savedPois = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.poiId] })],
 );
 
+export const postcards = pgTable(
+  'postcards',
+  {
+    id: uuid('id').primaryKey(),
+    checkinId: uuid('checkin_id')
+      .notNull()
+      .references(() => checkins.id),
+    senderId: uuid('sender_id')
+      .notNull()
+      .references(() => users.id),
+    token: text('token').notNull(),
+    message: text('message'),
+    // SPEC §20 — synchronous text moderation, mirrors photo moderation's shape (§6): a
+    // rejected message doesn't fail the send, it just isn't rendered.
+    messageApproved: boolean('message_approved').notNull().default(true),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('postcards_token_idx').on(t.token),
+    index('postcards_checkin_idx').on(t.checkinId),
+  ],
+);
+
 export const reports = pgTable('reports', {
   id: uuid('id').primaryKey(),
   reporterId: uuid('reporter_id')

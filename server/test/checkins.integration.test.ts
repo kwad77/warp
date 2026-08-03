@@ -11,6 +11,7 @@ import { migrate } from '../src/db/migrate.js';
 import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
 import { devModerationProvider } from '../src/moderation/provider.js';
+import { devTextModerationProvider } from '../src/moderation/text_provider.js';
 import { createR2Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -122,6 +123,7 @@ describe.runIf(!!url)('check-in pipeline (SPEC §5)', () => {
       dbHandle: handle,
       storage: createR2Storage(config),
       moderation: devModerationProvider(() => {}),
+      textModeration: devTextModerationProvider(),
       oidcVerifiers: { apple: null, google: null },
     });
     auth = await makeUser();

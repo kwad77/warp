@@ -258,6 +258,15 @@ class WanderpostApi {
         .toList();
   }
 
+  /// SPEC §7/§20 `POST /checkins/:id/postcards`.
+  Future<String> sendPostcard(String checkinId, {String? message}) async {
+    final body = await client.postJson(
+      '/v1/checkins/$checkinId/postcards',
+      body: {'message': ?message},
+    );
+    return (body['postcard'] as Map<String, dynamic>)['url'] as String;
+  }
+
   /// SPEC §7/§14 `GET /leaderboards/coverage`.
   Future<LeaderboardResult> leaderboardCoverage({required String window}) async {
     final body = await client.getJson(
