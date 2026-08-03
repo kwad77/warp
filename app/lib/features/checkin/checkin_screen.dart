@@ -46,87 +46,97 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
     final state = ref.watch(checkinControllerProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Check in')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: state.when(
-            idle: () => Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('How do you want to check in?'),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () => _start('photo'),
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Check in with a photo'),
+      // A SingleChildScrollView (rather than a bare Center) so the postcard message field
+      // + button in the `verified` case can never overflow or get stuck behind the
+      // keyboard on a short screen; ConstrainedBox keeps the shorter states vertically
+      // centered as before rather than snapping to the top.
+      body: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+            child: Center(
+              child: state.when(
+                idle: () => Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('How do you want to check in?'),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _start('photo'),
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Check in with a photo'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () => _start('confirm'),
+                      child: const Text('Check in without a photo'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: () => _start('confirm'),
-                  child: const Text('Check in without a photo'),
+                inProgress: () => const CircularProgressIndicator(),
+                verified: (checkin) => Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const _Result(
+                      icon: Icons.check_circle,
+                      color: Colors.green,
+                      message: "You're checked in!",
+                    ),
+                    const SizedBox(height: 24),
+                    _SendPostcard(checkinId: checkin.id),
+                  ],
                 ),
-              ],
-            ),
-            inProgress: () => const CircularProgressIndicator(),
-            verified: (checkin) => Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const _Result(
-                  icon: Icons.check_circle,
-                  color: Colors.green,
-                  message: "You're checked in!",
+                pending: (checkin) => const _Result(
+                  icon: Icons.hourglass_top,
+                  color: Colors.orange,
+                  message: 'Check-in submitted — pending review.',
                 ),
-                const SizedBox(height: 24),
-                _SendPostcard(checkinId: checkin.id),
-              ],
-            ),
-            pending: (checkin) => const _Result(
-              icon: Icons.hourglass_top,
-              color: Colors.orange,
-              message: 'Check-in submitted — pending review.',
-            ),
-            rejected: (reasons) => _Result(
-              icon: Icons.error_outline,
-              color: Colors.red,
-              message: reasons.contains('photo_required')
-                  ? "This account needs a photo to check in right now."
-                  : "Couldn't verify this check-in (${reasons.join(', ')}).",
-              retry: () => ref.read(checkinControllerProvider.notifier).resetToIdle(),
-            ),
-            duplicate: () => const _Result(
-              icon: Icons.info_outline,
-              color: Colors.grey,
-              message: "You've already checked in here.",
-            ),
-            queued: () => const _Result(
-              icon: Icons.cloud_off,
-              color: Colors.blueGrey,
-              message: "No connection — saved and will sync automatically once you're back "
-                  'online.',
-            ),
-            photoBlocked: () => _Result(
-              icon: Icons.error_outline,
-              color: Colors.red,
-              message: 'A person was detected in the photo — please retake.',
-              retry: () => _start('photo'),
-            ),
-            photoProcessingFailed: () => _Result(
-              icon: Icons.error_outline,
-              color: Colors.red,
-              message: "Couldn't process that photo — please try again.",
-              retry: () => _start('photo'),
-            ),
-            fixTimeout: () => _Result(
-              icon: Icons.location_off,
-              color: Colors.red,
-              message: "Couldn't get a clear location fix — try again outdoors.",
-              retry: () => ref.read(checkinControllerProvider.notifier).resetToIdle(),
-            ),
-            error: (message) => _Result(
-              icon: Icons.error_outline,
-              color: Colors.red,
-              message: message,
-              retry: () => ref.read(checkinControllerProvider.notifier).resetToIdle(),
+                rejected: (reasons) => _Result(
+                  icon: Icons.error_outline,
+                  color: Colors.red,
+                  message: reasons.contains('photo_required')
+                      ? "This account needs a photo to check in right now."
+                      : "Couldn't verify this check-in (${reasons.join(', ')}).",
+                  retry: () => ref.read(checkinControllerProvider.notifier).resetToIdle(),
+                ),
+                duplicate: () => const _Result(
+                  icon: Icons.info_outline,
+                  color: Colors.grey,
+                  message: "You've already checked in here.",
+                ),
+                queued: () => const _Result(
+                  icon: Icons.cloud_off,
+                  color: Colors.blueGrey,
+                  message:
+                      "No connection — saved and will sync automatically once you're back "
+                      'online.',
+                ),
+                photoBlocked: () => _Result(
+                  icon: Icons.error_outline,
+                  color: Colors.red,
+                  message: 'A person was detected in the photo — please retake.',
+                  retry: () => _start('photo'),
+                ),
+                photoProcessingFailed: () => _Result(
+                  icon: Icons.error_outline,
+                  color: Colors.red,
+                  message: "Couldn't process that photo — please try again.",
+                  retry: () => _start('photo'),
+                ),
+                fixTimeout: () => _Result(
+                  icon: Icons.location_off,
+                  color: Colors.red,
+                  message: "Couldn't get a clear location fix — try again outdoors.",
+                  retry: () => ref.read(checkinControllerProvider.notifier).resetToIdle(),
+                ),
+                error: (message) => _Result(
+                  icon: Icons.error_outline,
+                  color: Colors.red,
+                  message: message,
+                  retry: () => ref.read(checkinControllerProvider.notifier).resetToIdle(),
+                ),
+              ),
             ),
           ),
         ),
