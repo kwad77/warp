@@ -143,7 +143,27 @@ mock-location apps and emulators are caught.
 
 ## M2 — Beta (1–3 seeded cities, public TestFlight / Play open testing)
 
-- Seed 50–100 founder POIs per city; onboard founding creators.
+- **Seed 50–100 founder POIs per city; onboard founding creators (tooling done; Tigard,
+  OR seeded as the first city).** `server/src/scripts/seed_osm_pois.ts` — ops tooling, not
+  part of the served API — pulls real, named POIs from OpenStreetMap's Overpass API (no
+  key/credential needed) for a city's bounding box, maps OSM tags onto SPEC §2's 6-category
+  enum (a judgment call, documented in the script: e.g. `amenity=place_of_worship` and
+  `historic=building` both read as "architecture," `historic=memorial|monument` and
+  `tourism=attraction` as "landmark"), dedupes by name, and caps a parks/churches
+  monoculture per category so the seeded set stays diverse and lands in the 50-100 range
+  rather than "however many OSM happens to tag." Every insert goes through the real
+  `createPoi` service function — the same validation, proximity dedupe, and
+  checkin-radius-by-category logic a real user's `POST /pois` gets, not a hand-rolled
+  `INSERT` that could drift from it. Five synthetic "founder_N" accounts (matching this
+  bullet's own "onboard founding creators," plural) split the load to stay under
+  `POI_CREATE_PER_DAY`'s per-creator cap — real `createdAt`, nothing backdated. First run,
+  against Tigard, OR (`npm run db:seed -- tigard_or`): 152 unique named candidates found,
+  71 seeded (32 nature, 25 architecture, 8 street_art, 5 landmark, 1 viewpoint),
+  9 correctly caught as proximity duplicates by the same dedupe a real second submission
+  would hit. Verified end-to-end: queried the real running server's `GET /pois` for
+  Tigard's bbox afterward and got real named places back (a lone real "Mount Sylvania"
+  viewpoint, several real churches, etc.) — not just rows in the table. To seed another
+  city, add its bbox to `CITY_BBOXES` in the script and re-run with that key.
 - Push notifications (opt-in) + weekly "featured near you".
 - **Badges v1 and creator score accrual (SPEC §16; done, server + mobile).** Closed 4-key
   badge taxonomy proposed and implemented in the same PR (`ARCHITECTURE.md`'s schema

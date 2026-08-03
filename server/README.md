@@ -40,6 +40,19 @@ DB-backed integration tests run when `TEST_DATABASE_URL` is set (CI always sets 
 TEST_DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm test
 ```
 
+## Seeding founder POIs for a new city
+
+`docs/MILESTONES.md`'s M2 "seed 50-100 founder POIs per city" — pulls real, named POIs
+from OpenStreetMap (no API key needed) and creates them through the real `createPoi`
+service function (same validation/dedupe every user's `POST /pois` gets):
+
+```sh
+DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm run db:seed -- <city_key>
+```
+
+`<city_key>` must be a key in `src/scripts/seed_osm_pois.ts`'s `CITY_BBOXES` map
+(currently just `tigard_or`) — add a new bbox there for each additional city.
+
 ## Layout
 
 ```
@@ -62,5 +75,8 @@ src/badges/        badge taxonomy + awarding, run in the verified check-in's own
 src/postcards/     postcard sending v1 (SPEC §20, M2) — service.ts (send/revoke/view
                    data), render.ts (the pure HTML template GET /postcards/:token
                    serves — no templating-engine dependency, just a string builder)
+src/scripts/       ops tooling, not part of the served API — seed_osm_pois.ts imports
+                   founder POIs from OpenStreetMap for a new city (see "Seeding founder
+                   POIs" above), through the real createPoi service function
 test/              unit + inject route tests + DB integration suite
 ```
