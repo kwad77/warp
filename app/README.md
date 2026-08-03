@@ -25,7 +25,10 @@ anywhere — `PoiDetailSheet`'s gallery gained a vote toggle and report action, 
 new `myVote: boolean` on `Photo` (small SPEC addition) so the toggle can render its own
 state. M2 (SPEC §20): postcard sending v1 — the check-in result screen's `verified` state
 gains an optional message field and a "Send postcard" button, handing the server-minted
-unlisted link to the OS share sheet (`Share.share`, no new dependency).
+unlisted link to the OS share sheet (`Share.share`, no new dependency). Mobile UI for
+check-in history (SPEC §7): `GET /me/checkins` was server-complete with no mobile caller
+— a new `CheckinHistoryScreen` (reachable from Profile) shows every status, including
+`pending`/`rejected`, keyset-paginated via a "Load more" button.
 
 ## Setup
 
@@ -89,10 +92,8 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (144 tests as of the postcard-sending slice — no new tests
-were added on the mobile side, consistent with how other thin API-client wrapper methods
-like `setSavedPoi`/`voteOnPhoto` aren't unit-tested either; see the checkin/ layout note
-below). No live device is
+All three must be clean/green (149 tests as of the check-in history slice). No live device
+is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -153,8 +154,11 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 `_LeaderboardShareCard` of handle/rank/cells, not the visible entries list,
                 since that list can include other users' handles), sign-out, a combined
                 "N items waiting to sync" banner across both outboxes — loads GET /me +
-                /me/map + /me/coverage + /leaderboards/coverage + /me/badges concurrently);
-                poi/ also has poi_thumbnail.dart
+                /me/map + /me/coverage + /leaderboards/coverage + /me/badges concurrently;
+                checkin_history_screen.dart + checkin_history_controller.dart, SPEC §7 —
+                every check-in status shown, keyset-paginated via GET /me/checkins,
+                autoDispose'd the same way personalMapControllerProvider is since it's
+                pushed on demand, not a persistent tab); poi/ also has poi_thumbnail.dart
                 (SPEC §19 — renders `PoiPin.thumbnailUrl` or a category-icon placeholder
                 via poi_category_icon.dart) alongside the existing detail sheet/creation
                 pieces; feed/ (SPEC §19 Discover tab — `FeedController` independently

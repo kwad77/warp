@@ -22,6 +22,8 @@ import '../features/poi/poi_create_outbox.dart';
 import '../features/poi/poi_create_outbox_controller.dart';
 import '../features/poi/poi_create_outbox_state.dart';
 import '../features/poi/poi_create_state.dart';
+import '../features/profile/checkin_history_controller.dart';
+import '../features/profile/checkin_history_state.dart';
 import '../features/profile/profile_controller.dart';
 import '../features/profile/profile_state.dart';
 import 'api_client.dart';
@@ -155,4 +157,12 @@ final AutoDisposeStateNotifierProvider<PersonalMapController, PersonalMapState>
     personalMapControllerProvider =
     StateNotifierProvider.autoDispose<PersonalMapController, PersonalMapState>((ref) {
   return PersonalMapController(ref.watch(wanderpostApiProvider));
+});
+
+// SPEC §7 — check-in history. autoDispose, same reasoning as personalMapControllerProvider:
+// CheckinHistoryScreen is pushed on demand, not a persistent tab.
+final AutoDisposeStateNotifierProvider<CheckinHistoryController, CheckinHistoryState>
+    checkinHistoryControllerProvider =
+    StateNotifierProvider.autoDispose<CheckinHistoryController, CheckinHistoryState>((ref) {
+  return CheckinHistoryController(ref.watch(wanderpostApiProvider));
 });

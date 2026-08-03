@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderpost/models/checkin.dart';
+import 'package:wanderpost/models/checkin_list_item.dart';
 import 'package:wanderpost/models/cluster.dart';
 import 'package:wanderpost/models/coverage_heatmap_cell.dart';
 import 'package:wanderpost/models/coverage_heatmap_result.dart';
@@ -167,6 +168,23 @@ void main() {
       'verifiedAt': '2026-01-01T00:00:00.000Z',
     });
     expect(checkin.evidence, 'deferred');
+  });
+
+  test('CheckinListItem.fromMap parses poiTitle/poiCategory (SPEC §7)', () {
+    final item = CheckinListItem.fromMap({
+      'id': 'c1',
+      'poiId': 'poi1',
+      'poiTitle': 'Torre de Belém',
+      'poiCategory': 'landmark',
+      'status': 'pending',
+      'mode': 'confirm',
+      'evidence': 'live',
+      'createdAt': '2026-01-01T00:00:00.000Z',
+    });
+    expect(item.poiTitle, 'Torre de Belém');
+    expect(item.poiCategory, 'landmark');
+    expect(item.status, 'pending');
+    expect(item.verifiedAt, isNull);
   });
 
   test('QueuedCheckin round-trips through toMap/fromMap, including a null photo', () {

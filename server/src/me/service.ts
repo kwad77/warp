@@ -167,6 +167,8 @@ export async function getMeCoverageHeatmap(
 export interface CheckinListItem {
   id: string;
   poiId: string;
+  poiTitle: string;
+  poiCategory: string;
   status: string;
   mode: string;
   evidence: string;
@@ -201,19 +203,25 @@ export async function listMeCheckins(
   cursor: string | undefined,
 ): Promise<{ items: CheckinListItem[]; nextCursor?: string }> {
   const after = cursor ? decodeCursor(cursor) : null;
+  // poiTitle/poiCategory (small SPEC addition — the item shape was never actually
+  // spelled out in SPEC.md before this): a plain JOIN, not LEFT — pois are soft-deleted
+  // (status='removed'), never hard-deleted, so every checkin's poi_id always resolves,
+  // same assumption GET /me/map's checkedIn query already makes.
   const rows = after
     ? await pg`
-        SELECT id, poi_id, status, mode, evidence, created_at, verified_at
-        FROM checkins
-        WHERE user_id = ${userId}
-          AND (created_at, id) < (${after.createdAt.toISOString()}, ${after.id})
-        ORDER BY created_at DESC, id DESC
+        SELECT c.id, c.poi_id, p.title AS poi_title, p.category AS poi_category,
+               c.status, c.mode, c.evidence, c.created_at, c.verified_at
+        FROM checkins c JOIN pois p ON p.id = c.poi_id
+        WHERE c.user_id = ${userId}
+          AND (c.created_at, c.id) < (${after.createdAt.toISOString()}, ${after.id})
+        ORDER BY c.created_at DESC, c.id DESC
         LIMIT ${limit + 1}`
     : await pg`
-        SELECT id, poi_id, status, mode, evidence, created_at, verified_at
-        FROM checkins
-        WHERE user_id = ${userId}
-        ORDER BY created_at DESC, id DESC
+        SELECT c.id, c.poi_id, p.title AS poi_title, p.category AS poi_category,
+               c.status, c.mode, c.evidence, c.created_at, c.verified_at
+        FROM checkins c JOIN pois p ON p.id = c.poi_id
+        WHERE c.user_id = ${userId}
+        ORDER BY c.created_at DESC, c.id DESC
         LIMIT ${limit + 1}`;
 
   // NOTE: once `drizzle(pg, {schema})` has wrapped a connection, raw tagged-template
@@ -223,6 +231,8 @@ export async function listMeCheckins(
   const rawRows = rows as unknown as {
     id: string;
     poi_id: string;
+    poi_title: string;
+    poi_category: string;
     status: string;
     mode: string;
     evidence: string;
@@ -238,6 +248,8 @@ export async function listMeCheckins(
   const items: CheckinListItem[] = page.map((r) => ({
     id: r.id,
     poiId: r.poi_id,
+    poiTitle: r.poi_title,
+    poiCategory: r.poi_category,
     status: r.status,
     mode: r.mode,
     evidence: r.evidence,

@@ -1,4 +1,5 @@
 import '../models/checkin.dart';
+import '../models/checkin_list_item.dart';
 import '../models/coverage_heatmap_result.dart';
 import '../models/gps_fix.dart';
 import '../models/lat_lng.dart';
@@ -256,6 +257,24 @@ class WanderpostApi {
     return (body['badges'] as List<dynamic>)
         .map((e) => UserBadge.fromMap(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// SPEC §7 `GET /me/checkins`. Keyset-paginated; an absent `nextCursor` means no
+  /// further pages.
+  Future<({List<CheckinListItem> items, String? nextCursor})> meCheckins({
+    String? cursor,
+    int limit = 50,
+  }) async {
+    final body = await client.getJson(
+      '/v1/me/checkins',
+      query: {'limit': limit, 'cursor': ?cursor},
+    );
+    return (
+      items: (body['items'] as List<dynamic>)
+          .map((e) => CheckinListItem.fromMap(e as Map<String, dynamic>))
+          .toList(),
+      nextCursor: body['nextCursor'] as String?,
+    );
   }
 
   /// SPEC §7/§20 `POST /checkins/:id/postcards`.

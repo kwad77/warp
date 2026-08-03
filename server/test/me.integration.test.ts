@@ -300,6 +300,23 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
     expect(new Set(seen).size).toBe(seen.length);
   });
 
+  it('GET /me/checkins: items carry poiTitle/poiCategory (SPEC §7 — item shape)', async () => {
+    const u = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 4_500);
+    const poi = await makePoi(u.userId, ll);
+    await makeVerifiedCheckin(u.userId, poi, ll);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/me/checkins',
+      headers: u.headers,
+    });
+    expect(res.statusCode).toBe(200);
+    const item = res.json().items[0];
+    expect(item.poiTitle).toBe('Test POI');
+    expect(item.poiCategory).toBe('landmark');
+  });
+
   it('DELETE /me: soft-deletes and revokes refresh tokens (immediate logout everywhere)', async () => {
     const email = `me-del-${randomUUID().slice(0, 12)}@example.com`;
     const { requestEmailCode } = await import('../src/auth/service.js');

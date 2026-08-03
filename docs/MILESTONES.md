@@ -115,6 +115,19 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      vote toggle (optimistic: `voteScore` from the server response, `myVote` flipped
      locally) and a report icon; the sheet's header gained a "report this place" action. A
      new shared `report_dialog.dart` (reason dropdown + optional note) is used by both.
+   - **Mobile UI for check-in history (done, server + mobile).** Same audit lineage as the
+     voting/reporting gap above: `GET /me/checkins` (keyset-paginated, every status
+     included) was fully built and tested, with zero mobile callers. Also fixed along the
+     way: this row never actually specified its item shape in SPEC.md at all (`→ {items,
+     nextCursor?}` with no further detail) — now spelled out as `CheckinListItem`, which
+     also picks up a small addition, `poiTitle`/`poiCategory` (a plain `JOIN pois`, same
+     assumption `GET /me/map`'s `checkedIn` already makes: a POI is soft-deleted, never
+     hard-deleted, so every checkin's `poiId` always resolves) — without them the history
+     list would show raw POI ids instead of names. New `CheckinHistoryScreen` (reachable
+     from Profile, next to "View my map"): every status shown, not just `verified` — a
+     check-in stuck `pending` (SPEC §5.7's still-flagged resolution gap, above) is at least
+     visible this way, even though nothing yet resolves it. `CheckinHistoryController`
+     handles keyset pagination (a plain "Load more" button, no infinite-scroll listener).
 6. **Personal map + coverage + weekly leaderboard** (SPEC §14; done). Replaces the
    Account tab's "Signed in as {handle}" placeholder with a real profile screen: stats
    (`GET /me`), My Places — created/checked-in `PoiPin` lists tappable into the existing
