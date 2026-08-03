@@ -36,6 +36,18 @@ void main() {
     });
   });
 
+  group('clusterRadius', () {
+    test('grows with count but stays within [10, 30]', () {
+      final small = clusterRadius(2);
+      final medium = clusterRadius(50);
+      final huge = clusterRadius(100000);
+
+      expect(small, greaterThanOrEqualTo(10));
+      expect(medium, greaterThan(small));
+      expect(huge, lessThanOrEqualTo(30));
+    });
+  });
+
   group('nearestHeatmapCell', () {
     test('returns null for an empty cell list', () {
       expect(nearestHeatmapCell(const [], const LatLng(lat: 0, lng: 0)), isNull);

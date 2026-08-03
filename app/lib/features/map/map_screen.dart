@@ -7,12 +7,17 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../core/constants.dart';
 import '../../core/providers.dart';
 import '../../models/lat_lng.dart' as models;
+import '../../models/pois_result.dart';
 import '../poi/poi_create_screen.dart';
 import '../poi/poi_detail_sheet.dart';
 import 'map_query.dart';
+import 'map_view_state.dart';
 
 /// SPEC §12 — MapLibre map with server-driven clustering. No client-side clustering
-/// logic: renders whichever of `pois`/`clusters` the server returned non-empty.
+/// logic: renders whichever of `pois`/`clusters` the server returned non-empty, as
+/// `CircleManager` circles (individual POIs tap straight to the detail sheet; clusters
+/// tap to zoom into their centroid, the same "tap to drill in" gesture `PersonalMapScreen`
+/// already uses for its own heatmap cells).
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -22,7 +27,68 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen> {
   MapLibreMapController? _mapController;
+  CircleManager? _circleManager;
   Timer? _debounce;
+
+  void _onMapCreated(MapLibreMapController controller) {
+    _mapController = controller;
+    _circleManager = CircleManager(controller, onTap: _onCircleTapped);
+  }
+
+  void _onCircleTapped(Circle circle) {
+    final poiId = circle.data?['poiId'] as String?;
+    if (poiId != null) {
+      openPoiDetail(context, poiId);
+      return;
+    }
+    final clusterLat = circle.data?['clusterLat'] as double?;
+    final clusterLng = circle.data?['clusterLng'] as double?;
+    if (clusterLat != null && clusterLng != null) {
+      unawaited(_drillIntoCluster(LatLng(clusterLat, clusterLng)));
+    }
+  }
+
+  /// Zooms into a cluster's centroid, one tier finer — the same drill-down gesture
+  /// `PersonalMapScreen._drillInto` uses for heatmap cells.
+  Future<void> _drillIntoCluster(LatLng centroid) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final currentZoom = controller.cameraPosition?.zoom ?? 0;
+    await controller.animateCamera(CameraUpdate.newLatLngZoom(centroid, currentZoom + 2));
+  }
+
+  Future<void> _renderMarkers(PoisResult result) async {
+    final manager = _circleManager;
+    if (manager == null) return;
+    await manager.clear();
+    await manager.addAll([
+      for (final poi in result.pois)
+        Circle(
+          'poi-${poi.id}',
+          CircleOptions(
+            geometry: LatLng(poi.location.lat, poi.location.lng),
+            circleRadius: 7,
+            circleColor: '#1e88e5',
+            circleStrokeColor: '#ffffff',
+            circleStrokeWidth: 2,
+          ),
+          {'poiId': poi.id},
+        ),
+      for (final cluster in result.clusters)
+        Circle(
+          'cluster-${cluster.h3}',
+          CircleOptions(
+            geometry: LatLng(cluster.centroid.lat, cluster.centroid.lng),
+            circleRadius: clusterRadius(cluster.count),
+            circleColor: '#f57c00',
+            circleStrokeColor: '#ffffff',
+            circleStrokeWidth: 2,
+            circleOpacity: 0.85,
+          ),
+          {'clusterLat': cluster.centroid.lat, 'clusterLng': cluster.centroid.lng},
+        ),
+    ]);
+  }
 
   void _onCameraIdle() {
     _debounce?.cancel();
@@ -69,6 +135,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
+    ref.listen<MapViewState>(
+      mapControllerProvider,
+      (previous, next) => unawaited(_renderMarkers(next.result)),
+    );
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: _createPoi,
@@ -79,7 +149,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           MapLibreMap(
             styleString: AppConfig.mapStyleUrl,
             initialCameraPosition: const CameraPosition(target: LatLng(0, 0), zoom: 2),
-            onMapCreated: (controller) => _mapController = controller,
+            onMapCreated: _onMapCreated,
             onCameraIdle: _onCameraIdle,
             onStyleLoadedCallback: _loadCurrentViewport,
           ),

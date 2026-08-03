@@ -120,9 +120,20 @@ mock-location apps and emulators are caught.
   `GET /pois`) and switches to `CircleManager` pins (own postcards + nearby POIs) above it;
   tapping a heatmap cell resolves to its nearest centroid (`nearestHeatmapCell` — heatmap
   layers have no native per-feature tap the way annotation-manager pins do) and drills in
-  one tier. Noted, not fixed here: the discovery `MapScreen` doesn't render any
-  pins/clusters at all — a pre-existing gap this feature's `CircleManager` plumbing didn't
-  need to touch.
+  one tier. Flagged here, fixed later (below): the discovery `MapScreen` fetched
+  `GET /pois` but never rendered any of it — a real, user-facing gap (the main "Map" tab
+  showed a blank world map), not a hypothetical one.
+- **Discovery map actually renders its POIs/clusters (bugfix, mobile-only).** `MapScreen`
+  called `GET /pois` on every camera-idle and held the result in `mapControllerProvider`,
+  but nothing ever turned `pois`/`clusters` into map annotations — the app's primary
+  discovery surface showed an empty basemap plus the "create POI" FAB. Fixed with the same
+  `CircleManager` idiom `PersonalMapScreen` already established: individual POIs render as
+  fixed-radius circles (tap → `PoiDetailSheet`, unchanged), clusters as larger circles
+  scaled by `count` (new pure `clusterRadius`, log-scaled and clamped to `[10, 30]` so a
+  cluster of thousands doesn't dwarf the map — unit tested without a live MapLibre engine,
+  same pattern as `zoomForQuery`/`nearestHeatmapCell`), tap-to-zoom-into-centroid one tier
+  finer (mirrors `PersonalMapScreen._drillInto`). No server or SPEC change — §12/§7 already
+  fully specified this; the mobile side just wasn't consuming its own state.
 - ~~Shareable map image with precision controls.~~ Done — see SPEC §19 above.
 - **Postcard sending v1** (ARCHITECTURE.md §10): share-image + unlisted web-postcard link
   from any verified check-in, message moderation, photographer credit. First job of the

@@ -81,7 +81,7 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (142 tests as of the badges mobile UI slice). No live
+All three must be clean/green (143 tests as of the discovery-map render fix). No live
 device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
@@ -107,8 +107,14 @@ lib/models/     Hand-written fromMap (not fromJson — see note below) + freezed
                 poi_create_result.dart is client→server-only (toMap, no fromMap);
                 gps_fix.dart gained fromMap for the offline outbox's local persistence
                 (SPEC §17) — still never parsed from a server response.
-lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clustering,
-                "create POI" FAB); poi/ (detail sheet + "Check in" action, POI creation:
+lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clustering —
+                `CircleManager` renders `GET /pois`' `pois`/`clusters` as circles, POI tap
+                → detail sheet, cluster tap → zoom into centroid one tier finer, same idiom
+                as `PersonalMapScreen`; `clusterRadius` in map_query.dart is the one pure,
+                unit-tested piece, log-scaled and clamped so a huge cluster doesn't dwarf
+                the map — everything else needs a live MapLibre engine to verify visually,
+                which this sandbox doesn't have), "create POI" FAB); poi/ (detail sheet +
+                "Check in" action, POI creation:
                 form, shared in-app camera capture screen, face-detection gate, R2 photo
                 uploader, GPS location source; `PoiCreateOutbox`/`PoiCreateOutboxController`
                 — SPEC §18's durable local queue + opportunistic replay for a POI creation

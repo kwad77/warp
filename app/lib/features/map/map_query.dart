@@ -2,6 +2,8 @@
 /// live MapLibre engine (none is available in this sandbox — SPEC §12/§10).
 library;
 
+import 'dart:math' as math;
+
 import '../../models/coverage_heatmap_cell.dart';
 import '../../models/lat_lng.dart';
 
@@ -31,6 +33,11 @@ class BoundingBox {
 
 /// Server integer zoom from a MapLibre camera's fractional zoom (SPEC §7 `zoom=`).
 int zoomForQuery(double cameraZoom) => cameraZoom.round().clamp(0, 22);
+
+/// SPEC §12 — a cluster's circle radius scales with its `count` (log, not linear, so a
+/// cluster of thousands doesn't dwarf the map) but is still visibly larger than a lone
+/// POI's fixed-radius pin at every count `MapScreen` can receive one for.
+double clusterRadius(int count) => (10 + math.log(count + 1) * 4).clamp(10, 30);
 
 /// SPEC §15 — a heatmap layer has no per-feature tap callback the way `CircleManager`
 /// pins do, so a map tap in heatmap mode is resolved to "the cell whose centroid is
