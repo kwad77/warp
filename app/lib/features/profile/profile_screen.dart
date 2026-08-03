@@ -9,8 +9,10 @@ import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
 import '../../models/poi_pin.dart';
 import '../../models/user.dart';
+import '../../models/user_badge.dart';
 import '../coverage/personal_map_screen.dart';
 import '../poi/poi_thumbnail.dart';
+import 'badge_display.dart';
 import 'poi_grid_viewer_screen.dart';
 
 /// SPEC §14 — stats, My Places, coverage, weekly leaderboard, sign-out. Replaces the
@@ -80,8 +82,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-            loaded: (user, stats, map, coverageCount, leaderboard) =>
-                _buildLoaded(context, user, stats, map, coverageCount, leaderboard),
+            loaded: (user, stats, map, coverageCount, leaderboard, badges) =>
+                _buildLoaded(context, user, stats, map, coverageCount, leaderboard, badges),
           ),
         ),
       ],
@@ -95,6 +97,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     MeMap map,
     int coverageCount,
     LeaderboardResult leaderboard,
+    List<UserBadge> badges,
   ) {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -103,10 +106,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         const SizedBox(height: 8),
         Text(
           '${stats.checkins} check-ins · ${stats.cellsCovered} cells covered · '
-          '${stats.poisCreated} places created',
+          '${stats.poisCreated} places created · ${stats.creatorScore} creator score',
         ),
         const SizedBox(height: 4),
         Text('$coverageCount map cells explored'),
+        if (badges.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final badge in badges)
+                Chip(
+                  avatar: Icon(badgeIcon(badge.badgeKey), size: 18),
+                  label: Text(badgeLabel(badge.badgeKey)),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         OutlinedButton(
           onPressed: () => Navigator.of(context).push(

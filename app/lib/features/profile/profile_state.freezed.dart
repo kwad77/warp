@@ -26,6 +26,7 @@ mixin _$ProfileState {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )
     loaded,
     required TResult Function(String message) error,
@@ -39,6 +40,7 @@ mixin _$ProfileState {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -52,6 +54,7 @@ mixin _$ProfileState {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult Function(String message)? error,
@@ -150,6 +153,7 @@ class _$LoadingImpl implements _Loading {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )
     loaded,
     required TResult Function(String message) error,
@@ -167,6 +171,7 @@ class _$LoadingImpl implements _Loading {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -184,6 +189,7 @@ class _$LoadingImpl implements _Loading {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult Function(String message)? error,
@@ -247,6 +253,7 @@ abstract class _$$LoadedImplCopyWith<$Res> {
     MeMap poiMap,
     int coverageCount,
     LeaderboardResult leaderboard,
+    List<UserBadge> badges,
   });
 
   $UserCopyWith<$Res> get user;
@@ -274,6 +281,7 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? poiMap = null,
     Object? coverageCount = null,
     Object? leaderboard = null,
+    Object? badges = null,
   }) {
     return _then(
       _$LoadedImpl(
@@ -297,6 +305,10 @@ class __$$LoadedImplCopyWithImpl<$Res>
             ? _value.leaderboard
             : leaderboard // ignore: cast_nullable_to_non_nullable
                   as LeaderboardResult,
+        badges: null == badges
+            ? _value._badges
+            : badges // ignore: cast_nullable_to_non_nullable
+                  as List<UserBadge>,
       ),
     );
   }
@@ -351,7 +363,8 @@ class _$LoadedImpl implements _Loaded {
     required this.poiMap,
     required this.coverageCount,
     required this.leaderboard,
-  });
+    required final List<UserBadge> badges,
+  }) : _badges = badges;
 
   @override
   final User user;
@@ -363,10 +376,17 @@ class _$LoadedImpl implements _Loaded {
   final int coverageCount;
   @override
   final LeaderboardResult leaderboard;
+  final List<UserBadge> _badges;
+  @override
+  List<UserBadge> get badges {
+    if (_badges is EqualUnmodifiableListView) return _badges;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_badges);
+  }
 
   @override
   String toString() {
-    return 'ProfileState.loaded(user: $user, stats: $stats, poiMap: $poiMap, coverageCount: $coverageCount, leaderboard: $leaderboard)';
+    return 'ProfileState.loaded(user: $user, stats: $stats, poiMap: $poiMap, coverageCount: $coverageCount, leaderboard: $leaderboard, badges: $badges)';
   }
 
   @override
@@ -380,12 +400,20 @@ class _$LoadedImpl implements _Loaded {
             (identical(other.coverageCount, coverageCount) ||
                 other.coverageCount == coverageCount) &&
             (identical(other.leaderboard, leaderboard) ||
-                other.leaderboard == leaderboard));
+                other.leaderboard == leaderboard) &&
+            const DeepCollectionEquality().equals(other._badges, _badges));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, user, stats, poiMap, coverageCount, leaderboard);
+  int get hashCode => Object.hash(
+    runtimeType,
+    user,
+    stats,
+    poiMap,
+    coverageCount,
+    leaderboard,
+    const DeepCollectionEquality().hash(_badges),
+  );
 
   /// Create a copy of ProfileState
   /// with the given fields replaced by the non-null parameter values.
@@ -405,11 +433,12 @@ class _$LoadedImpl implements _Loaded {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )
     loaded,
     required TResult Function(String message) error,
   }) {
-    return loaded(user, stats, poiMap, coverageCount, leaderboard);
+    return loaded(user, stats, poiMap, coverageCount, leaderboard, badges);
   }
 
   @override
@@ -422,11 +451,19 @@ class _$LoadedImpl implements _Loaded {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(user, stats, poiMap, coverageCount, leaderboard);
+    return loaded?.call(
+      user,
+      stats,
+      poiMap,
+      coverageCount,
+      leaderboard,
+      badges,
+    );
   }
 
   @override
@@ -439,13 +476,14 @@ class _$LoadedImpl implements _Loaded {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(user, stats, poiMap, coverageCount, leaderboard);
+      return loaded(user, stats, poiMap, coverageCount, leaderboard, badges);
     }
     return orElse();
   }
@@ -492,6 +530,7 @@ abstract class _Loaded implements ProfileState {
     required final MeMap poiMap,
     required final int coverageCount,
     required final LeaderboardResult leaderboard,
+    required final List<UserBadge> badges,
   }) = _$LoadedImpl;
 
   User get user;
@@ -499,6 +538,7 @@ abstract class _Loaded implements ProfileState {
   MeMap get poiMap;
   int get coverageCount;
   LeaderboardResult get leaderboard;
+  List<UserBadge> get badges;
 
   /// Create a copy of ProfileState
   /// with the given fields replaced by the non-null parameter values.
@@ -584,6 +624,7 @@ class _$ErrorImpl implements _Error {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )
     loaded,
     required TResult Function(String message) error,
@@ -601,6 +642,7 @@ class _$ErrorImpl implements _Error {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -618,6 +660,7 @@ class _$ErrorImpl implements _Error {
       MeMap poiMap,
       int coverageCount,
       LeaderboardResult leaderboard,
+      List<UserBadge> badges,
     )?
     loaded,
     TResult Function(String message)? error,

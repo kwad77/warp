@@ -92,7 +92,7 @@ mock-location apps and emulators are caught.
 
 - Seed 50–100 founder POIs per city; onboard founding creators.
 - Push notifications (opt-in) + weekly "featured near you".
-- **Badges v1 and creator score accrual (SPEC §16; done, server-side).** Closed 4-key
+- **Badges v1 and creator score accrual (SPEC §16; done, server + mobile).** Closed 4-key
   badge taxonomy proposed and implemented in the same PR (`ARCHITECTURE.md`'s schema
   sketch named the table and category but not concrete keys/thresholds): `first_in_region`
   (one-time — first ever verified check-in to cover a brand-new H3 r7 cell) and
@@ -103,8 +103,12 @@ mock-location apps and emulators are caught.
   awards one; `INSERT ... ON CONFLICT DO NOTHING` is the only idempotency guard needed.
   `creatorScore` (sum of `checkin_count` across a user's non-removed created POIs) added
   to `GET /me`'s `stats`, deliberately the simplest faithful definition since M2 only
-  calls for it being visible, not ranked (that's M3). New `GET /me/badges`. No mobile UI
-  yet — server-first, same order M1's moderation loop landed in.
+  calls for it being visible, not ranked (that's M3). Mobile UI landed later, in the same
+  vertical-slice order M1's moderation loop did (server-first): the profile screen's stats
+  line now shows `creatorScore`, and a `Wrap` of `Chip`s renders each earned badge (icon +
+  label from a closed switch over the 4-key taxonomy, `features/profile/badge_display.dart`
+  — same pattern as `poiCategoryIcon`), fetched via a new `GET /me/badges` call added
+  alongside `ProfileController`'s existing four concurrent requests.
 - **Personal coverage map — heatmap & drill-down (SPEC §15; done, server + mobile).**
   New `GET /me/coverage/heatmap?zoom=`, bucketing the caller's r7 `user_coverage` cells
   by H3 ancestor at a resolution chosen from the camera zoom (`resolutionForZoom`,

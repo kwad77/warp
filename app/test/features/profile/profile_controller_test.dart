@@ -40,7 +40,7 @@ class _InMemorySecureStore implements SecureStore {
 void _stubHappyPath(FakeAdapter adapter) {
   adapter.onJson('GET', '/v1/me', 200, {
     'user': {'id': 'u1', 'handle': 'explorer_x', 'createdAt': '2026-01-01T00:00:00Z'},
-    'stats': {'checkins': 5, 'cellsCovered': 3, 'poisCreated': 1},
+    'stats': {'checkins': 5, 'cellsCovered': 3, 'poisCreated': 1, 'creatorScore': 12},
   });
   adapter.onJson('GET', '/v1/me/map', 200, {
     'checkedIn': <Map<String, dynamic>>[],
@@ -54,6 +54,11 @@ void _stubHappyPath(FakeAdapter adapter) {
       {'rank': 1, 'handle': 'explorer_y', 'cells': 20},
     ],
     'me': {'rank': 7, 'cells': 3},
+  });
+  adapter.onJson('GET', '/v1/me/badges', 200, {
+    'badges': [
+      {'badgeKey': 'first_in_region', 'awardedAt': '2026-01-02T00:00:00Z'},
+    ],
   });
 }
 
@@ -73,13 +78,15 @@ void main() {
 
     controller.state.when(
       loading: () => fail('expected loaded'),
-      loaded: (user, stats, poiMap, coverageCount, leaderboard) {
+      loaded: (user, stats, poiMap, coverageCount, leaderboard, badges) {
         expect(user.handle, 'explorer_x');
         expect(stats.checkins, 5);
+        expect(stats.creatorScore, 12);
         expect(poiMap.created, isEmpty);
         expect(coverageCount, 3);
         expect(leaderboard.entries.single.handle, 'explorer_y');
         expect(leaderboard.me?.rank, 7);
+        expect(badges.single.badgeKey, 'first_in_region');
       },
       error: (_) => fail('expected loaded'),
     );

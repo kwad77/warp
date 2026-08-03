@@ -20,6 +20,7 @@ mixin _$MeStats {
   int get checkins => throw _privateConstructorUsedError;
   int get cellsCovered => throw _privateConstructorUsedError;
   int get poisCreated => throw _privateConstructorUsedError;
+  int get creatorScore => throw _privateConstructorUsedError;
 
   /// Create a copy of MeStats
   /// with the given fields replaced by the non-null parameter values.
@@ -32,7 +33,12 @@ abstract class $MeStatsCopyWith<$Res> {
   factory $MeStatsCopyWith(MeStats value, $Res Function(MeStats) then) =
       _$MeStatsCopyWithImpl<$Res, MeStats>;
   @useResult
-  $Res call({int checkins, int cellsCovered, int poisCreated});
+  $Res call({
+    int checkins,
+    int cellsCovered,
+    int poisCreated,
+    int creatorScore,
+  });
 }
 
 /// @nodoc
@@ -53,6 +59,7 @@ class _$MeStatsCopyWithImpl<$Res, $Val extends MeStats>
     Object? checkins = null,
     Object? cellsCovered = null,
     Object? poisCreated = null,
+    Object? creatorScore = null,
   }) {
     return _then(
       _value.copyWith(
@@ -68,6 +75,10 @@ class _$MeStatsCopyWithImpl<$Res, $Val extends MeStats>
                 ? _value.poisCreated
                 : poisCreated // ignore: cast_nullable_to_non_nullable
                       as int,
+            creatorScore: null == creatorScore
+                ? _value.creatorScore
+                : creatorScore // ignore: cast_nullable_to_non_nullable
+                      as int,
           )
           as $Val,
     );
@@ -82,7 +93,12 @@ abstract class _$$MeStatsImplCopyWith<$Res> implements $MeStatsCopyWith<$Res> {
   ) = __$$MeStatsImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({int checkins, int cellsCovered, int poisCreated});
+  $Res call({
+    int checkins,
+    int cellsCovered,
+    int poisCreated,
+    int creatorScore,
+  });
 }
 
 /// @nodoc
@@ -102,6 +118,7 @@ class __$$MeStatsImplCopyWithImpl<$Res>
     Object? checkins = null,
     Object? cellsCovered = null,
     Object? poisCreated = null,
+    Object? creatorScore = null,
   }) {
     return _then(
       _$MeStatsImpl(
@@ -117,6 +134,10 @@ class __$$MeStatsImplCopyWithImpl<$Res>
             ? _value.poisCreated
             : poisCreated // ignore: cast_nullable_to_non_nullable
                   as int,
+        creatorScore: null == creatorScore
+            ? _value.creatorScore
+            : creatorScore // ignore: cast_nullable_to_non_nullable
+                  as int,
       ),
     );
   }
@@ -129,6 +150,7 @@ class _$MeStatsImpl implements _MeStats {
     required this.checkins,
     required this.cellsCovered,
     required this.poisCreated,
+    required this.creatorScore,
   });
 
   @override
@@ -137,10 +159,12 @@ class _$MeStatsImpl implements _MeStats {
   final int cellsCovered;
   @override
   final int poisCreated;
+  @override
+  final int creatorScore;
 
   @override
   String toString() {
-    return 'MeStats(checkins: $checkins, cellsCovered: $cellsCovered, poisCreated: $poisCreated)';
+    return 'MeStats(checkins: $checkins, cellsCovered: $cellsCovered, poisCreated: $poisCreated, creatorScore: $creatorScore)';
   }
 
   @override
@@ -153,12 +177,19 @@ class _$MeStatsImpl implements _MeStats {
             (identical(other.cellsCovered, cellsCovered) ||
                 other.cellsCovered == cellsCovered) &&
             (identical(other.poisCreated, poisCreated) ||
-                other.poisCreated == poisCreated));
+                other.poisCreated == poisCreated) &&
+            (identical(other.creatorScore, creatorScore) ||
+                other.creatorScore == creatorScore));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, checkins, cellsCovered, poisCreated);
+  int get hashCode => Object.hash(
+    runtimeType,
+    checkins,
+    cellsCovered,
+    poisCreated,
+    creatorScore,
+  );
 
   /// Create a copy of MeStats
   /// with the given fields replaced by the non-null parameter values.
@@ -174,6 +205,7 @@ abstract class _MeStats implements MeStats {
     required final int checkins,
     required final int cellsCovered,
     required final int poisCreated,
+    required final int creatorScore,
   }) = _$MeStatsImpl;
 
   @override
@@ -182,6 +214,8 @@ abstract class _MeStats implements MeStats {
   int get cellsCovered;
   @override
   int get poisCreated;
+  @override
+  int get creatorScore;
 
   /// Create a copy of MeStats
   /// with the given fields replaced by the non-null parameter values.

@@ -11,6 +11,7 @@ import '../models/poi_create_result.dart';
 import '../models/poi_pin.dart';
 import '../models/pois_result.dart';
 import '../models/user.dart';
+import '../models/user_badge.dart';
 import 'api_client.dart';
 
 /// Typed wrapper over [ApiClient] for exactly the SPEC §7 endpoints this slice (map,
@@ -220,6 +221,14 @@ class WanderpostApi {
   Future<CoverageHeatmapResult> coverageHeatmap({required int zoom}) async {
     final body = await client.getJson('/v1/me/coverage/heatmap', query: {'zoom': zoom});
     return CoverageHeatmapResult.fromMap(body);
+  }
+
+  /// SPEC §7/§16 `GET /me/badges`, earned-order (not alphabetical).
+  Future<List<UserBadge>> meBadges() async {
+    final body = await client.getJson('/v1/me/badges');
+    return (body['badges'] as List<dynamic>)
+        .map((e) => UserBadge.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// SPEC §7/§14 `GET /leaderboards/coverage`.

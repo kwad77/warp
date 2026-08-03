@@ -15,7 +15,9 @@ with no connectivity is captured locally and replayed once the app is back onlin
 (SPEC §19): Instagram-style browsing & sharing — a 3-column profile grid with a
 full-screen swipeable viewer, a Discover feed ("places around me" / "places I want to
 visit"), and a share action (native share sheet via `share_plus`) on a grid photo, the
-personal map, and the leaderboard.
+personal map, and the leaderboard. M2 (SPEC §16): mobile UI for badges/creator score —
+the server-side badge taxonomy and `creatorScore` (already shipped) now surface on the
+profile screen.
 
 ## Setup
 
@@ -79,8 +81,8 @@ flutter analyze
 flutter test
 ```
 
-All three must be clean/green (139 tests as of the Instagram-style browsing & sharing
-slice). No live device is
+All three must be clean/green (142 tests as of the badges mobile UI slice). No live
+device is
 required for any of them — see the testability note below on how `camera`,
 `google_mlkit_face_detection`, and `geolocator` (all platform-channel-backed) are kept out
 of the unit-test path.
@@ -118,15 +120,18 @@ lib/features/   auth/ (email-code flow); map/ (MapLibre + server-driven clusteri
                 `CheckinOutbox`/`CheckinOutboxController` — SPEC §17's durable local queue
                 + opportunistic replay for a check-in attempted with no connectivity, same
                 shape as `PoiCreateOutbox`, kept separate rather than unified since two
-                call sites isn't yet enough to justify the abstraction); profile/ (stats,
-                My Places — a 3-column Instagram-style grid (`_PoiGrid`) opening
-                `PoiGridViewerScreen`'s full-screen swipeable viewer with a share action
-                (SPEC §19) — coverage count, weekly leaderboard (its own share action
-                captures a small dedicated `_LeaderboardShareCard` of handle/rank/cells,
-                not the visible entries list, since that list can include other users'
-                handles), sign-out, a combined "N items waiting to sync" banner across both
-                outboxes — loads GET /me + /me/map + /me/coverage +
-                /leaderboards/coverage concurrently); poi/ also has poi_thumbnail.dart
+                call sites isn't yet enough to justify the abstraction); profile/ (stats
+                including `creatorScore`, a `Wrap` of badge `Chip`s (SPEC §16 —
+                badge_display.dart maps the closed 4-key taxonomy to an icon/label via a
+                switch, same pattern as poi_category_icon.dart), My Places — a 3-column
+                Instagram-style grid (`_PoiGrid`) opening `PoiGridViewerScreen`'s
+                full-screen swipeable viewer with a share action (SPEC §19) — coverage
+                count, weekly leaderboard (its own share action captures a small dedicated
+                `_LeaderboardShareCard` of handle/rank/cells, not the visible entries list,
+                since that list can include other users' handles), sign-out, a combined
+                "N items waiting to sync" banner across both outboxes — loads GET /me +
+                /me/map + /me/coverage + /leaderboards/coverage + /me/badges concurrently);
+                poi/ also has poi_thumbnail.dart
                 (SPEC §19 — renders `PoiPin.thumbnailUrl` or a category-icon placeholder
                 via poi_category_icon.dart) alongside the existing detail sheet/creation
                 pieces; feed/ (SPEC §19 Discover tab — `FeedController` independently

@@ -9,11 +9,13 @@ class MeStats with _$MeStats {
     required int checkins,
     required int cellsCovered,
     required int poisCreated,
+    required int creatorScore,
   }) = _MeStats;
 
   factory MeStats.fromMap(Map<String, dynamic> json) => MeStats(
         checkins: json['checkins'] as int,
         cellsCovered: json['cellsCovered'] as int,
         poisCreated: json['poisCreated'] as int,
+        creatorScore: json['creatorScore'] as int,
       );
 }

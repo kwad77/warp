@@ -14,6 +14,7 @@ import 'package:wanderpost/models/poi_pin.dart';
 import 'package:wanderpost/models/pois_result.dart';
 import 'package:wanderpost/models/queued_checkin.dart';
 import 'package:wanderpost/models/queued_poi_creation.dart';
+import 'package:wanderpost/models/user_badge.dart';
 
 void main() {
   test('PoiPin.fromMap parses the SPEC §7 shape', () {
@@ -235,10 +236,25 @@ void main() {
   });
 
   test('MeStats.fromMap parses the SPEC §7 GET /me stats shape', () {
-    final stats = MeStats.fromMap({'checkins': 5, 'cellsCovered': 3, 'poisCreated': 1});
+    final stats = MeStats.fromMap({
+      'checkins': 5,
+      'cellsCovered': 3,
+      'poisCreated': 1,
+      'creatorScore': 42,
+    });
     expect(stats.checkins, 5);
     expect(stats.cellsCovered, 3);
     expect(stats.poisCreated, 1);
+    expect(stats.creatorScore, 42);
+  });
+
+  test('UserBadge.fromMap parses the SPEC §16 GET /me/badges shape', () {
+    final badge = UserBadge.fromMap({
+      'badgeKey': 'poi_milestone_10',
+      'awardedAt': '2026-01-05T12:00:00Z',
+    });
+    expect(badge.badgeKey, 'poi_milestone_10');
+    expect(badge.awardedAt, '2026-01-05T12:00:00Z');
   });
 
   test('MeMap.fromMap parses checkedIn/created/saved/vaulted independently (SPEC §19)', () {

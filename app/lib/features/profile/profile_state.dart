@@ -4,6 +4,7 @@ import '../../models/leaderboard_result.dart';
 import '../../models/me_map.dart';
 import '../../models/me_stats.dart';
 import '../../models/user.dart';
+import '../../models/user_badge.dart';
 
 part 'profile_state.freezed.dart';
 
@@ -17,6 +18,7 @@ class ProfileState with _$ProfileState {
     required MeMap poiMap,
     required int coverageCount,
     required LeaderboardResult leaderboard,
+    required List<UserBadge> badges,
   }) = _Loaded;
   const factory ProfileState.error(String message) = _Error;
 }

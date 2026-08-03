@@ -4,8 +4,9 @@ import '../../core/api_exception.dart';
 import '../../core/wanderpost_api.dart';
 import 'profile_state.dart';
 
-/// SPEC §14 — loads `/me`, `/me/map`, `/me/coverage`, and the weekly coverage leaderboard.
-/// Each call is fired before any is awaited, so the four requests run concurrently.
+/// SPEC §14/§16 — loads `/me`, `/me/map`, `/me/coverage`, the weekly coverage
+/// leaderboard, and `/me/badges`. Each call is fired before any is awaited, so all five
+/// requests run concurrently.
 class ProfileController extends StateNotifier<ProfileState> {
   final WanderpostApi api;
 
@@ -18,16 +19,19 @@ class ProfileController extends StateNotifier<ProfileState> {
       final mapFuture = api.meMap();
       final coverageFuture = api.meCoverage();
       final leaderboardFuture = api.leaderboardCoverage(window: 'weekly');
+      final badgesFuture = api.meBadges();
       final me = await meFuture;
       final map = await mapFuture;
       final coverage = await coverageFuture;
       final leaderboard = await leaderboardFuture;
+      final badges = await badgesFuture;
       state = ProfileState.loaded(
         user: me.user,
         stats: me.stats,
         poiMap: map,
         coverageCount: coverage.count,
         leaderboard: leaderboard,
+        badges: badges,
       );
     } on ApiException catch (e) {
       state = ProfileState.error(e.message);
