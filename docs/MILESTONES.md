@@ -92,7 +92,16 @@ Everything in [MVP.md](MVP.md). Build order inside M1:
      the same seam-not-real-thing-yet pattern as `DevIntegrityVerifier`/
      `DevModerationProvider` — applying the identical transaction §5.7 already specifies
      for `pending → verified`) is sketched but intentionally not built without a decision
-     from a human first.
+     from a human first. **Same root cause, checked and confirmed while investigating this:
+     `src/trust/service.ts`'s closed 5-key trust-event taxonomy is only ever a 2-key one in
+     practice** — `recordTrustEvent` is called with `integrity_fail`/`velocity_violation`
+     from the check-in pipeline, but `report_upheld`, `people_photo_upheld`, and
+     `clean_30d` are defined (deltas and all) and never triggered anywhere. Concretely: a
+     user's `trust_score` can only ever go DOWN, never recover (`clean_30d`'s +5 needs a
+     periodic job — same missing `graphile-worker` — and never runs), and an upheld report
+     against someone currently has zero effect on their trust (needs the same admin
+     resolution flow this bullet already flags as unbuilt). Not a new, separate gap — just
+     additional, previously-undocumented fallout from the one already flagged above.
    - **Mobile UI for photo voting + reporting (done, server + mobile).** Found via an
      audit prompted by the discovery-map render bug below: `POST /photos/:id/vote` and
      `POST /reports` were fully built and tested server-side, but nothing in the mobile
