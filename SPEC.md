@@ -447,6 +447,7 @@ live check-in, though it always counts fully toward `GET /me/coverage`, the heat
 implementation note:** computed live (`GROUP BY user_id ORDER BY count DESC LIMIT`); precomputed snapshots (`leaderboard_snapshots`, ARCHITECTURE.md) are deferred until live cost requires them — no such table exists yet. |
 | `POST /checkins/:id/postcards` | ✅ owner | `{message?: string(..280)}` → `201 {postcard: {id, token, url}}` (§20, M2) — check-in must be the caller's own AND `verified`, else `resource/not_found`; rate limit §2 |
 | `GET /postcards/:token` | 🌐 | → HTML, not the §3 JSON envelope (§20, M2 — the one deliberate carve-out from §3's rule) |
+| `GET /me/postcards` | ✅ | → `{postcards: [{id, token, url, poiTitle, createdAt, revokedAt}]}`, newest first, capped at 200 (§20, M2) — includes already-revoked ones |
 | `DELETE /postcards/:id` | ✅ owner | → `{ok: true}` (§20, M2) — one-directional; not owned/unknown/already-revoked ⇒ `resource/not_found` |
 
 **Pagination convention** (`GET /me/checkins` and any future cursor-paginated list): cursor
@@ -1396,15 +1397,22 @@ unset (no real store listing exists yet).
 **Mobile** (`app/lib/features/checkin/`): the check-in result screen's `verified` state
 gains an optional message field + "Send postcard" button, calling the new endpoint, then
 handing the returned `url` to the OS share sheet (`share_plus`'s `Share.share(url)` — no
-new mobile dependency; already added for §19's image sharing). No "manage my sent
-postcards" screen in this slice (revocation is built server-side per the design guard in
-ARCHITECTURE §10, but nothing in the mobile UI surfaces it yet) — flagged as a fast-follow,
-not an oversight.
+new mobile dependency; already added for §19's image sharing).
 
-**Deferred, flagged, not built here:** a "manage/revoke my sent postcards" mobile screen
-(server-side revoke exists, unreachable from the UI yet); a real text-moderation
-detector; rendering the postcard's `<title>`/OpenGraph tags for richer message-preview
-cards in chat apps (plain `<title>` only, no `og:*` meta tags yet).
+**"My postcards" screen (fast-follow, done):** the send-time gap above — server-side
+revoke existed with nothing in the UI to reach it — is closed by a new
+`GET /me/postcards` (✅) → `{postcards: [{id, token, url, poiTitle, createdAt,
+revokedAt}]}`, newest first, capped at 200 (a v1 simplification, flagged, not silently
+accepted — `POSTCARD_SEND_PER_DAY` (20) means a genuinely prolific sender could exceed
+200 sent postcards after ~10 days; unlike `GET /me/checkins` this isn't keyset-paginated).
+Includes already-revoked postcards (shown, not hidden) so the screen reads as a real
+history, not a shrinking active set. Mobile: a new `MyPostcardsScreen` (reachable from
+Profile, alongside "Check-in history") lists them with a "Revoke" action per non-revoked
+row calling the existing `DELETE /postcards/:id`.
+
+**Deferred, flagged, not built here:** a real text-moderation detector; rendering the
+postcard's `<title>`/OpenGraph tags for richer message-preview cards in chat apps (plain
+`<title>` only, no `og:*` meta tags yet).
 
 ## 21. Unclaimed POIs, founder promotion & named photo credit (M2; exact)
 

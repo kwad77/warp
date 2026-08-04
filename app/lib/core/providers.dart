@@ -24,6 +24,8 @@ import '../features/poi/poi_create_outbox_state.dart';
 import '../features/poi/poi_create_state.dart';
 import '../features/profile/checkin_history_controller.dart';
 import '../features/profile/checkin_history_state.dart';
+import '../features/profile/my_postcards_controller.dart';
+import '../features/profile/my_postcards_state.dart';
 import '../features/profile/profile_controller.dart';
 import '../features/profile/profile_state.dart';
 import 'api_client.dart';
@@ -165,4 +167,12 @@ final AutoDisposeStateNotifierProvider<CheckinHistoryController, CheckinHistoryS
     checkinHistoryControllerProvider =
     StateNotifierProvider.autoDispose<CheckinHistoryController, CheckinHistoryState>((ref) {
   return CheckinHistoryController(ref.watch(wanderpostApiProvider));
+});
+
+// SPEC §20 — "my postcards" (fast-follow). autoDispose, same reasoning as
+// checkinHistoryControllerProvider: pushed on demand, not a persistent tab.
+final AutoDisposeStateNotifierProvider<MyPostcardsController, MyPostcardsState>
+    myPostcardsControllerProvider =
+    StateNotifierProvider.autoDispose<MyPostcardsController, MyPostcardsState>((ref) {
+  return MyPostcardsController(ref.watch(wanderpostApiProvider));
 });

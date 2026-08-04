@@ -15,6 +15,7 @@ import '../coverage/personal_map_screen.dart';
 import '../poi/poi_thumbnail.dart';
 import 'badge_display.dart';
 import 'checkin_history_screen.dart';
+import 'my_postcards_screen.dart';
 import 'poi_grid_viewer_screen.dart';
 
 /// SPEC §14 — stats, My Places, coverage, weekly leaderboard, sign-out. Replaces the
@@ -222,6 +223,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        // SPEC §20 — the "my postcards" fast-follow: server-side revoke existed with
+        // nothing in the UI to reach it until now.
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MyPostcardsScreen()),
+          ),
+          child: const Text('My postcards'),
         ),
         const SizedBox(height: 24),
         Text('My places', style: Theme.of(context).textTheme.titleMedium),

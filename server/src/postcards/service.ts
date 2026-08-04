@@ -62,6 +62,54 @@ export async function sendPostcard(
   return { id, token, url: postcardUrl(publicBaseUrl, token) };
 }
 
+export interface MyPostcardView {
+  id: string;
+  token: string;
+  url: string;
+  poiTitle: string;
+  createdAt: string;
+  revokedAt: string | null;
+}
+
+/**
+ * SPEC §20 — the caller's own sent postcards, newest first, so they can find and revoke
+ * one. Includes already-revoked ones (shown, not hidden) so the screen reads as a real
+ * history rather than the active set silently shrinking. Capped at 200 (bbox's own
+ * `GET /pois` precedent) rather than keyset-paginated like `GET /me/checkins` — a
+ * deliberate v1 simplification, flagged, not silently accepted: `POSTCARD_SEND_PER_DAY`
+ * (20) means a genuinely prolific sender could exceed 200 sent postcards after ~10 days.
+ */
+export async function listMyPostcards(
+  pg: Pg,
+  publicBaseUrl: string,
+  senderId: string,
+): Promise<MyPostcardView[]> {
+  const rows = await pg`
+    SELECT pc.id, pc.token, pc.created_at, pc.revoked_at, p.title AS poi_title
+    FROM postcards pc
+    JOIN checkins c ON c.id = pc.checkin_id
+    JOIN pois p ON p.id = c.poi_id
+    WHERE pc.sender_id = ${senderId}
+    ORDER BY pc.created_at DESC
+    LIMIT 200`;
+  return (
+    rows as unknown as {
+      id: string;
+      token: string;
+      created_at: string;
+      revoked_at: string | null;
+      poi_title: string;
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    token: r.token,
+    url: postcardUrl(publicBaseUrl, r.token),
+    poiTitle: r.poi_title,
+    createdAt: new Date(r.created_at).toISOString(),
+    revokedAt: r.revoked_at ? new Date(r.revoked_at).toISOString() : null,
+  }));
+}
+
 /** SPEC §20 — one-directional: no un-revoke. Not owned / already revoked / unknown ⇒
  *  the same `resource/not_found` (no leak of which). */
 export async function revokePostcard(

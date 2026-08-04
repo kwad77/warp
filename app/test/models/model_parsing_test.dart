@@ -9,6 +9,7 @@ import 'package:wanderpost/models/lat_lng.dart';
 import 'package:wanderpost/models/leaderboard_result.dart';
 import 'package:wanderpost/models/me_map.dart';
 import 'package:wanderpost/models/me_stats.dart';
+import 'package:wanderpost/models/my_postcard.dart';
 import 'package:wanderpost/models/photo.dart';
 import 'package:wanderpost/models/poi.dart';
 import 'package:wanderpost/models/poi_create_result.dart';
@@ -426,6 +427,28 @@ void main() {
     });
     expect(result.cells, isEmpty);
     expect(result.resolution, isNull);
+  });
+
+  test('MyPostcard.fromMap parses an active and a revoked postcard (SPEC §20)', () {
+    final active = MyPostcard.fromMap({
+      'id': 'pc1',
+      'token': 'tok1',
+      'url': 'http://test/v1/postcards/tok1',
+      'poiTitle': 'Torre',
+      'createdAt': '2026-01-01T00:00:00Z',
+      'revokedAt': null,
+    });
+    expect(active.revokedAt, isNull);
+
+    final revoked = MyPostcard.fromMap({
+      'id': 'pc2',
+      'token': 'tok2',
+      'url': 'http://test/v1/postcards/tok2',
+      'poiTitle': 'Torre',
+      'createdAt': '2026-01-01T00:00:00Z',
+      'revokedAt': '2026-01-02T00:00:00Z',
+    });
+    expect(revoked.revokedAt, '2026-01-02T00:00:00Z');
   });
 
   test('LeaderboardResult.fromMap parses a present me (no handle)', () {

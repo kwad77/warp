@@ -13,6 +13,7 @@ import {
   listMeCheckins,
   setDisplayName,
 } from '../me/service.js';
+import { listMyPostcards } from '../postcards/service.js';
 
 const checkinsQuerySchema = z.object({
   cursor: z.string().optional(),
@@ -101,6 +102,14 @@ export function registerMeRoutes(app: FastifyInstance): void {
     const userId = await requireAuth(req);
     const { db } = requireDb(app);
     return { badges: await listBadges(db, userId) };
+  });
+
+  // SPEC §20 — the caller's own sent postcards, newest first, so they can find and
+  // revoke one (`DELETE /postcards/:id`, routes/postcards.ts).
+  app.get('/me/postcards', async (req) => {
+    const userId = await requireAuth(req);
+    const { pg } = requireDb(app);
+    return { postcards: await listMyPostcards(pg, app.deps.config.PUBLIC_BASE_URL, userId) };
   });
 
   app.get('/me/export', async () => {

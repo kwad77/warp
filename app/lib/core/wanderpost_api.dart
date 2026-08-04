@@ -6,6 +6,7 @@ import '../models/lat_lng.dart';
 import '../models/leaderboard_result.dart';
 import '../models/me_map.dart';
 import '../models/me_stats.dart';
+import '../models/my_postcard.dart';
 import '../models/photo.dart';
 import '../models/poi.dart';
 import '../models/poi_create_result.dart';
@@ -294,6 +295,19 @@ class WanderpostApi {
       body: {'message': ?message},
     );
     return (body['postcard'] as Map<String, dynamic>)['url'] as String;
+  }
+
+  /// SPEC §7/§20 `GET /me/postcards` — newest first, includes already-revoked ones.
+  Future<List<MyPostcard>> myPostcards() async {
+    final body = await client.getJson('/v1/me/postcards');
+    return (body['postcards'] as List<dynamic>)
+        .map((e) => MyPostcard.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// SPEC §7/§20 `DELETE /postcards/:id`. One-directional — no un-revoke.
+  Future<void> revokePostcard(String postcardId) async {
+    await client.deleteJson('/v1/postcards/$postcardId');
   }
 
   /// SPEC §7/§14 `GET /leaderboards/coverage`.

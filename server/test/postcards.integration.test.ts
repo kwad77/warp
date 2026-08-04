@@ -281,6 +281,64 @@ describe.runIf(!!url)('postcards (SPEC §20)', () => {
     expect(view.headers['content-type']).toContain('text/html');
   });
 
+  it('GET /me/postcards: newest first, includes a revoked one still shown (not hidden)', async () => {
+    const sender = await makeUser();
+    const other = await makeUser();
+    const ll = offsetLatMeters(BASE_LL, RUN_SALT_M + 27_000);
+    const poiId = await makePoi(sender.userId, ll);
+    const checkinA = await makeCheckin(sender.userId, poiId, ll, 'verified');
+    const otherPoiId = await makePoi(sender.userId, offsetLatMeters(ll, 500));
+    const checkinB = await makeCheckin(
+      sender.userId,
+      otherPoiId,
+      offsetLatMeters(ll, 500),
+      'verified',
+    );
+    // Someone else's postcard must never show up in the caller's own list.
+    const otherCheckin = await makeCheckin(other.userId, poiId, ll, 'verified');
+
+    const sendA = await app.inject({
+      method: 'POST',
+      url: `/v1/checkins/${checkinA}/postcards`,
+      headers: sender.headers,
+      payload: {},
+    });
+    const sendB = await app.inject({
+      method: 'POST',
+      url: `/v1/checkins/${checkinB}/postcards`,
+      headers: sender.headers,
+      payload: {},
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/v1/checkins/${otherCheckin}/postcards`,
+      headers: other.headers,
+      payload: {},
+    });
+
+    const { id: postcardAId } = sendA.json().postcard;
+    await app.inject({
+      method: 'DELETE',
+      url: `/v1/postcards/${postcardAId}`,
+      headers: sender.headers,
+    });
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/v1/me/postcards',
+      headers: sender.headers,
+    });
+    expect(list.statusCode).toBe(200);
+    const { postcards } = list.json();
+    expect(postcards.map((p: { id: string }) => p.id)).toEqual([
+      sendB.json().postcard.id,
+      postcardAId,
+    ]);
+    expect(postcards[1].revokedAt).toBeTruthy();
+    expect(postcards[0].revokedAt).toBeNull();
+    expect(postcards[1].poiTitle).toBe('Le Postcard Spot');
+  });
+
   it('unknown token → 404 HTML; unauthenticated revoke → 401 auth/missing', async () => {
     const view = await app.inject({ method: 'GET', url: '/v1/postcards/no-such-token' });
     expect(view.statusCode).toBe(404);
