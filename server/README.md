@@ -52,10 +52,12 @@ DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm run 
 
 `<city_key>` must be a key in `src/scripts/seed_osm_pois.ts`'s `CITY_BBOXES` map
 (currently `tigard_or`, `portland_or`) — add a new bbox there for each additional city.
-`maxPois` (default 80) caps how many candidates get created; `founderCount` (default 5)
-sets how many per-city `<city_key>_founder_N` accounts split the load — each is capped at
-`POI_CREATE_PER_DAY` (20/day), so a big city's full candidate set may need either more
-founders or repeated runs on later days to fully seed in one go.
+`maxPois` (default 80) caps how many candidates get created; `founderCount` (default 3)
+sets how many per-city `<city_key>_founder_N` accounts the seeded POIs are split across,
+purely for product variety (distinct local founding creators reads better than one shared
+"seed bot"). This import is exempt from `POI_CREATE_PER_DAY` (`createPoi`'s
+`skipRateLimit` option, set only here) — that limit models a real user's posting velocity,
+which a one-time curated import from OpenStreetMap isn't.
 
 ## Layout
 

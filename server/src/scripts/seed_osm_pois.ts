@@ -1,4 +1,4 @@
-import { type PoiCategory, SPEC_CONSTANTS } from '../constants.js';
+import type { PoiCategory } from '../constants.js';
 // Ops tooling, not part of the served API — imports real POIs from OpenStreetMap
 // (Overpass API, no key/credential needed) as founder-seeded data for a new city
 // (docs/MILESTONES.md M2: "Seed 50-100 founder POIs per city; onboard founding
@@ -159,13 +159,13 @@ async function fetchCandidates(bbox: CityBbox): Promise<CandidatePoi[]> {
  * count or, worse, badly under-fill a large `max` meant to validate at real-city scale.
  *
  * Categories are round-robin interleaved in the output rather than concatenated as whole
- * blocks: confirmed against real Portland data that a capacity-limited creation run (rate
- * limiting stopped one stress-test run at 100 created) otherwise consumes its entire
- * budget on whichever category happens to appear first in OSM's raw element order —
- * Portland's ~1,000+ "intersection painting" street-art nodes ran ahead of every other
- * category and all 100 created POIs came back as street_art, despite the per-category cap
- * correctly limiting the candidate *pool*. Interleaving means the first N results (N =
- * however many a rate-limited run actually gets through) are a mix, not a monoculture.
+ * blocks: `max` (the CLI's `maxPois`) truncates this list before it ever reaches the
+ * creation loop, so whichever category appears first in OSM's raw element order would
+ * otherwise consume the whole `max` budget by itself. Confirmed against real Portland
+ * data before this fix — an uninterleaved list handed 100 rate-limited creates came back
+ * 100% street_art (Portland's ~1,000+ "intersection painting" nodes ran ahead of every
+ * other category), despite the per-category cap correctly limiting the candidate *pool*.
+ * Interleaving means the first `max` results are a mix regardless of what truncates them.
  */
 export function capForDiversity(
   candidates: CandidatePoi[],
@@ -195,17 +195,17 @@ export function capForDiversity(
   return result;
 }
 
-// SPEC §2's POI_CREATE_PER_DAY (20) is a per-creator anti-abuse limit, enforced inside
-// createPoi itself — not something a legitimate one-time data import should route
-// around. Multiple named "founder" accounts (matching MILESTONES.md's own "onboard
-// founding creators," plural) keeps every account under that cap while staying honest:
-// createdAt is real (today), nothing is backdated to fake a longer history. Founders are
-// PER CITY (handle namespaced by `founderPrefix`, not shared globally): distinct local
-// founding creators per city is more realistic anyway, and it means one city's already-
-// spent daily quota never throttles a completely different city's seed run — confirmed
-// this matters in practice: Tigard's 5 shared founders had only ~5-16 of their 20/day
-// left by the time this was tried against Portland hours later, since POI_CREATE_PER_DAY
-// is a rolling 24h window, not a calendar-day reset.
+// SPEC §2's POI_CREATE_PER_DAY (20) models a real user's posting velocity — a one-time
+// curated import of real-world places from OSM isn't that, so createPoi is called with
+// skipRateLimit: true (see its definition) rather than sizing a pile of synthetic
+// "founder" accounts to the day's quota, which was the wrong shape entirely: real users
+// seeding a brand-new city won't bulk-load a few hundred places in one sitting either, so
+// there's no "N accounts × 20/day" number that's actually representative of anything.
+// Founder accounts still exist — attributing every seeded POI to one shared "seed bot"
+// would look wrong in the product (MILESTONES.md's own "onboard founding creators,"
+// plural) — but their count is now a product/variety choice, not a capacity workaround.
+// Handles are namespaced PER CITY (by `founderPrefix`) since distinct local founding
+// creators per city is more realistic anyway.
 function founderHandles(founderPrefix: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => `${founderPrefix}_founder_${i + 1}`);
 }
@@ -231,7 +231,7 @@ export async function seedCityFromOsm(
   maxPois: number,
   log: (msg: string) => void,
   founderPrefix: string,
-  founderCount = 5,
+  founderCount = 3,
 ): Promise<void> {
   const { db, pg, close } = createDb(databaseUrl);
   try {
@@ -243,10 +243,6 @@ export async function seedCityFromOsm(
     const handles = founderHandles(founderPrefix, founderCount);
     const founders = await ensureFounders(pg, handles);
     log(`Using ${founders.length} founder accounts (${handles.join(', ')})`);
-    log(
-      `Capacity: ${founders.length} founders × ${SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY}/day = ` +
-        `${founders.length * SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY} creates/day before rate/limited kicks in`,
-    );
 
     let created = 0;
     let skippedDuplicate = 0;
@@ -265,6 +261,7 @@ export async function seedCityFromOsm(
             category: c.category,
             location: c.location,
             gpsFix: c.location,
+            skipRateLimit: true,
           },
           new Date(),
         );
@@ -313,7 +310,7 @@ if (isMain) {
     );
     process.exit(1);
   }
-  const founderCount = process.argv[4] ? Number(process.argv[4]) : 5;
+  const founderCount = process.argv[4] ? Number(process.argv[4]) : 3;
   seedCityFromOsm(
     url,
     bbox,

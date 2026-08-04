@@ -253,6 +253,15 @@ export interface CreatePoiInput {
   location: LatLng;
   gpsFix: LatLng;
   force?: boolean;
+  // Ops-only escape hatch for bulk data import (server/src/scripts/seed_osm_pois.ts):
+  // POI_CREATE_PER_DAY models a real user's posting velocity, which a one-time curated
+  // import of real-world places isn't — modeling that import AS a rate-limited user (via
+  // a pile of synthetic "founder" accounts sized to the day's quota) was itself the wrong
+  // shape, not something to route around by tuning account count. NEVER settable from the
+  // route: routes/pois.ts's createPoiSchema has no such field, and the route handler
+  // builds CreatePoiInput field-by-field rather than spreading the parsed body, so this
+  // can't leak in from a client request.
+  skipRateLimit?: boolean;
 }
 
 export type CreatePoiResult = { poi: PoiView } | { dedupeCandidates: PoiPinView[] };
@@ -271,13 +280,15 @@ export async function createPoi(
     });
   }
 
-  const dayAgo = new Date(now.getTime() - 86_400_000);
-  const [recent] = await db
-    .select({ n: count() })
-    .from(pois)
-    .where(and(eq(pois.creatorId, userId), gt(pois.createdAt, dayAgo)));
-  if ((recent?.n ?? 0) >= RATE.POI_CREATE_PER_DAY) {
-    throw new AppError('rate/limited', 'Too many POIs created today', { retryAfterS: 86_400 });
+  if (!input.skipRateLimit) {
+    const dayAgo = new Date(now.getTime() - 86_400_000);
+    const [recent] = await db
+      .select({ n: count() })
+      .from(pois)
+      .where(and(eq(pois.creatorId, userId), gt(pois.createdAt, dayAgo)));
+    if ((recent?.n ?? 0) >= RATE.POI_CREATE_PER_DAY) {
+      throw new AppError('rate/limited', 'Too many POIs created today', { retryAfterS: 86_400 });
+    }
   }
 
   const cell = dedupeCell(input.location);
