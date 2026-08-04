@@ -5,6 +5,7 @@ import type { Db, Pg } from '../db/client.js';
 import { refreshTokens, users } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { bigintToH3, coverageAncestor, coverageCentroid, resolutionForZoom } from '../geo/h3.js';
+import type { TextModerationProvider } from '../moderation/text_provider.js';
 import { type PoiPinView, urlThumb } from '../pois/service.js';
 
 interface PinRow {
@@ -262,6 +263,31 @@ export async function listMeCheckins(
     items,
     ...(hasMore && last ? { nextCursor: encodeCursor(last.created_at, last.id) } : {}),
   };
+}
+
+/**
+ * SPEC §21 — sets or clears the caller's opt-in `display_name` (distinct from the
+ * immutable, auto-generated `handle`). A flagged name is rejected outright
+ * (`request/invalid`) rather than silently stored unrendered like §20's postcard
+ * messages — the caller is actively choosing this name and can immediately try another,
+ * unlike a one-shot async send.
+ */
+export async function setDisplayName(
+  pg: Pg,
+  moderation: TextModerationProvider,
+  userId: string,
+  displayName: string | null,
+): Promise<{ displayName: string | null }> {
+  if (displayName !== null) {
+    const verdict = await moderation.moderate(displayName);
+    if (!verdict.approved) {
+      throw new AppError('request/invalid', 'Display name was flagged as inappropriate', {
+        reason: 'profanity',
+      });
+    }
+  }
+  await pg`UPDATE users SET display_name = ${displayName} WHERE id = ${userId}`;
+  return { displayName };
 }
 
 /** Soft-delete + immediate logout everywhere (revoke every refresh-token family). SPEC §7. */

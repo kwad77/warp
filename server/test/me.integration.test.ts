@@ -371,6 +371,47 @@ describe.runIf(!!url)('/me (SPEC §7)', () => {
     expect(res.json().error.code).toBe('service/unavailable');
   });
 
+  it('PATCH /me/display-name (SPEC §21): sets, reflects on GET /me, then clears with null', async () => {
+    const u = await makeUser();
+    const set = await app.inject({
+      method: 'PATCH',
+      url: '/v1/me/display-name',
+      headers: u.headers,
+      payload: { displayName: 'Kevin from Tigard' },
+    });
+    expect(set.statusCode).toBe(200);
+    expect(set.json().displayName).toBe('Kevin from Tigard');
+
+    const got = await app.inject({ method: 'GET', url: '/v1/me', headers: u.headers });
+    expect(got.json().user.displayName).toBe('Kevin from Tigard');
+
+    const cleared = await app.inject({
+      method: 'PATCH',
+      url: '/v1/me/display-name',
+      headers: u.headers,
+      payload: { displayName: null },
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json().displayName).toBeNull();
+    const gotAfterClear = await app.inject({ method: 'GET', url: '/v1/me', headers: u.headers });
+    expect(gotAfterClear.json().user.displayName).toBeNull();
+  });
+
+  it('PATCH /me/display-name: a flagged name is rejected, not silently stored (SPEC §21)', async () => {
+    const u = await makeUser();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/me/display-name',
+      headers: u.headers,
+      payload: { displayName: 'total sh1t name' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('request/invalid');
+
+    const got = await app.inject({ method: 'GET', url: '/v1/me', headers: u.headers });
+    expect(got.json().user.displayName).toBeNull();
+  });
+
   it('unauthenticated → 401 auth/missing on every /me route', async () => {
     for (const req of [
       { method: 'GET' as const, url: '/v1/me' },

@@ -66,6 +66,9 @@ export const users = pgTable('users', {
   googleSub: text('google_sub').unique(),
   trustScore: smallint('trust_score').notNull().default(100),
   privacy: jsonb('privacy').notNull().default({}),
+  // SPEC §21 — opt-in, user-chosen, distinct from the immutable auto-generated `handle`.
+  // Null means "not opted in" — never falls back to handle for public credit.
+  displayName: text('display_name'),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -112,9 +115,9 @@ export const pois = pgTable(
   'pois',
   {
     id: uuid('id').primaryKey(),
-    creatorId: uuid('creator_id')
-      .notNull()
-      .references(() => users.id),
+    // SPEC §21 — nullable: NULL means "unclaimed" (seeded, no real creator yet), a
+    // permanent state until the first approved photo on it claims it.
+    creatorId: uuid('creator_id').references(() => users.id),
     title: text('title').notNull(),
     description: text('description'),
     category: poiCategory('category').notNull(),

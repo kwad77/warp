@@ -38,12 +38,15 @@ async function awardFirstInRegion(tx: Db, userId: string, h3R7: bigint): Promise
 /**
  * `poi_milestone_{10,50,100}`: awarded to [poiCreatorId] for every milestone at or below
  * [newCheckinCount] — ascending order, so reaching 50 in one jump also grants 10.
+ * SPEC §21 — a no-op when `poiCreatorId` is null (an unclaimed POI has no one to award
+ * to yet; once a real check-in photo claims it, future check-ins award normally).
  */
 async function awardPoiMilestones(
   tx: Db,
-  poiCreatorId: string,
+  poiCreatorId: string | null,
   newCheckinCount: number,
 ): Promise<void> {
+  if (!poiCreatorId) return;
   for (const milestone of MILESTONES) {
     if (newCheckinCount >= milestone) {
       await award(tx, poiCreatorId, `poi_milestone_${milestone}` as BadgeKey);
@@ -53,7 +56,7 @@ async function awardPoiMilestones(
 
 export async function awardBadgesForVerifiedCheckin(
   tx: Db,
-  input: { userId: string; h3R7: bigint; poiCreatorId: string; newPoiCheckinCount: number },
+  input: { userId: string; h3R7: bigint; poiCreatorId: string | null; newPoiCheckinCount: number },
 ): Promise<void> {
   await awardFirstInRegion(tx, input.userId, input.h3R7);
   await awardPoiMilestones(tx, input.poiCreatorId, input.newPoiCheckinCount);

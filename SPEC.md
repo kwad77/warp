@@ -427,7 +427,8 @@ timestamps ISO-8601 UTC strings; IDs are UUIDv7 strings.
 | `POST /checkins/intent` | ✅ | `{poiId, deviceId}` → `{nonce, expiresInS}` |
 | `POST /checkins` | ✅ | `{nonce, poiId, mode: "photo"\|"confirm", fixes: Fix[2..5], integrityToken, evidence?: "live"\|"deferred" (default "live", §17), capture?: {token, capturedAt, storageKey}}` → `201 {checkin: {id, status, poiId, mode, evidence, verifiedAt?}}`; rejected ⇒ `422` per §5.7 (now also `stale_evidence`, §5.3); `Fix = {lat, lng, accuracyM, capturedAt}` |
 | `GET /checkins/:id` | ✅ owner | → `{checkin}` (non-owner ⇒ 404, §5.7) |
-| `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated, creatorScore}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count; `creatorScore` = sum of `checkin_count` across those same POIs (§16, M2) |
+| `GET /me` | ✅ | → `{user, stats: {checkins, cellsCovered, poisCreated, creatorScore}}` — `checkins` counts `status='verified'` only; `poisCreated` counts the caller's POIs with `status <> 'removed'`; `cellsCovered` = `user_coverage` row count; `creatorScore` = sum of `checkin_count` across those same POIs (§16, M2); `user.displayName` (§21, M2) reflects the caller's own current opt-in choice |
+| `PATCH /me/display-name` | ✅ | `{displayName: string(1..40 code points) \| null}` → `{displayName}` (§21, M2) — `null` clears it; a profanity-flagged name ⇒ `request/invalid` (`details.reason: 'profanity'`) |
 | `GET /me/map` | ✅ | → `{checkedIn: PoiPin[], created: PoiPin[], saved: PoiPin[], vaulted: PoiPin[]}` — `checkedIn` = POIs with a verified check-in by the caller (deduplicated per POI — M2 fix, §19; multiple verified check-ins at the same POI previously produced duplicate pins); `created` = caller's POIs with `status <> 'removed'`; `saved` = the caller's `saved_pois` rows, most recently saved first (§19, M2); `vaulted` is always `[]` in M1 (vault ships M3; SPEC §6 of MVP.md). `thumbnailUrl` populated on all three real arrays (§19, M2). |
 | `POST /pois/:id/save` | ✅ | `{value: 1\|0}` (0 = unsave) → `{saved: bool}` — upsert/delete on `(user_id, poi_id)` (§19, M2); saving a non-`active` POI ⇒ `resource/not_found` (no visibility leak, same pattern as photo voting) |
 | `GET /me/coverage` | ✅ | → `{cells: string[] (h3 r7, lowercase hex), count}` |
@@ -453,14 +454,19 @@ is base64 of `"<createdAt ISO>|<id>"` for the last row of the previous page; res
 by `(created_at DESC, id DESC)`; an absent/malformed cursor starts from the top; no
 `nextCursor` in the response means no further pages.
 
-`User = {id, handle, createdAt}` · `PoiPin = {id, title, category, location, checkinCount,
-thumbnailUrl}` (`thumbnailUrl: string | null` — §19, M2; the POI's best approved photo,
-computed only where noted below, `null` elsewhere including endpoints that don't compute
-it at all) · Full `Poi` adds `{description, creator: {id, handle}, checkinRadiusM, gallery:
-Photo[]}` · `Photo = {id, urlCard, urlThumb, voteScore, myVote, uploader: {handle},
-status}` (non-approved photos visible only to their uploader; `myVote: boolean` — M2,
-§7's `GET /pois/:id` note — is the one caller-specific field on an otherwise-shared
-shape, `false` whenever there's no authenticated caller or they haven't voted).
+`User = {id, handle, displayName, createdAt}` (`displayName: string | null` — §21, M2;
+the caller's own opt-in choice, `GET /me` only) · `PoiPin = {id, title, category,
+location, checkinCount, thumbnailUrl}` (`thumbnailUrl: string | null` — §19, M2; the
+POI's best approved photo, computed only where noted below, `null` elsewhere including
+endpoints that don't compute it at all) · Full `Poi` adds `{description, creator: {id,
+handle} | null, checkinRadiusM, gallery: Photo[]}` (`creator: null` — §21, M2 — means the
+POI is unclaimed: seeded, no real founder yet) · `Photo = {id, urlCard, urlThumb,
+voteScore, myVote, uploader: {handle}, contributorName, status}` (non-approved photos
+visible only to their uploader; `myVote: boolean` — M2, §7's `GET /pois/:id` note — is
+the one caller-specific field on an otherwise-shared shape, `false` whenever there's no
+authenticated caller or they haven't voted; `contributorName: string | null` — §21, M2 —
+the uploader's opt-in display name, `null` if they haven't set one, never falling back to
+`handle`).
 
 ## 8. Database schema (authoritative DDL)
 
@@ -471,7 +477,8 @@ defect. UUIDv7 generated in app code. Applied deltas: **0001** drops
 `UNIQUE INDEX checkins_user_poi_active ON checkins (user_id, poi_id) WHERE status <>
 'rejected'` (§5.7 retry semantics). **0002** adds `badge_key` + `badges` (§16, M2). **0003**
 adds `checkin_evidence_mode` + `checkins.evidence` (§17, M2). **0004** adds `saved_pois`
-(§19, M2). **0005** adds `postcards` (§20, M2).
+(§19, M2). **0005** adds `postcards` (§20, M2). **0006** drops `pois.creator_id`'s
+`NOT NULL` and adds `users.display_name` (§21, M2).
 
 ```sql
 CREATE TYPE poi_category AS ENUM ('landmark','viewpoint','nature','architecture','street_art','other');
@@ -490,6 +497,7 @@ CREATE TABLE users (
   trust_score SMALLINT NOT NULL DEFAULT 100,
   privacy JSONB NOT NULL DEFAULT '{}',
   deleted_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+-- Migration 0006 adds: display_name TEXT (opt-in, distinct from handle; §21, M2).
 
 CREATE TABLE refresh_tokens (
   jti UUID PRIMARY KEY, fam UUID NOT NULL, user_id UUID NOT NULL REFERENCES users(id),
@@ -515,6 +523,7 @@ CREATE TABLE pois (
   status poi_status NOT NULL DEFAULT 'active',
   checkin_count INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+-- Migration 0006 drops creator_id's NOT NULL — NULL means unclaimed (§21, M2).
 CREATE INDEX ON pois USING GIST (location);
 CREATE INDEX ON pois (h3_r9);
 
@@ -586,6 +595,12 @@ ALTER TABLE checkins ADD COLUMN evidence checkin_evidence_mode NOT NULL DEFAULT 
 CREATE TABLE saved_pois (
   user_id UUID NOT NULL REFERENCES users(id), poi_id UUID NOT NULL REFERENCES pois(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, poi_id));
+
+-- Migration 0005 (§20, M2): postcards — see §20's own data-model block for the full DDL.
+
+-- Migration 0006 (§21, M2):
+ALTER TABLE pois ALTER COLUMN creator_id DROP NOT NULL;
+ALTER TABLE users ADD COLUMN display_name TEXT;
 
 -- [M2] health_daily · [M3] entitlements — declared in docs, created when built.
 ```
@@ -1391,7 +1406,97 @@ not an oversight.
 detector; rendering the postcard's `<title>`/OpenGraph tags for richer message-preview
 cards in chat apps (plain `<title>` only, no `og:*` meta tags yet).
 
-## 21. Definition of done (every PR)
+## 21. Unclaimed POIs, founder promotion & named photo credit (M2; exact)
+
+Scope: `docs/MILESTONES.md`'s M2 "seed 50-100 founder POIs per city" — this SPEC's answer
+to a problem the seeding tooling surfaced directly (a real Portland, OR stress test):
+synthetic "founder" accounts, sized to stay under `POI_CREATE_PER_DAY`, aren't a real
+product mechanic — a bulk-imported place shouldn't be attributed to an account nobody
+real controls, and no amount of account-count tuning makes a one-time curated import
+look like a user's posting velocity. Real mechanic instead: an imported POI starts
+**unclaimed** (no creator), and the first real user whose check-in (or POI-creation)
+photo for it clears moderation becomes its founder, permanently. Separately, whichever
+photo is currently the *best* one (highest-voted, same tie-break §7 already uses) can
+credit its uploader by name if — and only if — that uploader has opted in.
+
+**Data model** (migration `0006_unclaimed_pois_and_display_name.sql`, §8 delta):
+```sql
+ALTER TABLE pois ALTER COLUMN creator_id DROP NOT NULL;
+ALTER TABLE users ADD COLUMN display_name TEXT;
+```
+`pois.creator_id` becomes nullable — `NULL` means "unclaimed," a real, permanent state
+until claimed (never reset, never defaulted to some placeholder account). `users.
+display_name` is new, optional, and user-chosen — entirely distinct from `handle`
+(system-generated, immutable, `explorer_xxxxx`, §4). Both `NULL` by default.
+
+**Founder promotion** (`src/moderation/service.ts`'s `applyModerationVerdict`, via a new
+`promoteFounderIfUnclaimed`): the moment a photo's verdict becomes `approved`, if that
+photo's POI currently has `creator_id IS NULL`, atomically set `creator_id` to that
+photo's `uploader_id`:
+```sql
+UPDATE pois p SET creator_id = ph.uploader_id
+FROM photos ph
+WHERE ph.id = <photoId> AND p.id = ph.poi_id AND p.creator_id IS NULL
+```
+One statement, guarded by the `IS NULL` check, so it's race-safe and one-shot: whichever
+approval reaches Postgres first wins; a later approval for the same POI matches zero rows
+and no-ops. Applies uniformly regardless of `photos.source` (`poi_creation` or
+`checkin`) — a normal user-created POI already has a creator at insert time, so this only
+ever fires for POIs that started unclaimed (i.e. seeded ones).
+
+**Unclaimed POIs behave normally everywhere else**: browsable (`GET /pois`,
+`/pois/nearby`, `/pois/:id`), checkin-able, categorized/radius'd exactly like any other
+active POI. `Poi.creator` becomes `{id, handle} | null` (§7). Every existing query that
+filters "POIs I created" by `creator_id = <userId>` (`GET /me`'s `poisCreated`/
+`creatorScore`, `GET /me/map`'s `created`) already excludes unclaimed POIs for free —
+SQL's `NULL = x` is never true, no code change needed there. `poi_milestone_*` badges
+(§16) simply have no one to award to until a POI is claimed — `awardPoiMilestones` is a
+no-op when `poiCreatorId` is `null`; once claimed, future check-ins award normally.
+
+**Named photo credit** (`GET /pois/:id`'s gallery, §7): each gallery `Photo` gains
+`contributorName: string | null` — the uploader's `display_name` if they've set one, else
+`null`. Never falls back to `handle`: an un-named contributor is uncredited, not credited
+by their auto-generated handle. Independent of founder status and can change over time as
+new photos out-vote the current best one (§7's existing `vote_score DESC, created_at ASC`
+tie-break) — unlike founder status, which is permanent once set.
+
+**Setting a display name** (new API, §7):
+| Endpoint | Auth | Request → Response |
+| --- | --- | --- |
+| `PATCH /me/display-name` | ✅ | `{displayName: string(1..40 code points) \| null}` → `{displayName}`. `null` clears it (reverts to uncredited). Passed through a `TextModerationProvider` (mirrors §20's shape) — a flagged name ⇒ `request/invalid` (`details.reason: 'profanity'`) rather than being silently stored unrendered like §20's postcard messages; the caller is actively choosing this name and can immediately try another, unlike a one-shot async send. |
+
+`GET /me`'s `user` gains `displayName: string | null` alongside `handle` (§7) so the
+caller can read back their own current choice.
+
+**Text moderation for display names** (`src/moderation/text_provider.ts`): a new
+`keywordTextModerationProvider(blocklist)` — normalizes (lowercase, strips diacritics,
+folds common leetspeak substitutions, drops remaining non-alphanumerics) then checks for
+a blocklisted whole word as a substring of the normalized text. A real (if simple)
+detector — deliberately not another `dev...always-approves` stub, and it needs no
+credentials/config, so it's the *default* `displayNameModeration` dependency (optional on
+`AppDeps`) rather than needing an explicit per-deployment choice the way photo moderation
+does. Known, accepted limitation: a short substring match can false-positive on innocuous
+words containing a blocked one (the "Scunthorpe problem") — mitigated, not solved, by
+keeping the default blocklist to whole profanity words rather than short fragments.
+`devTextModerationProvider()` (§20, postcard messages) is unchanged and out of scope here
+— nothing stops a later PR from moving postcards onto a real provider too.
+
+**Seeding** (`server/src/scripts/seed_osm_pois.ts`): imported POIs are now inserted with
+`creator_id = NULL` via a new `importUnclaimedPoi` (`server/src/pois/service.ts`) — the
+same real dedupe/insert path `createPoi` uses, minus the per-user rate limit and
+pin-adjust check (neither applies: there's no user and no GPS fix behind a bulk import).
+This retires the "founder account" mechanism the previous iteration of this tooling
+added (synthetic `<city>_founder_N` accounts sized to `POI_CREATE_PER_DAY`) — there's
+nothing left to rate-limit or bypass, since an unclaimed POI has no creator at all.
+
+**Deferred, flagged, not built here:** mobile UI surfacing (a "Founded by" line on the POI
+detail screen, a "Photo by <name>" credit on gallery images, a settings screen to
+set/clear `displayName`) — server-only in this PR, same precedent as §16's badges landing
+server-first; a stronger (non-keyword) profanity/abuse detector if the starter blocklist
+proves insufficient; extending named credit to postcards' photographer line (§20, still
+`handle`-only) or to `Photo.uploader` elsewhere — left as noted, not silently changed.
+
+## 22. Definition of done (every PR)
 
 1. Implements only SPEC'd behavior; SPEC updated in-PR if it had to change (called out).
 2. `npm run check` green locally and in CI.

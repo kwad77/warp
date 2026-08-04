@@ -6,7 +6,10 @@ import type { Config } from './config.js';
 import type { DbHandle } from './db/client.js';
 import { AppError } from './errors.js';
 import type { ModerationProvider } from './moderation/provider.js';
-import type { TextModerationProvider } from './moderation/text_provider.js';
+import {
+  type TextModerationProvider,
+  keywordTextModerationProvider,
+} from './moderation/text_provider.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCheckinRoutes } from './routes/checkins.js';
 import { registerCommunityRoutes } from './routes/community.js';
@@ -27,6 +30,16 @@ export interface AppDeps {
   storage: Storage;
   /** null when the corresponding *_CLIENT_ID env var isn't set (SPEC §4). */
   oidcVerifiers: { apple: OidcVerifier | null; google: OidcVerifier | null };
+  // SPEC §21 — optional: unlike textModeration (postcards, still no real detector wired
+  // in), display-name moderation's "real" version needs no credentials/config, so it can
+  // just BE the default rather than needing an explicit choice per deployment. Callers
+  // that want to override (e.g. tests exercising a specific blocklist) still can.
+  displayNameModeration?: TextModerationProvider;
+}
+
+/** `displayNameModeration` is always resolved by `buildApp` before decorating. */
+interface ResolvedAppDeps extends AppDeps {
+  displayNameModeration: TextModerationProvider;
 }
 
 declare module 'fastify' {
@@ -34,7 +47,7 @@ declare module 'fastify' {
     userId: string | null;
   }
   interface FastifyInstance {
-    deps: AppDeps;
+    deps: ResolvedAppDeps;
   }
 }
 
@@ -83,7 +96,10 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     },
   });
 
-  app.decorate('deps', deps);
+  app.decorate('deps', {
+    ...deps,
+    displayNameModeration: deps.displayNameModeration ?? keywordTextModerationProvider(),
+  });
   app.decorateRequest('userId', null);
 
   app.setErrorHandler((err, req, reply) => {

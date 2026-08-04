@@ -11,6 +11,7 @@ import {
   getMeMap,
   getMeStats,
   listMeCheckins,
+  setDisplayName,
 } from '../me/service.js';
 
 const checkinsQuerySchema = z.object({
@@ -22,18 +23,52 @@ const heatmapQuerySchema = z.object({
   zoom: z.coerce.number().int().min(0).max(22),
 });
 
+/** SPEC §11: length limits count Unicode code points, not UTF-16 units. */
+function codePointLength(s: string): number {
+  return [...s].length;
+}
+
+// SPEC §21 — 1..40 code points, or null to clear.
+const displayNameSchema = z.object({
+  displayName: z
+    .string()
+    .refine((s) => codePointLength(s) >= 1 && codePointLength(s) <= 40, {
+      message: 'displayName must be 1..40 Unicode code points',
+    })
+    .nullable(),
+});
+
 export function registerMeRoutes(app: FastifyInstance): void {
   app.get('/me', async (req) => {
     const userId = await requireAuth(req);
     const { pg } = requireDb(app);
     const stats = await getMeStats(pg, userId);
-    const userRows = await pg`SELECT id, handle, created_at FROM users WHERE id = ${userId}`;
+    const userRows = await pg`
+      SELECT id, handle, display_name, created_at FROM users WHERE id = ${userId}`;
     // Raw pg query on a drizzle-wrapped connection returns timestamptz as a string.
-    const row = userRows[0] as { id: string; handle: string; created_at: string };
+    const row = userRows[0] as {
+      id: string;
+      handle: string;
+      display_name: string | null;
+      created_at: string;
+    };
     return {
-      user: { id: row.id, handle: row.handle, createdAt: new Date(row.created_at).toISOString() },
+      user: {
+        id: row.id,
+        handle: row.handle,
+        displayName: row.display_name,
+        createdAt: new Date(row.created_at).toISOString(),
+      },
       stats,
     };
+  });
+
+  // SPEC §21 — sets/clears the caller's opt-in display name (distinct from `handle`).
+  app.patch('/me/display-name', async (req) => {
+    const userId = await requireAuth(req);
+    const body = parseBody(displayNameSchema, req.body);
+    const { pg } = requireDb(app);
+    return setDisplayName(pg, app.deps.displayNameModeration, userId, body.displayName);
   });
 
   app.get('/me/map', async (req) => {

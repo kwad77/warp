@@ -8,6 +8,22 @@ import type { ModerationProvider, ModerationVerdict } from './provider.js';
 
 const PHOTOS = SPEC_CONSTANTS.photos;
 
+/**
+ * SPEC §21 — the moment a photo clears moderation, if its POI is still unclaimed
+ * (`creator_id IS NULL` — a seeded POI nobody has founded yet), that photo's uploader
+ * founds it. One statement, guarded by the `IS NULL` check, so it's race-safe and
+ * one-shot: whichever approval reaches Postgres first wins; a second photo (or a
+ * concurrent approval) for the same POI matches zero rows and is a no-op. Applies
+ * uniformly regardless of `photos.source` — a normal user-created POI already has a
+ * creator at insert time, so this only ever fires for POIs that started unclaimed.
+ */
+async function promoteFounderIfUnclaimed(pg: Pg, photoId: string): Promise<void> {
+  await pg`
+    UPDATE pois p SET creator_id = ph.uploader_id
+    FROM photos ph
+    WHERE ph.id = ${photoId} AND p.id = ph.poi_id AND p.creator_id IS NULL`;
+}
+
 export async function applyModerationVerdict(
   pg: Pg,
   photoId: string,
@@ -17,8 +33,11 @@ export async function applyModerationVerdict(
     await pg`
       UPDATE photos SET moderation = 'rejected', rejection_reason = ${verdict.reason}
       WHERE id = ${photoId}`;
-  } else {
-    await pg`UPDATE photos SET moderation = ${verdict.outcome} WHERE id = ${photoId}`;
+    return;
+  }
+  await pg`UPDATE photos SET moderation = ${verdict.outcome} WHERE id = ${photoId}`;
+  if (verdict.outcome === 'approved') {
+    await promoteFounderIfUnclaimed(pg, photoId);
   }
 }
 

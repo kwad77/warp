@@ -40,24 +40,23 @@ DB-backed integration tests run when `TEST_DATABASE_URL` is set (CI always sets 
 TEST_DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm test
 ```
 
-## Seeding founder POIs for a new city
+## Seeding unclaimed POIs for a new city
 
 `docs/MILESTONES.md`'s M2 "seed 50-100 founder POIs per city" — pulls real, named POIs
-from OpenStreetMap (no API key needed) and creates them through the real `createPoi`
-service function (same validation/dedupe every user's `POST /pois` gets):
+from OpenStreetMap (no API key needed) and creates them through `importUnclaimedPoi`
+(same validation/dedupe every user's `POST /pois` gets, via the shared `createPoi` dedupe
+path). Seeded POIs have no creator (SPEC §21 — `creator_id IS NULL` means "unclaimed"):
+the first real check-in photo that clears moderation for one founds it, permanently.
 
 ```sh
-DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm run db:seed -- <city_key> [maxPois] [founderCount]
+DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm run db:seed -- <city_key> [maxPois]
 ```
 
 `<city_key>` must be a key in `src/scripts/seed_osm_pois.ts`'s `CITY_BBOXES` map
 (currently `tigard_or`, `portland_or`) — add a new bbox there for each additional city.
-`maxPois` (default 80) caps how many candidates get created; `founderCount` (default 3)
-sets how many per-city `<city_key>_founder_N` accounts the seeded POIs are split across,
-purely for product variety (distinct local founding creators reads better than one shared
-"seed bot"). This import is exempt from `POI_CREATE_PER_DAY` (`createPoi`'s
-`skipRateLimit` option, set only here) — that limit models a real user's posting velocity,
-which a one-time curated import from OpenStreetMap isn't.
+`maxPois` (default 80) caps how many candidates get created. No rate limit applies (an
+unclaimed POI has no creator to rate-limit) and no synthetic account is created —
+`POI_CREATE_PER_DAY` only ever governed real users' own `POST /pois` calls.
 
 ## Layout
 

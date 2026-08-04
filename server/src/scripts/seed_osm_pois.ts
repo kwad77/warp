@@ -1,15 +1,15 @@
 import type { PoiCategory } from '../constants.js';
-// Ops tooling, not part of the served API — imports real POIs from OpenStreetMap
-// (Overpass API, no key/credential needed) as founder-seeded data for a new city
-// (docs/MILESTONES.md M2: "Seed 50-100 founder POIs per city; onboard founding
-// creators"). Run directly via tsx, same convention as db/migrate.ts. Every insert goes
-// through the real `createPoi` service function — same validation, dedupe, and
-// checkin-radius-by-category logic a real user's `POST /pois` call gets, not a
-// hand-rolled INSERT that could drift from it.
-import { type Db, type Pg, createDb } from '../db/client.js';
+// Ops tooling, not part of the served API — imports real, named POIs from OpenStreetMap
+// (Overpass API, no key/credential needed) as UNCLAIMED seed data for a new city (SPEC
+// §21; docs/MILESTONES.md M2: "Seed 50-100 founder POIs per city"). Run directly via tsx,
+// same convention as db/migrate.ts. Every insert goes through the real
+// `importUnclaimedPoi` service function — same validation, dedupe, and
+// checkin-radius-by-category logic `createPoi` gives a real user's `POST /pois` call, not
+// a hand-rolled INSERT that could drift from it. Imported POIs have no creator: the first
+// real check-in photo approved for one claims it (SPEC §21, moderation/service.ts).
+import { createDb } from '../db/client.js';
 import { type LatLng, haversineM } from '../geo/distance.js';
-import { uuidv7 } from '../lib/uuid.js';
-import { createPoi } from '../pois/service.js';
+import { importUnclaimedPoi } from '../pois/service.js';
 
 // Beyond single-town scale, exact-name dedup silently discards genuinely distinct real
 // places that happen to share a name (chain churches, national-park-style peak names,
@@ -195,73 +195,31 @@ export function capForDiversity(
   return result;
 }
 
-// SPEC §2's POI_CREATE_PER_DAY (20) models a real user's posting velocity — a one-time
-// curated import of real-world places from OSM isn't that, so createPoi is called with
-// skipRateLimit: true (see its definition) rather than sizing a pile of synthetic
-// "founder" accounts to the day's quota, which was the wrong shape entirely: real users
-// seeding a brand-new city won't bulk-load a few hundred places in one sitting either, so
-// there's no "N accounts × 20/day" number that's actually representative of anything.
-// Founder accounts still exist — attributing every seeded POI to one shared "seed bot"
-// would look wrong in the product (MILESTONES.md's own "onboard founding creators,"
-// plural) — but their count is now a product/variety choice, not a capacity workaround.
-// Handles are namespaced PER CITY (by `founderPrefix`) since distinct local founding
-// creators per city is more realistic anyway.
-function founderHandles(founderPrefix: string, count: number): string[] {
-  return Array.from({ length: count }, (_, i) => `${founderPrefix}_founder_${i + 1}`);
-}
-
-async function ensureFounders(pg: Pg, handles: string[]): Promise<string[]> {
-  const ids: string[] = [];
-  for (const handle of handles) {
-    const existing = await pg`SELECT id FROM users WHERE handle = ${handle}`;
-    if (existing.length > 0) {
-      ids.push((existing[0] as { id: string }).id);
-      continue;
-    }
-    const id = uuidv7();
-    await pg`INSERT INTO users (id, handle, email) VALUES (${id}, ${handle}, ${`${handle}@wanderpost.seed`})`;
-    ids.push(id);
-  }
-  return ids;
-}
-
 export async function seedCityFromOsm(
   databaseUrl: string,
   bbox: CityBbox,
   maxPois: number,
   log: (msg: string) => void,
-  founderPrefix: string,
-  founderCount = 3,
 ): Promise<void> {
-  const { db, pg, close } = createDb(databaseUrl);
+  const { pg, close } = createDb(databaseUrl);
   try {
     log(`Querying OSM for ${bbox.name}...`);
     const raw = await fetchCandidates(bbox);
     const candidates = capForDiversity(raw, maxPois);
     log(`${raw.length} unique named candidates found, seeding ${candidates.length}`);
 
-    const handles = founderHandles(founderPrefix, founderCount);
-    const founders = await ensureFounders(pg, handles);
-    log(`Using ${founders.length} founder accounts (${handles.join(', ')})`);
-
     let created = 0;
     let skippedDuplicate = 0;
     let skippedError = 0;
-    for (let i = 0; i < candidates.length; i++) {
-      const c = candidates[i] as CandidatePoi;
-      const founderId = founders[i % founders.length] as string;
+    for (const c of candidates) {
       try {
-        const result = await createPoi(
-          db as Db,
+        const result = await importUnclaimedPoi(
           pg,
-          founderId,
           {
             title: c.title,
             ...(c.description !== undefined ? { description: c.description } : {}),
             category: c.category,
             location: c.location,
-            gpsFix: c.location,
-            skipRateLimit: true,
           },
           new Date(),
         );
@@ -276,7 +234,7 @@ export async function seedCityFromOsm(
       }
     }
     log(
-      `Done: ${created} created, ${skippedDuplicate} skipped as duplicates, ${skippedError} errors`,
+      `Done: ${created} created (unclaimed), ${skippedDuplicate} skipped as duplicates, ${skippedError} errors`,
     );
   } finally {
     await close();
@@ -310,15 +268,7 @@ if (isMain) {
     );
     process.exit(1);
   }
-  const founderCount = process.argv[4] ? Number(process.argv[4]) : 3;
-  seedCityFromOsm(
-    url,
-    bbox,
-    maxPois,
-    (msg) => process.stdout.write(`${msg}\n`),
-    cityKey,
-    founderCount,
-  ).catch((err) => {
+  seedCityFromOsm(url, bbox, maxPois, (msg) => process.stdout.write(`${msg}\n`)).catch((err) => {
     process.stderr.write(`${(err as Error).stack ?? err}\n`);
     process.exit(1);
   });

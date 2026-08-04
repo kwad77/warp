@@ -11,7 +11,7 @@ import { dedupeCell, h3ToBigint } from '../src/geo/h3.js';
 import { uuidv7 } from '../src/lib/uuid.js';
 import type { ModerationProvider, ModerationVerdict } from '../src/moderation/provider.js';
 import { devTextModerationProvider } from '../src/moderation/text_provider.js';
-import { createPoi } from '../src/pois/service.js';
+import { importUnclaimedPoi } from '../src/pois/service.js';
 import type { Storage } from '../src/storage/r2.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -308,28 +308,28 @@ describe.runIf(!!url)('POI + photo endpoints (SPEC §7)', () => {
       expect(res.statusCode).toBe(429);
       expect(res.json().error.code).toBe('rate/limited');
     });
+  });
 
-    it('skipRateLimit:true bypasses the cap — ops-only, not reachable via the route (server/src/scripts/seed_osm_pois.ts)', async () => {
-      const u = await makeUser();
-      const base = offsetLatMeters(POI_LL, 35_000);
-      for (let i = 0; i < SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY; i++) {
-        await makePoi(u.userId, offsetLngMeters(base, i * 500));
+  describe('importUnclaimedPoi (SPEC §21 — ops seeding, not reachable via any route)', () => {
+    it('creates a POI with no creator, unaffected by POI_CREATE_PER_DAY', async () => {
+      const base = offsetLatMeters(POI_LL, 40_000);
+      for (let i = 0; i < SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY + 5; i++) {
+        // Not attributed to any real user — importUnclaimedPoi has no creator, so there's
+        // no per-creator quota for a bulk import to exhaust in the first place.
+        const result = await importUnclaimedPoi(
+          handle.pg,
+          {
+            title: `Seed-imported place ${i}`,
+            category: 'landmark',
+            location: offsetLngMeters(base, i * 500),
+          },
+          new Date(),
+        );
+        expect('poi' in result).toBe(true);
+        if ('poi' in result) {
+          expect(result.poi.creator).toBeNull();
+        }
       }
-      const next = offsetLngMeters(base, SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY * 500);
-      const result = await createPoi(
-        handle.db,
-        handle.pg,
-        u.userId,
-        {
-          title: 'Seed-imported place',
-          category: 'landmark',
-          location: next,
-          gpsFix: next,
-          skipRateLimit: true,
-        },
-        new Date(),
-      );
-      expect('poi' in result).toBe(true);
     });
   });
 

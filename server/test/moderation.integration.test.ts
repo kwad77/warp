@@ -67,6 +67,25 @@ describe.runIf(!!url)('moderation service (SPEC §6)', () => {
     return photoId;
   }
 
+  /** SPEC §21 — creator_id NULL: a seeded POI nobody has founded yet. */
+  async function makeUnclaimedPoiWithPendingPhoto(
+    uploaderId: string,
+    salt: number,
+  ): Promise<{ poiId: string; photoId: string }> {
+    const ll = offsetLatMeters(POI_LL, salt);
+    const poiId = uuidv7();
+    await handle.pg`
+      INSERT INTO pois (id, creator_id, title, category, location, h3_r9, checkin_radius_m, status)
+      VALUES (${poiId}, NULL, 'x', 'landmark',
+              ST_GeogFromText(${`SRID=4326;POINT(${ll.lng} ${ll.lat})`}),
+              ${h3ToBigint(dedupeCell(ll)).toString()}, 75, 'active')`;
+    const photoId = uuidv7();
+    await handle.pg`
+      INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation)
+      VALUES (${photoId}, ${poiId}, ${uploaderId}, ${`photos/${poiId}/${photoId}.jpg`}, 'checkin', 'pending')`;
+    return { poiId, photoId };
+  }
+
   beforeAll(async () => {
     await migrate(url as string, () => {});
     handle = createDb(url as string);
@@ -168,6 +187,41 @@ describe.runIf(!!url)('moderation service (SPEC §6)', () => {
     expect(row[0]?.width).toBe(200);
     expect(row[0]?.height).toBe(150);
     expect(row[0]?.phash).not.toBeNull();
+  });
+
+  it('SPEC §21: approving the first photo on an unclaimed POI founds it', async () => {
+    const uploader = await makeUser();
+    const { poiId, photoId } = await makeUnclaimedPoiWithPendingPhoto(uploader, 8_000);
+    await applyModerationVerdict(handle.pg, photoId, { outcome: 'approved' });
+    const row = await handle.pg`SELECT creator_id FROM pois WHERE id = ${poiId}`;
+    expect(row[0]?.creator_id).toBe(uploader);
+  });
+
+  it('SPEC §21: a second approved photo never reassigns an already-founded POI', async () => {
+    const firstUploader = await makeUser();
+    const { poiId, photoId: firstPhotoId } = await makeUnclaimedPoiWithPendingPhoto(
+      firstUploader,
+      9_000,
+    );
+    await applyModerationVerdict(handle.pg, firstPhotoId, { outcome: 'approved' });
+
+    const secondUploader = await makeUser();
+    const secondPhotoId = uuidv7();
+    await handle.pg`
+      INSERT INTO photos (id, poi_id, uploader_id, storage_key, source, moderation)
+      VALUES (${secondPhotoId}, ${poiId}, ${secondUploader}, ${`photos/${poiId}/${secondPhotoId}.jpg`}, 'checkin', 'pending')`;
+    await applyModerationVerdict(handle.pg, secondPhotoId, { outcome: 'approved' });
+
+    const row = await handle.pg`SELECT creator_id FROM pois WHERE id = ${poiId}`;
+    expect(row[0]?.creator_id).toBe(firstUploader);
+  });
+
+  it("SPEC §21: an escalated verdict on an unclaimed POI's photo does not found it", async () => {
+    const uploader = await makeUser();
+    const { poiId, photoId } = await makeUnclaimedPoiWithPendingPhoto(uploader, 10_000);
+    await applyModerationVerdict(handle.pg, photoId, { outcome: 'escalated' });
+    const row = await handle.pg`SELECT creator_id FROM pois WHERE id = ${poiId}`;
+    expect(row[0]?.creator_id).toBeNull();
   });
 
   it('runModerationForPhoto: a properly sized photo gets width/height/phash populated and still runs the provider', async () => {

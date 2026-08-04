@@ -48,7 +48,8 @@ interface PoiRow {
   lng: number;
   radiusM: number;
   status: string;
-  creatorId: string;
+  // SPEC §21 — null for an unclaimed (seeded) POI nobody has founded yet.
+  creatorId: string | null;
 }
 
 async function loadPoi(pg: Pg, poiId: string): Promise<PoiRow | null> {
@@ -64,7 +65,7 @@ async function loadPoi(pg: Pg, poiId: string): Promise<PoiRow | null> {
     lng: Number(r.lng),
     radiusM: Number(r.radius),
     status: r.status as string,
-    creatorId: r.creator_id as string,
+    creatorId: r.creator_id as string | null,
   };
 }
 

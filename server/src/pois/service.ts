@@ -40,12 +40,18 @@ export interface PhotoView {
   voteScore: number;
   myVote: boolean;
   uploader: { handle: string };
+  // SPEC §21 — the uploader's opt-in display_name, or null if they haven't set one.
+  // Never falls back to handle: an un-named contributor is uncredited, not credited by
+  // their auto-generated handle.
+  contributorName: string | null;
   status: string;
 }
 
 export interface PoiView extends PoiPinView {
   description: string | null;
-  creator: { id: string; handle: string };
+  // SPEC §21 — null means unclaimed: a seeded POI nobody has founded yet (the first
+  // approved photo on it, whichever source, claims it — see moderation/service.ts).
+  creator: { id: string; handle: string } | null;
   checkinRadiusM: number;
   gallery: PhotoView[];
 }
@@ -184,7 +190,7 @@ export async function getPoiById(pg: Pg, id: string, requesterId: string | null)
     SELECT p.id, p.title, p.description, p.category, p.checkin_radius_m, p.checkin_count,
            p.status, ST_Y(p.location::geometry) AS lat, ST_X(p.location::geometry) AS lng,
            u.id AS creator_id, u.handle AS creator_handle
-    FROM pois p JOIN users u ON u.id = p.creator_id
+    FROM pois p LEFT JOIN users u ON u.id = p.creator_id
     WHERE p.id = ${id}`;
   const row = rows[0] as
     | {
@@ -197,8 +203,8 @@ export async function getPoiById(pg: Pg, id: string, requesterId: string | null)
         status: string;
         lat: number | string;
         lng: number | string;
-        creator_id: string;
-        creator_handle: string;
+        creator_id: string | null;
+        creator_handle: string | null;
       }
     | undefined;
   if (!row || row.status === 'removed') {
@@ -206,7 +212,7 @@ export async function getPoiById(pg: Pg, id: string, requesterId: string | null)
   }
   const photoRows = await pg`
     SELECT ph.id, ph.storage_key, ph.vote_score, ph.moderation, u2.handle AS uploader_handle,
-           (v.user_id IS NOT NULL) AS my_vote
+           u2.display_name AS uploader_display_name, (v.user_id IS NOT NULL) AS my_vote
     FROM photos ph JOIN users u2 ON u2.id = ph.uploader_id
     LEFT JOIN votes v ON v.photo_id = ph.id AND v.user_id = ${requesterId}
     WHERE ph.poi_id = ${id} AND ph.moderation = 'approved'
@@ -219,6 +225,7 @@ export async function getPoiById(pg: Pg, id: string, requesterId: string | null)
       vote_score: number;
       moderation: string;
       uploader_handle: string;
+      uploader_display_name: string | null;
       my_vote: boolean;
     }[]
   ).map((p) => ({
@@ -228,6 +235,7 @@ export async function getPoiById(pg: Pg, id: string, requesterId: string | null)
     voteScore: Number(p.vote_score),
     myVote: p.my_vote,
     uploader: { handle: p.uploader_handle },
+    contributorName: p.uploader_display_name,
     status: p.moderation,
   }));
   return {
@@ -240,7 +248,7 @@ export async function getPoiById(pg: Pg, id: string, requesterId: string | null)
     // approved photo" thumbnailUrl uses elsewhere (SPEC §19), no extra query needed.
     thumbnailUrl: gallery[0]?.urlThumb ?? null,
     description: row.description,
-    creator: { id: row.creator_id, handle: row.creator_handle },
+    creator: row.creator_id ? { id: row.creator_id, handle: row.creator_handle as string } : null,
     checkinRadiusM: Number(row.checkin_radius_m),
     gallery,
   };
@@ -253,18 +261,26 @@ export interface CreatePoiInput {
   location: LatLng;
   gpsFix: LatLng;
   force?: boolean;
-  // Ops-only escape hatch for bulk data import (server/src/scripts/seed_osm_pois.ts):
-  // POI_CREATE_PER_DAY models a real user's posting velocity, which a one-time curated
-  // import of real-world places isn't — modeling that import AS a rate-limited user (via
-  // a pile of synthetic "founder" accounts sized to the day's quota) was itself the wrong
-  // shape, not something to route around by tuning account count. NEVER settable from the
-  // route: routes/pois.ts's createPoiSchema has no such field, and the route handler
-  // builds CreatePoiInput field-by-field rather than spreading the parsed body, so this
-  // can't leak in from a client request.
-  skipRateLimit?: boolean;
 }
 
 export type CreatePoiResult = { poi: PoiView } | { dedupeCandidates: PoiPinView[] };
+
+/** Proximity-only dedupe: r9 neighbor cells (ring size 1) then exact ST_DWithin. SPEC §7.
+ *  Shared by createPoi and importUnclaimedPoi — both insert into the same pois table and
+ *  must not create a duplicate of the same real-world place. */
+async function findDedupeCandidates(pg: Pg, location: LatLng): Promise<PoiPinRow[]> {
+  const cell = dedupeCell(location);
+  // BIGINT params travel as strings — postgres.js has no native bigint fragment type.
+  const neighborCells = gridDisk(cell, 1).map((c) => h3ToBigint(c).toString());
+  const rows = await pg`
+    SELECT id, title, category, checkin_count,
+           ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+    FROM pois
+    WHERE status = 'active'
+      AND h3_r9 = ANY(${neighborCells})
+      AND ST_DWithin(location, ST_GeogFromText(${ewkt(location)}), ${G.DEDUPE_RADIUS_M})`;
+  return rows as unknown as PoiPinRow[];
+}
 
 export async function createPoi(
   db: Db,
@@ -280,45 +296,73 @@ export async function createPoi(
     });
   }
 
-  if (!input.skipRateLimit) {
-    const dayAgo = new Date(now.getTime() - 86_400_000);
-    const [recent] = await db
-      .select({ n: count() })
-      .from(pois)
-      .where(and(eq(pois.creatorId, userId), gt(pois.createdAt, dayAgo)));
-    if ((recent?.n ?? 0) >= RATE.POI_CREATE_PER_DAY) {
-      throw new AppError('rate/limited', 'Too many POIs created today', { retryAfterS: 86_400 });
-    }
+  const dayAgo = new Date(now.getTime() - 86_400_000);
+  const [recent] = await db
+    .select({ n: count() })
+    .from(pois)
+    .where(and(eq(pois.creatorId, userId), gt(pois.createdAt, dayAgo)));
+  if ((recent?.n ?? 0) >= RATE.POI_CREATE_PER_DAY) {
+    throw new AppError('rate/limited', 'Too many POIs created today', { retryAfterS: 86_400 });
   }
 
-  const cell = dedupeCell(input.location);
-
   if (!input.force) {
-    // Proximity-only dedupe: r9 neighbor cells (ring size 1) then exact ST_DWithin. SPEC §7.
-    // BIGINT params travel as strings — postgres.js has no native bigint fragment type.
-    const neighborCells = gridDisk(cell, 1).map((c) => h3ToBigint(c).toString());
-    const candidateRows = await pg`
-      SELECT id, title, category, checkin_count,
-             ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
-      FROM pois
-      WHERE status = 'active'
-        AND h3_r9 = ANY(${neighborCells})
-        AND ST_DWithin(location, ST_GeogFromText(${ewkt(input.location)}), ${G.DEDUPE_RADIUS_M})`;
+    const candidateRows = await findDedupeCandidates(pg, input.location);
     if (candidateRows.length > 0) {
-      return {
-        dedupeCandidates: (candidateRows as unknown as PoiPinRow[]).map(serializePin),
-      };
+      return { dedupeCandidates: candidateRows.map(serializePin) };
     }
   }
 
   const id = uuidv7(now.getTime());
   const radiusM = SPEC_CONSTANTS.checkinRadiusM[input.category];
+  const cell = dedupeCell(input.location);
   await pg`
     INSERT INTO pois (id, creator_id, title, description, category, location, h3_r9, checkin_radius_m, status)
     VALUES (${id}, ${userId}, ${input.title}, ${input.description ?? null}, ${input.category},
             ST_GeogFromText(${ewkt(input.location)}), ${h3ToBigint(cell).toString()}, ${radiusM}, 'active')`;
 
   return { poi: await getPoiById(pg, id, userId) };
+}
+
+export interface ImportUnclaimedPoiInput {
+  title: string;
+  description?: string;
+  category: PoiCategory;
+  location: LatLng;
+  force?: boolean;
+}
+
+/**
+ * SPEC §21 — ops-only (server/src/scripts/seed_osm_pois.ts): inserts a POI with no
+ * creator ("unclaimed"), the same real dedupe/insert path `createPoi` uses minus the
+ * per-user rate limit and pin-adjust check (neither applies — there's no user and no GPS
+ * fix behind a bulk import). Superseded the previous approach of creating synthetic
+ * "founder" accounts sized to stay under POI_CREATE_PER_DAY: that modeled a one-time
+ * curated import as a rate-limited user, which it isn't. The first real check-in photo
+ * approved for an unclaimed POI claims it (moderation/service.ts's
+ * promoteFounderIfUnclaimed) — never reachable from any route, since nothing in
+ * routes/pois.ts calls this.
+ */
+export async function importUnclaimedPoi(
+  pg: Pg,
+  input: ImportUnclaimedPoiInput,
+  now: Date,
+): Promise<CreatePoiResult> {
+  if (!input.force) {
+    const candidateRows = await findDedupeCandidates(pg, input.location);
+    if (candidateRows.length > 0) {
+      return { dedupeCandidates: candidateRows.map(serializePin) };
+    }
+  }
+
+  const id = uuidv7(now.getTime());
+  const radiusM = SPEC_CONSTANTS.checkinRadiusM[input.category];
+  const cell = dedupeCell(input.location);
+  await pg`
+    INSERT INTO pois (id, creator_id, title, description, category, location, h3_r9, checkin_radius_m, status)
+    VALUES (${id}, NULL, ${input.title}, ${input.description ?? null}, ${input.category},
+            ST_GeogFromText(${ewkt(input.location)}), ${h3ToBigint(cell).toString()}, ${radiusM}, 'active')`;
+
+  return { poi: await getPoiById(pg, id, null) };
 }
 
 async function poiExists(pg: Pg, poiId: string): Promise<boolean> {
@@ -375,7 +419,7 @@ export async function completePhoto(
   // Idempotent retry: a lost complete-response must not 500 on the unique storage_key.
   const existing = await pg`
     SELECT ph.id, ph.storage_key, ph.uploader_id, ph.vote_score, ph.moderation,
-           u.handle AS uploader_handle
+           u.handle AS uploader_handle, u.display_name AS uploader_display_name
     FROM photos ph JOIN users u ON u.id = ph.uploader_id
     WHERE ph.storage_key = ${storageKey}`;
   const prior = existing[0] as
@@ -386,6 +430,7 @@ export async function completePhoto(
         vote_score: number;
         moderation: string;
         uploader_handle: string;
+        uploader_display_name: string | null;
       }
     | undefined;
   if (prior) {
@@ -401,6 +446,7 @@ export async function completePhoto(
       // upload is always 'pending', so the uploader can't have voted on it yet.
       myVote: false,
       uploader: { handle: prior.uploader_handle },
+      contributorName: prior.uploader_display_name,
       status: prior.moderation,
     };
   }
@@ -418,7 +464,8 @@ export async function completePhoto(
     VALUES (${photoId}, ${poiId}, ${userId}, ${storageKey}, ${head.bytes}, ${source}, 'pending')`;
 
   const rows = await pg`
-    SELECT ph.id, ph.storage_key, ph.vote_score, ph.moderation, u.handle AS uploader_handle
+    SELECT ph.id, ph.storage_key, ph.vote_score, ph.moderation, u.handle AS uploader_handle,
+           u.display_name AS uploader_display_name
     FROM photos ph JOIN users u ON u.id = ph.uploader_id
     WHERE ph.id = ${photoId}`;
   const row = rows[0] as {
@@ -427,6 +474,7 @@ export async function completePhoto(
     vote_score: number;
     moderation: string;
     uploader_handle: string;
+    uploader_display_name: string | null;
   };
   const view: PhotoView = {
     id: row.id,
@@ -437,6 +485,7 @@ export async function completePhoto(
     // any votes yet.
     myVote: false,
     uploader: { handle: row.uploader_handle },
+    contributorName: row.uploader_display_name,
     status: row.moderation,
   };
 

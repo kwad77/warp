@@ -175,26 +175,29 @@ mock-location apps and emulators are caught.
   loop uninterleaved — whichever category happened to come first in OSM's raw element
   order (Portland's ~1,000+ tagged "intersection painting" street-art nodes) would consume
   a truncated run's entire `maxPois` budget by itself; fixed by round-robin interleaving
-  categories before capping. Third, and the one worth calling out on its own: an initial
-  version of this stress test modeled the whole import as a handful of "founder" accounts
-  sized to stay under `POI_CREATE_PER_DAY` (SPEC §2's real per-user anti-abuse limit) —
-  which capped a single Portland run at 100 created no matter how large the real candidate
-  set was. That was the wrong shape entirely: a one-time curated import of real-world
-  places isn't a user's posting velocity, and no amount of synthetic-account tuning makes
-  it look like one (real users seeding a new city won't bulk-load hundreds of places in one
-  sitting either — there's no "N accounts × 20/day" figure that models anything real).
-  `createPoi` now takes an explicit `skipRateLimit` option, set only by this script — never
-  reachable from `POST /pois` (the route builds its `CreatePoiInput` field-by-field from
-  the parsed body, so a client can't pass it) — with a rate-limit unit test added alongside
-  it since none existed before. Founder accounts still exist, namespaced per city
-  (`${cityKey}_founder_N`) since distinct local founding creators per city reads better
-  than one shared "seed bot," but their count (default 3) is now a product/variety choice,
-  decoupled from any quota math. Full Portland run with all three fixes in place
-  (`npm run db:seed -- portland_or 2000`): 1,682 unique named candidates found, 1,516
-  created (623 nature, 568 architecture, 152 street_art, 108 landmark, 53 other,
-  12 viewpoint), 166 correctly caught as proximity duplicates, 0 errors, ~15 seconds —
-  the real ceiling on a single invocation is now "how many real named candidates OSM has
-  for that bbox," not an artifact of modeling a bulk import as a rate-limited user.
+  categories before capping. Third — the one that stuck, after a false start —
+  seeding initially modeled the whole import as a handful of "founder" accounts sized to
+  stay under `POI_CREATE_PER_DAY` (SPEC §2's real per-user anti-abuse limit), which capped
+  a single Portland run at 100 created no matter how large the real candidate set was.
+  That first fix (an explicit `createPoi` `skipRateLimit` escape hatch) treated the
+  symptom, not the cause: a one-time curated import of real-world places isn't a user's
+  posting velocity, and real users seeding a new city won't bulk-load hundreds of places
+  in one sitting either — there's no "N accounts × 20/day" figure that models anything
+  real. **The actual fix (SPEC §21): imported POIs have no creator at all.**
+  `pois.creator_id` is now nullable — `NULL` means "unclaimed" — and `importUnclaimedPoi`
+  (`server/src/pois/service.ts`) inserts seeded POIs with no owner, no rate limit to
+  bypass, and no synthetic account to invent. A real product mechanic replaces the
+  synthetic one: the first real check-in (or POI-creation) photo that clears moderation
+  for an unclaimed POI founds it, permanently (`promoteFounderIfUnclaimed`, race-safe via
+  `WHERE creator_id IS NULL`). Separately, whichever photo is currently best-voted can
+  credit its uploader by name — but only if that uploader opted in via the new
+  `PATCH /me/display-name` (distinct from the immutable, auto-generated `handle`), passed
+  through a real (if simple) keyword-based profanity filter
+  (`keywordTextModerationProvider`), not a stub. Full Portland run against the final
+  mechanism (`npm run db:seed -- portland_or 2000`): 1,682 unique named candidates found,
+  1,516 created unclaimed, 166 correctly caught as proximity duplicates, 0 errors, ~15
+  seconds — the real ceiling on a single invocation is now "how many real named candidates
+  OSM has for that bbox," full stop.
 - Push notifications (opt-in) + weekly "featured near you".
 - **Badges v1 and creator score accrual (SPEC §16; done, server + mobile).** Closed 4-key
   badge taxonomy proposed and implemented in the same PR (`ARCHITECTURE.md`'s schema
