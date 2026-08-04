@@ -230,6 +230,16 @@ class WanderpostApi {
     );
   }
 
+  /// SPEC §21 `PATCH /me/display-name`. `displayName: null` clears it (reverts to
+  /// uncredited). A profanity-flagged name throws `ApiException` (`request/invalid`).
+  Future<String?> setDisplayName(String? displayName) async {
+    final body = await client.patchJson(
+      '/v1/me/display-name',
+      body: {'displayName': displayName},
+    );
+    return body['displayName'] as String?;
+  }
+
   /// SPEC §7/§14 `GET /me/map`.
   Future<MeMap> meMap() async {
     final body = await client.getJson('/v1/me/map');

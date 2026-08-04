@@ -1489,12 +1489,17 @@ This retires the "founder account" mechanism the previous iteration of this tool
 added (synthetic `<city>_founder_N` accounts sized to `POI_CREATE_PER_DAY`) — there's
 nothing left to rate-limit or bypass, since an unclaimed POI has no creator at all.
 
-**Deferred, flagged, not built here:** mobile UI surfacing (a "Founded by" line on the POI
-detail screen, a "Photo by <name>" credit on gallery images, a settings screen to
-set/clear `displayName`) — server-only in this PR, same precedent as §16's badges landing
-server-first; a stronger (non-keyword) profanity/abuse detector if the starter blocklist
-proves insufficient; extending named credit to postcards' photographer line (§20, still
-`handle`-only) or to `Photo.uploader` elsewhere — left as noted, not silently changed.
+**Mobile (done, follow-up PR):** `PoiDetailSheet` shows "N check-ins · founded by
+<handle>" or, when unclaimed, "N check-ins · unclaimed — be the first to add a photo";
+each gallery photo shows a "Photo by <name>" line only when `contributorName` is
+non-null. `ProfileScreen`'s heading shows `displayName ?? handle` with an edit action
+(a dialog: `TextField` + Save/Clear/Cancel) calling the new `PATCH /me/display-name`;
+a profanity-flagged name surfaces inline in the dialog, not as a full-screen error.
+
+**Deferred, flagged, not built here:** a stronger (non-keyword) profanity/abuse detector
+if the starter blocklist proves insufficient; extending named credit to postcards'
+photographer line (§20, still `handle`-only) or to `Photo.uploader` elsewhere — left as
+noted, not silently changed.
 
 ## 22. Definition of done (every PR)
 

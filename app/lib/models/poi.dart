@@ -6,6 +6,8 @@ import 'photo.dart';
 part 'poi.freezed.dart';
 
 /// SPEC §7: full `Poi` — `PoiPin` fields plus description, creator, radius, gallery.
+/// `creatorId`/`creatorHandle` are `null` when the POI is unclaimed (§21, M2) — seeded,
+/// no real founder yet until the first approved photo on it claims it.
 @freezed
 class Poi with _$Poi {
   const factory Poi({
@@ -15,14 +17,14 @@ class Poi with _$Poi {
     required LatLng location,
     required int checkinCount,
     String? description,
-    required String creatorId,
-    required String creatorHandle,
+    String? creatorId,
+    String? creatorHandle,
     required int checkinRadiusM,
     required List<Photo> gallery,
   }) = _Poi;
 
   factory Poi.fromMap(Map<String, dynamic> json) {
-    final creator = json['creator'] as Map<String, dynamic>;
+    final creator = json['creator'] as Map<String, dynamic>?;
     return Poi(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -30,8 +32,8 @@ class Poi with _$Poi {
       location: LatLng.fromMap(json['location'] as Map<String, dynamic>),
       checkinCount: json['checkinCount'] as int,
       description: json['description'] as String?,
-      creatorId: creator['id'] as String,
-      creatorHandle: creator['handle'] as String,
+      creatorId: creator?['id'] as String?,
+      creatorHandle: creator?['handle'] as String?,
       checkinRadiusM: json['checkinRadiusM'] as int,
       gallery: (json['gallery'] as List<dynamic>)
           .map((e) => Photo.fromMap(e as Map<String, dynamic>))

@@ -104,7 +104,13 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
             Text(poi.description!),
           ],
           const SizedBox(height: 8),
-          Text('${poi.checkinCount} check-ins · created by ${poi.creatorHandle}'),
+          // SPEC §21 — an unclaimed (seeded) POI has no creator yet: the first approved
+          // photo on it founds it, permanently. Never falls back to a placeholder handle.
+          Text(
+            poi.creatorHandle != null
+                ? '${poi.checkinCount} check-ins · founded by ${poi.creatorHandle}'
+                : '${poi.checkinCount} check-ins · unclaimed — be the first to add a photo',
+          ),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: () => Navigator.of(context).push(
@@ -138,6 +144,17 @@ class _PoiDetailSheetState extends ConsumerState<PoiDetailSheet> {
                             fit: BoxFit.cover,
                           ),
                         ),
+                        // SPEC §21 — only shown when the uploader opted in with a
+                        // display name; never falls back to their auto-generated handle.
+                        if (photo.contributorName != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'Photo by ${photo.contributorName}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [

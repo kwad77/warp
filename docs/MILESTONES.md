@@ -197,7 +197,12 @@ mock-location apps and emulators are caught.
   mechanism (`npm run db:seed -- portland_or 2000`): 1,682 unique named candidates found,
   1,516 created unclaimed, 166 correctly caught as proximity duplicates, 0 errors, ~15
   seconds — the real ceiling on a single invocation is now "how many real named candidates
-  OSM has for that bbox," full stop.
+  OSM has for that bbox," full stop. **Mobile UI landed in a same-day follow-up (SPEC
+  §21):** the POI detail sheet shows "founded by X" or, for an unclaimed POI, "unclaimed —
+  be the first to add a photo"; gallery photos show a "Photo by X" line only when the
+  uploader opted in; the profile screen shows `displayName ?? handle` with an edit dialog
+  calling the new `PATCH /me/display-name` (Save/Clear/Cancel, a profanity rejection shown
+  inline rather than blowing up the whole screen).
 - Push notifications (opt-in) + weekly "featured near you".
 - **Badges v1 and creator score accrual (SPEC §16; done, server + mobile).** Closed 4-key
   badge taxonomy proposed and implemented in the same PR (`ARCHITECTURE.md`'s schema

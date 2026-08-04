@@ -16,6 +16,7 @@ import 'package:wanderpost/models/poi_pin.dart';
 import 'package:wanderpost/models/pois_result.dart';
 import 'package:wanderpost/models/queued_checkin.dart';
 import 'package:wanderpost/models/queued_poi_creation.dart';
+import 'package:wanderpost/models/user.dart';
 import 'package:wanderpost/models/user_badge.dart';
 
 void main() {
@@ -113,6 +114,64 @@ void main() {
     expect(photo.voteScore, 5);
     expect(photo.myVote, isFalse);
     expect(photo.uploaderHandle, 'explorer_y');
+  });
+
+  test('Poi.fromMap handles an unclaimed POI (SPEC §21: creator is null)', () {
+    final poi = Poi.fromMap({
+      'id': 'poi1',
+      'title': 'Seed-imported place',
+      'category': 'nature',
+      'location': {'lat': 1, 'lng': 2},
+      'checkinCount': 0,
+      'description': null,
+      'creator': null,
+      'checkinRadiusM': 150,
+      'gallery': <Map<String, dynamic>>[],
+    });
+    expect(poi.creatorId, isNull);
+    expect(poi.creatorHandle, isNull);
+  });
+
+  test('Photo.fromMap parses contributorName when present, null when absent (SPEC §21)', () {
+    final named = Photo.fromMap({
+      'id': 'ph1',
+      'urlCard': '/media/card/x',
+      'urlThumb': '/media/thumb/x',
+      'voteScore': 3,
+      'myVote': false,
+      'uploader': {'handle': 'explorer_y'},
+      'contributorName': 'Kevin',
+      'status': 'approved',
+    });
+    expect(named.contributorName, 'Kevin');
+
+    final unnamed = Photo.fromMap({
+      'id': 'ph2',
+      'urlCard': '/media/card/x',
+      'urlThumb': '/media/thumb/x',
+      'voteScore': 1,
+      'myVote': false,
+      'uploader': {'handle': 'explorer_z'},
+      'status': 'approved',
+    });
+    expect(unnamed.contributorName, isNull);
+  });
+
+  test('User.fromMap parses displayName when present, null when absent (SPEC §21)', () {
+    final named = User.fromMap({
+      'id': 'u1',
+      'handle': 'explorer_x',
+      'displayName': 'Kevin from Tigard',
+      'createdAt': '2026-01-01T00:00:00.000Z',
+    });
+    expect(named.displayName, 'Kevin from Tigard');
+
+    final unnamed = User.fromMap({
+      'id': 'u2',
+      'handle': 'explorer_y',
+      'createdAt': '2026-01-01T00:00:00.000Z',
+    });
+    expect(unnamed.displayName, isNull);
   });
 
   test('Poi.fromMap handles a null description', () {

@@ -19,6 +19,7 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$User {
   String get id => throw _privateConstructorUsedError;
   String get handle => throw _privateConstructorUsedError;
+  String? get displayName => throw _privateConstructorUsedError;
   String get createdAt => throw _privateConstructorUsedError;
 
   /// Create a copy of User
@@ -32,7 +33,7 @@ abstract class $UserCopyWith<$Res> {
   factory $UserCopyWith(User value, $Res Function(User) then) =
       _$UserCopyWithImpl<$Res, User>;
   @useResult
-  $Res call({String id, String handle, String createdAt});
+  $Res call({String id, String handle, String? displayName, String createdAt});
 }
 
 /// @nodoc
@@ -52,6 +53,7 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
   $Res call({
     Object? id = null,
     Object? handle = null,
+    Object? displayName = freezed,
     Object? createdAt = null,
   }) {
     return _then(
@@ -64,6 +66,10 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
                 ? _value.handle
                 : handle // ignore: cast_nullable_to_non_nullable
                       as String,
+            displayName: freezed == displayName
+                ? _value.displayName
+                : displayName // ignore: cast_nullable_to_non_nullable
+                      as String?,
             createdAt: null == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -82,7 +88,7 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
   ) = __$$UserImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String handle, String createdAt});
+  $Res call({String id, String handle, String? displayName, String createdAt});
 }
 
 /// @nodoc
@@ -99,6 +105,7 @@ class __$$UserImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? handle = null,
+    Object? displayName = freezed,
     Object? createdAt = null,
   }) {
     return _then(
@@ -111,6 +118,10 @@ class __$$UserImplCopyWithImpl<$Res>
             ? _value.handle
             : handle // ignore: cast_nullable_to_non_nullable
                   as String,
+        displayName: freezed == displayName
+            ? _value.displayName
+            : displayName // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: null == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -126,6 +137,7 @@ class _$UserImpl implements _User {
   const _$UserImpl({
     required this.id,
     required this.handle,
+    this.displayName,
     required this.createdAt,
   });
 
@@ -134,11 +146,13 @@ class _$UserImpl implements _User {
   @override
   final String handle;
   @override
+  final String? displayName;
+  @override
   final String createdAt;
 
   @override
   String toString() {
-    return 'User(id: $id, handle: $handle, createdAt: $createdAt)';
+    return 'User(id: $id, handle: $handle, displayName: $displayName, createdAt: $createdAt)';
   }
 
   @override
@@ -148,12 +162,15 @@ class _$UserImpl implements _User {
             other is _$UserImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.handle, handle) || other.handle == handle) &&
+            (identical(other.displayName, displayName) ||
+                other.displayName == displayName) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, handle, createdAt);
+  int get hashCode =>
+      Object.hash(runtimeType, id, handle, displayName, createdAt);
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -168,6 +185,7 @@ abstract class _User implements User {
   const factory _User({
     required final String id,
     required final String handle,
+    final String? displayName,
     required final String createdAt,
   }) = _$UserImpl;
 
@@ -175,6 +193,8 @@ abstract class _User implements User {
   String get id;
   @override
   String get handle;
+  @override
+  String? get displayName;
   @override
   String get createdAt;
 

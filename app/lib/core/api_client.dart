@@ -83,6 +83,10 @@ class ApiClient {
     return _unwrap(() => _dio.post<Map<String, dynamic>>(path, data: body));
   }
 
+  Future<Map<String, dynamic>> patchJson(String path, {Object? body}) async {
+    return _unwrap(() => _dio.patch<Map<String, dynamic>>(path, data: body));
+  }
+
   Future<Map<String, dynamic>> deleteJson(String path) async {
     return _unwrap(() => _dio.delete<Map<String, dynamic>>(path));
   }

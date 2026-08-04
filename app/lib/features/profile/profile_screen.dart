@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/share_image.dart';
 import '../../models/leaderboard_entry.dart';
@@ -91,6 +92,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  /// SPEC §21 — sets/clears the opt-in display name shown instead of the auto-generated
+  /// `handle`. A profanity-flagged name comes back as an `ApiException` and is shown
+  /// inline in the dialog rather than replacing the whole profile screen with an error.
+  Future<void> _editDisplayName(String? current) async {
+    final controller = TextEditingController(text: current ?? '');
+    String? errorText;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Display name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 40,
+            decoration: InputDecoration(
+              hintText: 'Shown instead of your handle on your photos',
+              errorText: errorText,
+            ),
+          ),
+          actions: [
+            if (current != null)
+              TextButton(
+                onPressed: () async {
+                  try {
+                    await ref.read(profileControllerProvider.notifier).setDisplayName(null);
+                    if (context.mounted) Navigator.of(context).pop(true);
+                  } on ApiException catch (e) {
+                    setDialogState(() => errorText = e.message);
+                  }
+                },
+                child: const Text('Clear'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final value = controller.text.trim();
+                if (value.isEmpty) {
+                  setDialogState(() => errorText = 'Enter a name, or tap Clear');
+                  return;
+                }
+                try {
+                  await ref.read(profileControllerProvider.notifier).setDisplayName(value);
+                  if (context.mounted) Navigator.of(context).pop(true);
+                } on ApiException catch (e) {
+                  setDialogState(() => errorText = e.message);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (result != true) return;
+  }
+
   Widget _buildLoaded(
     BuildContext context,
     User user,
@@ -103,7 +165,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(user.handle, style: Theme.of(context).textTheme.headlineSmall),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                user.displayName ?? user.handle,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit display name',
+              onPressed: () => _editDisplayName(user.displayName),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         Text(
           '${stats.checkins} check-ins · ${stats.cellsCovered} cells covered · '

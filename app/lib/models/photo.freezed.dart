@@ -23,6 +23,7 @@ mixin _$Photo {
   int get voteScore => throw _privateConstructorUsedError;
   bool get myVote => throw _privateConstructorUsedError;
   String get uploaderHandle => throw _privateConstructorUsedError;
+  String? get contributorName => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
 
   /// Create a copy of Photo
@@ -43,6 +44,7 @@ abstract class $PhotoCopyWith<$Res> {
     int voteScore,
     bool myVote,
     String uploaderHandle,
+    String? contributorName,
     String status,
   });
 }
@@ -68,6 +70,7 @@ class _$PhotoCopyWithImpl<$Res, $Val extends Photo>
     Object? voteScore = null,
     Object? myVote = null,
     Object? uploaderHandle = null,
+    Object? contributorName = freezed,
     Object? status = null,
   }) {
     return _then(
@@ -96,6 +99,10 @@ class _$PhotoCopyWithImpl<$Res, $Val extends Photo>
                 ? _value.uploaderHandle
                 : uploaderHandle // ignore: cast_nullable_to_non_nullable
                       as String,
+            contributorName: freezed == contributorName
+                ? _value.contributorName
+                : contributorName // ignore: cast_nullable_to_non_nullable
+                      as String?,
             status: null == status
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
@@ -121,6 +128,7 @@ abstract class _$$PhotoImplCopyWith<$Res> implements $PhotoCopyWith<$Res> {
     int voteScore,
     bool myVote,
     String uploaderHandle,
+    String? contributorName,
     String status,
   });
 }
@@ -145,6 +153,7 @@ class __$$PhotoImplCopyWithImpl<$Res>
     Object? voteScore = null,
     Object? myVote = null,
     Object? uploaderHandle = null,
+    Object? contributorName = freezed,
     Object? status = null,
   }) {
     return _then(
@@ -173,6 +182,10 @@ class __$$PhotoImplCopyWithImpl<$Res>
             ? _value.uploaderHandle
             : uploaderHandle // ignore: cast_nullable_to_non_nullable
                   as String,
+        contributorName: freezed == contributorName
+            ? _value.contributorName
+            : contributorName // ignore: cast_nullable_to_non_nullable
+                  as String?,
         status: null == status
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
@@ -192,6 +205,7 @@ class _$PhotoImpl implements _Photo {
     required this.voteScore,
     required this.myVote,
     required this.uploaderHandle,
+    this.contributorName,
     required this.status,
   });
 
@@ -208,11 +222,13 @@ class _$PhotoImpl implements _Photo {
   @override
   final String uploaderHandle;
   @override
+  final String? contributorName;
+  @override
   final String status;
 
   @override
   String toString() {
-    return 'Photo(id: $id, urlCard: $urlCard, urlThumb: $urlThumb, voteScore: $voteScore, myVote: $myVote, uploaderHandle: $uploaderHandle, status: $status)';
+    return 'Photo(id: $id, urlCard: $urlCard, urlThumb: $urlThumb, voteScore: $voteScore, myVote: $myVote, uploaderHandle: $uploaderHandle, contributorName: $contributorName, status: $status)';
   }
 
   @override
@@ -229,6 +245,8 @@ class _$PhotoImpl implements _Photo {
             (identical(other.myVote, myVote) || other.myVote == myVote) &&
             (identical(other.uploaderHandle, uploaderHandle) ||
                 other.uploaderHandle == uploaderHandle) &&
+            (identical(other.contributorName, contributorName) ||
+                other.contributorName == contributorName) &&
             (identical(other.status, status) || other.status == status));
   }
 
@@ -241,6 +259,7 @@ class _$PhotoImpl implements _Photo {
     voteScore,
     myVote,
     uploaderHandle,
+    contributorName,
     status,
   );
 
@@ -261,6 +280,7 @@ abstract class _Photo implements Photo {
     required final int voteScore,
     required final bool myVote,
     required final String uploaderHandle,
+    final String? contributorName,
     required final String status,
   }) = _$PhotoImpl;
 
@@ -276,6 +296,8 @@ abstract class _Photo implements Photo {
   bool get myVote;
   @override
   String get uploaderHandle;
+  @override
+  String? get contributorName;
   @override
   String get status;
 

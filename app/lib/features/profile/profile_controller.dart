@@ -37,4 +37,23 @@ class ProfileController extends StateNotifier<ProfileState> {
       state = ProfileState.error(e.message);
     }
   }
+
+  /// SPEC §21 `PATCH /me/display-name`. Rethrows `ApiException` (e.g. a profanity-flagged
+  /// name) so the caller can show it inline rather than replacing the whole screen with
+  /// an error state over one rejected edit.
+  Future<void> setDisplayName(String? displayName) async {
+    final newDisplayName = await api.setDisplayName(displayName);
+    state.whenOrNull(
+      loaded: (user, stats, poiMap, coverageCount, leaderboard, badges) {
+        state = ProfileState.loaded(
+          user: user.copyWith(displayName: newDisplayName),
+          stats: stats,
+          poiMap: poiMap,
+          coverageCount: coverageCount,
+          leaderboard: leaderboard,
+          badges: badges,
+        );
+      },
+    );
+  }
 }

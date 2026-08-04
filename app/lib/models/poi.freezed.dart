@@ -23,8 +23,8 @@ mixin _$Poi {
   LatLng get location => throw _privateConstructorUsedError;
   int get checkinCount => throw _privateConstructorUsedError;
   String? get description => throw _privateConstructorUsedError;
-  String get creatorId => throw _privateConstructorUsedError;
-  String get creatorHandle => throw _privateConstructorUsedError;
+  String? get creatorId => throw _privateConstructorUsedError;
+  String? get creatorHandle => throw _privateConstructorUsedError;
   int get checkinRadiusM => throw _privateConstructorUsedError;
   List<Photo> get gallery => throw _privateConstructorUsedError;
 
@@ -46,8 +46,8 @@ abstract class $PoiCopyWith<$Res> {
     LatLng location,
     int checkinCount,
     String? description,
-    String creatorId,
-    String creatorHandle,
+    String? creatorId,
+    String? creatorHandle,
     int checkinRadiusM,
     List<Photo> gallery,
   });
@@ -75,8 +75,8 @@ class _$PoiCopyWithImpl<$Res, $Val extends Poi> implements $PoiCopyWith<$Res> {
     Object? location = null,
     Object? checkinCount = null,
     Object? description = freezed,
-    Object? creatorId = null,
-    Object? creatorHandle = null,
+    Object? creatorId = freezed,
+    Object? creatorHandle = freezed,
     Object? checkinRadiusM = null,
     Object? gallery = null,
   }) {
@@ -106,14 +106,14 @@ class _$PoiCopyWithImpl<$Res, $Val extends Poi> implements $PoiCopyWith<$Res> {
                 ? _value.description
                 : description // ignore: cast_nullable_to_non_nullable
                       as String?,
-            creatorId: null == creatorId
+            creatorId: freezed == creatorId
                 ? _value.creatorId
                 : creatorId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            creatorHandle: null == creatorHandle
+                      as String?,
+            creatorHandle: freezed == creatorHandle
                 ? _value.creatorHandle
                 : creatorHandle // ignore: cast_nullable_to_non_nullable
-                      as String,
+                      as String?,
             checkinRadiusM: null == checkinRadiusM
                 ? _value.checkinRadiusM
                 : checkinRadiusM // ignore: cast_nullable_to_non_nullable
@@ -151,8 +151,8 @@ abstract class _$$PoiImplCopyWith<$Res> implements $PoiCopyWith<$Res> {
     LatLng location,
     int checkinCount,
     String? description,
-    String creatorId,
-    String creatorHandle,
+    String? creatorId,
+    String? creatorHandle,
     int checkinRadiusM,
     List<Photo> gallery,
   });
@@ -178,8 +178,8 @@ class __$$PoiImplCopyWithImpl<$Res> extends _$PoiCopyWithImpl<$Res, _$PoiImpl>
     Object? location = null,
     Object? checkinCount = null,
     Object? description = freezed,
-    Object? creatorId = null,
-    Object? creatorHandle = null,
+    Object? creatorId = freezed,
+    Object? creatorHandle = freezed,
     Object? checkinRadiusM = null,
     Object? gallery = null,
   }) {
@@ -209,14 +209,14 @@ class __$$PoiImplCopyWithImpl<$Res> extends _$PoiCopyWithImpl<$Res, _$PoiImpl>
             ? _value.description
             : description // ignore: cast_nullable_to_non_nullable
                   as String?,
-        creatorId: null == creatorId
+        creatorId: freezed == creatorId
             ? _value.creatorId
             : creatorId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        creatorHandle: null == creatorHandle
+                  as String?,
+        creatorHandle: freezed == creatorHandle
             ? _value.creatorHandle
             : creatorHandle // ignore: cast_nullable_to_non_nullable
-                  as String,
+                  as String?,
         checkinRadiusM: null == checkinRadiusM
             ? _value.checkinRadiusM
             : checkinRadiusM // ignore: cast_nullable_to_non_nullable
@@ -240,8 +240,8 @@ class _$PoiImpl implements _Poi {
     required this.location,
     required this.checkinCount,
     this.description,
-    required this.creatorId,
-    required this.creatorHandle,
+    this.creatorId,
+    this.creatorHandle,
     required this.checkinRadiusM,
     required final List<Photo> gallery,
   }) : _gallery = gallery;
@@ -259,9 +259,9 @@ class _$PoiImpl implements _Poi {
   @override
   final String? description;
   @override
-  final String creatorId;
+  final String? creatorId;
   @override
-  final String creatorHandle;
+  final String? creatorHandle;
   @override
   final int checkinRadiusM;
   final List<Photo> _gallery;
@@ -333,8 +333,8 @@ abstract class _Poi implements Poi {
     required final LatLng location,
     required final int checkinCount,
     final String? description,
-    required final String creatorId,
-    required final String creatorHandle,
+    final String? creatorId,
+    final String? creatorHandle,
     required final int checkinRadiusM,
     required final List<Photo> gallery,
   }) = _$PoiImpl;
@@ -352,9 +352,9 @@ abstract class _Poi implements Poi {
   @override
   String? get description;
   @override
-  String get creatorId;
+  String? get creatorId;
   @override
-  String get creatorHandle;
+  String? get creatorHandle;
   @override
   int get checkinRadiusM;
   @override
