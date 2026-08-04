@@ -1,4 +1,4 @@
-import type { PoiCategory } from '../constants.js';
+import { type PoiCategory, SPEC_CONSTANTS } from '../constants.js';
 // Ops tooling, not part of the served API — imports real POIs from OpenStreetMap
 // (Overpass API, no key/credential needed) as founder-seeded data for a new city
 // (docs/MILESTONES.md M2: "Seed 50-100 founder POIs per city; onboard founding
@@ -7,11 +7,23 @@ import type { PoiCategory } from '../constants.js';
 // checkin-radius-by-category logic a real user's `POST /pois` call gets, not a
 // hand-rolled INSERT that could drift from it.
 import { type Db, type Pg, createDb } from '../db/client.js';
-import type { LatLng } from '../geo/distance.js';
+import { type LatLng, haversineM } from '../geo/distance.js';
 import { uuidv7 } from '../lib/uuid.js';
 import { createPoi } from '../pois/service.js';
 
-interface OsmElement {
+// Beyond single-town scale, exact-name dedup silently discards genuinely distinct real
+// places that happen to share a name (chain churches, national-park-style peak names,
+// "City Park" in five different towns) — confirmed at both Oregon-wide (805 name
+// collisions with occurrences >5km apart, e.g. "Elk Mountain" 13 times, up to 682km
+// apart) and Portland scale (25 collisions >1km apart, e.g. "The Church of Jesus Christ
+// of Latter-day Saints" 15 times, 33km apart) before this fix. Two elements sharing a
+// name only merge into one candidate if they're ALSO within this radius — generous
+// enough to cover one real park's several OSM representations (boundary way + label
+// node + entrance nodes), tight enough that same-named-but-different places a town or
+// more apart are kept as separate candidates.
+const NAME_DEDUPE_RADIUS_M = 2000;
+
+export interface OsmElement {
   lat?: number;
   lon?: number;
   center?: { lat: number; lon: number };
@@ -82,6 +94,42 @@ export interface CandidatePoi {
   location: LatLng;
 }
 
+/**
+ * Dedup by name + proximity (NAME_DEDUPE_RADIUS_M — see its comment): bucket by
+ * lowercased name first (OSM frequently represents one real-world POI, e.g. a park, as
+ * several nodes/ways — a boundary way plus point nodes for its label, entrances, etc.),
+ * then within a bucket only merge entries that are actually near each other. Pure, so
+ * it's unit-tested directly rather than only exercised by actually running the script.
+ */
+export function dedupeOsmElements(elements: OsmElement[]): CandidatePoi[] {
+  const byName = new Map<string, CandidatePoi[]>();
+  for (const el of elements) {
+    const tags = el.tags ?? {};
+    const rawName = tags.name?.trim();
+    if (!rawName || rawName.length < 3) continue;
+
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    if (lat === undefined || lng === undefined) continue;
+
+    const key = rawName.toLowerCase();
+    const kept = byName.get(key) ?? [];
+    const isNearAnExisting = kept.some(
+      (c) => haversineM(c.location, { lat, lng }) <= NAME_DEDUPE_RADIUS_M,
+    );
+    if (isNearAnExisting) continue;
+
+    kept.push({
+      title: rawName.slice(0, 80),
+      description: tags.description?.slice(0, 280),
+      category: categoryFor(tags),
+      location: { lat, lng },
+    });
+    byName.set(key, kept);
+  }
+  return [...byName.values()].flat();
+}
+
 async function fetchCandidates(bbox: CityBbox): Promise<CandidatePoi[]> {
   const res = await fetch(OVERPASS_URL, {
     method: 'POST',
@@ -99,68 +147,72 @@ async function fetchCandidates(bbox: CityBbox): Promise<CandidatePoi[]> {
     throw new Error(`Overpass API returned ${res.status}`);
   }
   const body = (await res.json()) as { elements: OsmElement[] };
-
-  // Dedup by name: OSM frequently represents one real-world POI (e.g. a park) as
-  // several nodes/ways (a boundary way plus point nodes for its label, entrances,
-  // etc.) — same name, same place. Keeping the first occurrence is simple and safe at
-  // town scale; a name collision between two genuinely different places is unlikely
-  // enough here not to warrant proximity-based clustering on top of it.
-  const seen = new Set<string>();
-  const candidates: CandidatePoi[] = [];
-  for (const el of body.elements) {
-    const tags = el.tags ?? {};
-    const rawName = tags.name?.trim();
-    if (!rawName || rawName.length < 3) continue;
-    const key = rawName.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const lat = el.lat ?? el.center?.lat;
-    const lng = el.lon ?? el.center?.lon;
-    if (lat === undefined || lng === undefined) continue;
-
-    candidates.push({
-      title: rawName.slice(0, 80),
-      description: tags.description?.slice(0, 280),
-      category: categoryFor(tags),
-      location: { lat, lng },
-    });
-  }
-  return candidates;
+  return dedupeOsmElements(body.elements);
 }
 
 /**
- * Caps a monoculture of parks/churches (OSM tags far more of these than anything else
- * in a residential suburb) so the seeded set stays visually diverse and lands in the
- * "50-100 founder POIs" range MILESTONES.md actually asks for, not "however many OSM
- * happens to have tagged."
+ * Caps a monoculture of parks/churches (OSM tags far more of these than anything else,
+ * in a small town or a big city alike) so the seeded set stays visually diverse rather
+ * than "however many OSM happens to have tagged." The per-category cap is a FRACTION of
+ * `max` (`maxCategoryShare`), not a fixed absolute count — a fixed number tuned for a
+ * small town (e.g. "35 nature spots") would either be a no-op for a big city's real
+ * count or, worse, badly under-fill a large `max` meant to validate at real-city scale.
+ *
+ * Categories are round-robin interleaved in the output rather than concatenated as whole
+ * blocks: confirmed against real Portland data that a capacity-limited creation run (rate
+ * limiting stopped one stress-test run at 100 created) otherwise consumes its entire
+ * budget on whichever category happens to appear first in OSM's raw element order —
+ * Portland's ~1,000+ "intersection painting" street-art nodes ran ahead of every other
+ * category and all 100 created POIs came back as street_art, despite the per-category cap
+ * correctly limiting the candidate *pool*. Interleaving means the first N results (N =
+ * however many a rate-limited run actually gets through) are a mix, not a monoculture.
  */
-export function capForDiversity(candidates: CandidatePoi[], max: number): CandidatePoi[] {
-  const perCategoryCap: Partial<Record<PoiCategory, number>> = { nature: 35, architecture: 25 };
+export function capForDiversity(
+  candidates: CandidatePoi[],
+  max: number,
+  maxCategoryShare = 0.4,
+): CandidatePoi[] {
+  const perCategoryCap = Math.ceil(max * maxCategoryShare);
   const byCategory = new Map<PoiCategory, CandidatePoi[]>();
   for (const c of candidates) {
     const list = byCategory.get(c.category) ?? [];
     list.push(c);
     byCategory.set(c.category, list);
   }
+  const capped = [...byCategory.values()].map((list) => list.slice(0, perCategoryCap));
+
   const result: CandidatePoi[] = [];
-  for (const [category, list] of byCategory) {
-    const cap = perCategoryCap[category] ?? list.length;
-    result.push(...list.slice(0, cap));
+  for (let round = 0; result.length < max; round++) {
+    let addedThisRound = false;
+    for (const list of capped) {
+      if (round >= list.length) continue;
+      result.push(list[round] as CandidatePoi);
+      addedThisRound = true;
+      if (result.length >= max) break;
+    }
+    if (!addedThisRound) break;
   }
-  return result.slice(0, max);
+  return result;
 }
 
 // SPEC §2's POI_CREATE_PER_DAY (20) is a per-creator anti-abuse limit, enforced inside
 // createPoi itself — not something a legitimate one-time data import should route
 // around. Multiple named "founder" accounts (matching MILESTONES.md's own "onboard
 // founding creators," plural) keeps every account under that cap while staying honest:
-// createdAt is real (today), nothing is backdated to fake a longer history.
-const FOUNDER_HANDLES = ['founder_1', 'founder_2', 'founder_3', 'founder_4', 'founder_5'];
+// createdAt is real (today), nothing is backdated to fake a longer history. Founders are
+// PER CITY (handle namespaced by `founderPrefix`, not shared globally): distinct local
+// founding creators per city is more realistic anyway, and it means one city's already-
+// spent daily quota never throttles a completely different city's seed run — confirmed
+// this matters in practice: Tigard's 5 shared founders had only ~5-16 of their 20/day
+// left by the time this was tried against Portland hours later, since POI_CREATE_PER_DAY
+// is a rolling 24h window, not a calendar-day reset.
+function founderHandles(founderPrefix: string, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `${founderPrefix}_founder_${i + 1}`);
+}
 
-async function ensureFounders(pg: Pg): Promise<string[]> {
+async function ensureFounders(pg: Pg, handles: string[]): Promise<string[]> {
   const ids: string[] = [];
-  for (const handle of FOUNDER_HANDLES) {
+  for (const handle of handles) {
     const existing = await pg`SELECT id FROM users WHERE handle = ${handle}`;
     if (existing.length > 0) {
       ids.push((existing[0] as { id: string }).id);
@@ -178,6 +230,8 @@ export async function seedCityFromOsm(
   bbox: CityBbox,
   maxPois: number,
   log: (msg: string) => void,
+  founderPrefix: string,
+  founderCount = 5,
 ): Promise<void> {
   const { db, pg, close } = createDb(databaseUrl);
   try {
@@ -186,8 +240,13 @@ export async function seedCityFromOsm(
     const candidates = capForDiversity(raw, maxPois);
     log(`${raw.length} unique named candidates found, seeding ${candidates.length}`);
 
-    const founders = await ensureFounders(pg);
-    log(`Using ${founders.length} founder accounts (${FOUNDER_HANDLES.join(', ')})`);
+    const handles = founderHandles(founderPrefix, founderCount);
+    const founders = await ensureFounders(pg, handles);
+    log(`Using ${founders.length} founder accounts (${handles.join(', ')})`);
+    log(
+      `Capacity: ${founders.length} founders × ${SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY}/day = ` +
+        `${founders.length * SPEC_CONSTANTS.rate.POI_CREATE_PER_DAY} creates/day before rate/limited kicks in`,
+    );
 
     let created = 0;
     let skippedDuplicate = 0;
@@ -232,12 +291,17 @@ export async function seedCityFromOsm(
 // meters of slack either way doesn't matter for this).
 export const CITY_BBOXES: Record<string, CityBbox> = {
   tigard_or: { name: 'Tigard, OR', south: 45.38, west: -122.82, north: 45.46, east: -122.72 },
+  portland_or: { name: 'Portland, OR', south: 45.43, west: -122.84, north: 45.65, east: -122.47 },
 };
 
 const isMain = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
 if (isMain) {
   const url = process.env.DATABASE_URL;
   const cityKey = process.argv[2] ?? 'tigard_or';
+  // Default (80) matches MILESTONES.md's "50-100 founder POIs" for a small town; a real
+  // city needs a much higher cap to validate the pipeline at real scale — pass a third
+  // CLI arg to override, e.g. `npm run db:seed -- portland_or 2000`.
+  const maxPois = process.argv[3] ? Number(process.argv[3]) : 80;
   const bbox = CITY_BBOXES[cityKey];
   if (!url) {
     process.stderr.write('DATABASE_URL is required\n');
@@ -249,7 +313,15 @@ if (isMain) {
     );
     process.exit(1);
   }
-  seedCityFromOsm(url, bbox, 80, (msg) => process.stdout.write(`${msg}\n`)).catch((err) => {
+  const founderCount = process.argv[4] ? Number(process.argv[4]) : 5;
+  seedCityFromOsm(
+    url,
+    bbox,
+    maxPois,
+    (msg) => process.stdout.write(`${msg}\n`),
+    cityKey,
+    founderCount,
+  ).catch((err) => {
     process.stderr.write(`${(err as Error).stack ?? err}\n`);
     process.exit(1);
   });

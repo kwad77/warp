@@ -47,11 +47,15 @@ from OpenStreetMap (no API key needed) and creates them through the real `create
 service function (same validation/dedupe every user's `POST /pois` gets):
 
 ```sh
-DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm run db:seed -- <city_key>
+DATABASE_URL=postgres://wanderpost:wanderpost@localhost:5432/wanderpost npm run db:seed -- <city_key> [maxPois] [founderCount]
 ```
 
 `<city_key>` must be a key in `src/scripts/seed_osm_pois.ts`'s `CITY_BBOXES` map
-(currently just `tigard_or`) — add a new bbox there for each additional city.
+(currently `tigard_or`, `portland_or`) — add a new bbox there for each additional city.
+`maxPois` (default 80) caps how many candidates get created; `founderCount` (default 5)
+sets how many per-city `<city_key>_founder_N` accounts split the load — each is capped at
+`POI_CREATE_PER_DAY` (20/day), so a big city's full candidate set may need either more
+founders or repeated runs on later days to fully seed in one go.
 
 ## Layout
 

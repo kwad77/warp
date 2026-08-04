@@ -164,6 +164,27 @@ mock-location apps and emulators are caught.
   Tigard's bbox afterward and got real named places back (a lone real "Mount Sylvania"
   viewpoint, several real churches, etc.) — not just rows in the table. To seed another
   city, add its bbox to `CITY_BBOXES` in the script and re-run with that key.
+  **Stress-tested at real city scale (Portland, OR) and fixed two bugs it surfaced.**
+  Tigard-scale exact-name dedup silently drops genuinely distinct real places once you're
+  seeding a whole region — confirmed Oregon-wide (805 name collisions with occurrences
+  >5km apart, e.g. "Elk Mountain" names 13 different peaks up to 682km apart) and
+  Portland-wide (25 collisions >1km apart, e.g. "The Church of Jesus Christ of Latter-day
+  Saints" 15 times, 33km apart) before the fix; dedup is now proximity-aware (same name
+  AND within 2km merges, otherwise both are kept). Second: `capForDiversity`'s per-category
+  cap correctly bounds the *candidate pool* but, run against Portland's raw OSM order, fed
+  its category blocks into the creation loop uninterleaved — the per-creator rate limit
+  (`POI_CREATE_PER_DAY`, 5 founders × 20/day = 100/day) then exhausted itself entirely on
+  whichever category happened to come first (Portland's ~1,000+ tagged "intersection
+  painting" street-art nodes), so a rate-limited run's first 100 creates came back 100%
+  street_art. Fixed by round-robin interleaving categories before capping so a
+  capacity-limited run gets a representative mix; re-verified against real Portland data:
+  nature 24, architecture 23, landmark 22, other 20, viewpoint 11. Founder accounts are now
+  namespaced per city (`${cityKey}_founder_N`) rather than shared globally, since
+  `POI_CREATE_PER_DAY` is a rolling 24h window, not a calendar-day reset — a shared pool
+  would let one city's seeding throttle an unrelated city's run hours later. Net finding:
+  for a city Portland's size (1,682 unique named candidates after dedupe), the per-creator
+  rate limit — not Overpass, the DB, or the seeding logic — is the real ceiling on how much
+  a single invocation seeds; add more founders or re-run on a later day for more coverage.
 - Push notifications (opt-in) + weekly "featured near you".
 - **Badges v1 and creator score accrual (SPEC §16; done, server + mobile).** Closed 4-key
   badge taxonomy proposed and implemented in the same PR (`ARCHITECTURE.md`'s schema
